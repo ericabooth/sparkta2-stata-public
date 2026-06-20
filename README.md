@@ -12,6 +12,9 @@ Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Si
 
 v0.5.0. Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,018 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
 
+<img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
+
+
 ### What's new in v0.5.0
 
 - **Hexbin renderer fix.** v0.4.0's hexbin produced zero bins — d3-hexbin defaults to array-indexing the input but the engine pushes object points. Engine now sets explicit x/y accessors. All hexbin examples now render.
@@ -332,6 +335,9 @@ sparkta2/
 ## License
 
 MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo for the canonical license). `d3-hexbin` is MIT-licensed by Mike Bostock.
+
+
+<img width="1077" height="744" alt="Screenshot 2026-06-20 at 11 29 46 AM" src="https://github.com/user-attachments/assets/c73828e6-4053-424b-acf6-dd94cdec75e4" />
 
 ## See also
 
