@@ -338,7 +338,7 @@ MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo
 - [`sparkta`](https://github.com/fahad-mirza/sparkta_stata) — the chart engine this command wraps (Fahad Mirza)
 - [`spmap`](https://www.stata-journal.com/article.html?article=gr0008) — Maurizio Pisati's static Stata mapping package
 - [`geo2xy`](https://www.stata-journal.com/article.html?article=gr0067), [`shp2dta`](https://www.stata-journal.com/article.html?article=dm0094) — companion utilities for prepping geographic data in Stata
-- Eric's other Stata packages: [github.com/ericbooth](https://github.com/ericbooth)
+- Eric's other Stata packages: [github.com/ericabooth](https://github.com/ericabooth)
 
 ## Author
 
