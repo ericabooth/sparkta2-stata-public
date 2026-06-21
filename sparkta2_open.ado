@@ -7,7 +7,7 @@ program define sparkta2_open
     if strpos("`os'", "win") {
         shell start "" `"`file'"'
     }
-    else if strpos("`os'", "mac") {
+    else if strpos("`os'", "mac") | regexm("`c(machine_type)'", "Mac") {     // Apple-Silicon Stata reports c(os)=="Unix"
         shell open `"`file'"'
     }
     else {
