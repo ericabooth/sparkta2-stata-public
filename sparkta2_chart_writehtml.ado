@@ -149,6 +149,21 @@ program define sparkta2_chart_writehtml
     }
     file write `fh' `"</div><div id="tooltip"></div>"' _n
 
+    * --- Auto-resize messaging ------------------------------------------
+    * When this page is embedded in an iframe (e.g. inside sparkta2_dashboard
+    * or a webdoc2 page), it posts its total content height to the parent so
+    * the parent can grow the iframe accordingly and the chart never gets
+    * clipped behind a scrollbar.  Standalone (not embedded), the function
+    * short-circuits via the `window.parent === window` check.
+    file write `fh' `"<script>"' _n
+    file write `fh' `"(function(){if(window.parent===window)return;"' _n
+    file write `fh' `"function r(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight,document.body.offsetHeight,document.documentElement.offsetHeight);try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}"' _n
+    file write `fh' `"window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});"' _n
+    file write `fh' `"window.addEventListener('resize',r);"' _n
+    file write `fh' `"if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}"' _n
+    file write `fh' `"})();"' _n
+    file write `fh' `"</script>"' _n
+
     * --- The JSON payload ------------------------------------------------
     file write `fh' `"<script>"' _n
     file write `fh' `"window.__SPARKTA2_CHART__ = {"' _n

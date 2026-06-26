@@ -549,7 +549,7 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.4]  `type' map written:"
+    display as text _n "[sparkta2 v0.7.5]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
 

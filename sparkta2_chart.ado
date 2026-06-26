@@ -382,7 +382,7 @@ program define sparkta2_chart, rclass
         wraplabel("`wraplabel'") gutterwidth(`gutterwidth')          ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.4]  `type' chart written:"
+    display as text _n "[sparkta2 v0.7.5]  `type' chart written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Scheme: `scheme'"
 

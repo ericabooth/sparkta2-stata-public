@@ -1,4 +1,4 @@
-*! sparkta2_dashboard v0.4.0  2026-06-26
+*! sparkta2_dashboard v0.5.0  2026-06-26
 *! Compose a scrollable single-page dashboard that embeds a list of
 *! sparkta2 map / chart HTML files via <iframe>. Each section is
 *! self-contained; filters/zoom/etc. work independently per iframe.
@@ -142,11 +142,23 @@ program define sparkta2_dashboard, rclass
         else local _height = word("`_hlist'", `_nhts')
         file write `fh' `"<section class="section" id="sec`_i'">"' _n
         file write `fh' `"  <h2><span class="num">`_i'.</span>`_tname'<span class="src">`_basename'</span></h2>"' _n
-        file write `fh' `"  <iframe src="`_basename'" height="`_height'" loading="lazy"></iframe>"' _n
+        * scrolling="no" + auto-resize listener below means the iframe grows
+        * to fit its content; the height attr is just an initial guess.
+        file write `fh' `"  <iframe src="`_basename'" height="`_height'" scrolling="no" loading="lazy"></iframe>"' _n
         file write `fh' `"</section>"' _n
     }
 
-    file write `fh' `"<footer>Built with sparkta2 v0.7.4 — each section is an independent interactive map / chart.</footer>"' _n
+    file write `fh' `"<footer>Built with sparkta2 v0.7.5 — each section is an independent interactive map / chart.</footer>"' _n
+    * Auto-resize listener: every embedded sparkta2 page posts its content
+    * height back to the parent; we grow the matching iframe to fit.
+    file write `fh' `"<script>"' _n
+    file write `fh' `"window.addEventListener('message',function(e){"' _n
+    file write `fh' `"if(!e.data||e.data.type!=='sparkta2-resize')return;"' _n
+    file write `fh' `"var ifrs=document.querySelectorAll('iframe');"' _n
+    file write `fh' `"for(var i=0;i<ifrs.length;i++){"' _n
+    file write `fh' `"if(ifrs[i].contentWindow===e.source){ifrs[i].style.height=(e.data.height+12)+'px';ifrs[i].setAttribute('scrolling','no');break;}"' _n
+    file write `fh' `"}});"' _n
+    file write `fh' `"</script>"' _n
     file write `fh' `"</div></body></html>"' _n
     file close `fh'
 

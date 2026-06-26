@@ -171,6 +171,16 @@ program define sparkta2_writehtml
     }
     file write `fh' `"</div><div id="tooltip"></div>"' _n
 
+    * --- Auto-resize messaging (same as chart writehtml) -----------------
+    file write `fh' `"<script>"' _n
+    file write `fh' `"(function(){if(window.parent===window)return;"' _n
+    file write `fh' `"function r(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight,document.body.offsetHeight,document.documentElement.offsetHeight);try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}"' _n
+    file write `fh' `"window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});"' _n
+    file write `fh' `"window.addEventListener('resize',r);"' _n
+    file write `fh' `"if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}"' _n
+    file write `fh' `"})();"' _n
+    file write `fh' `"</script>"' _n
+
     file write `fh' `"<script>"' _n
     file write `fh' `"window.__SPARKTA2__ = {"' _n
     file write `fh' `""meta":{"' _n
