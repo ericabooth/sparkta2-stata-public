@@ -13,17 +13,34 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around two engines:
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.1):
 
-{phang2}o  A bundled D3 v7 map engine that handles {cmd:type(bivariate)},
+{phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
+
+{phang2}o  A bundled D3 v7 {bf:chart engine} that handles native non-map
+chart types: {cmd:type(donut)}, {cmd:type(bar2)}, {cmd:type(line2)},
+{cmd:type(divbar)} (Pew-style diverging stacked bar for Likert / survey
+items), and {cmd:type(barrace)} (animated bar chart race).  These all
+inherit the v0.6.0 Export menu, the {cmd:datatable} option, and the
+{cmd:animate} option.{p_end}
 
 {phang2}o  Fahad Mirza's
 {browse "https://github.com/fahad-mirza/sparkta_stata":{bf:sparkta}}
-chart package, which is called verbatim for every other {cmd:type()} value
-(bar, line, scatter, pie, violin, histogram, CI bar, CI line, area, bubble,
-and the stacked variants). Install {cmd:sparkta} separately if you intend
-to use those chart types.
+chart package, called verbatim for every other {cmd:type()} value
+({cmd:bar}, {cmd:line}, {cmd:scatter}, {cmd:pie}, {cmd:violin},
+{cmd:histogram}, CI bar, CI line, area, bubble, and the stacked variants).
+Install {cmd:sparkta} separately if you intend to use those chart types.{p_end}
+
+{pstd}
+{bf:Note on}{cmd: bar }{bf:vs}{cmd: bar2}{bf:.}  v0.7.1 keeps {cmd:type(bar)}
+and {cmd:type(line)} forwarding to sparkta unchanged -- every pre-0.7.0
+do-file using sparkta's bar/line syntax (multi-var, {cmd:stat()},
+{cmd:fit()}, {cmd:over()} with stat=mean, ...) still works without edits.
+The new D3-native versions are exposed as {cmd:type(bar2)} and
+{cmd:type(line2)}, which inherit the Export menu, {cmd:datatable}, and
+{cmd:animate} but take simpler input (one numeric var with {cmd:name()},
+optional {cmd:over()} for grouping/stacking).
 
 {pstd}
 Map design borrows from Mike Bostock's Observable notebooks
@@ -48,7 +65,17 @@ Maps (handled by sparkta2 directly):
 {p_end}
 
 {p 8 16 2}
-Charts (forwarded verbatim to sparkta):
+Native charts (handled by sparkta2 directly, v0.7.0+):
+{p_end}
+{p 8 16 2}
+{cmd:sparkta2} {it:xvar} [{it:yvar}] {ifin} {cmd:,}
+{cmd:type(}donut{c |}bar2{c |}line2{c |}divbar{c |}barrace{cmd:)}
+[ {cmd:name(}{it:catvar}{cmd:)} {cmd:over(}{it:groupvar}{cmd:)}
+{cmd:level(}{it:lvlvar}{cmd:)} {cmd:time(}{it:tvar}{cmd:)} {it:chart_options} ]
+{p_end}
+
+{p 8 16 2}
+Other charts (forwarded verbatim to sparkta):
 {p_end}
 {p 8 16 2}
 {cmd:sparkta2} {it:varlist} {cmd:,} {cmd:type(}{it:charttype}{cmd:)} [{it:sparkta_options}]
@@ -110,7 +137,13 @@ Map {cmd:type()} values:
 {synopt :{cmd:zoomto(}{it:idlist}{cmd:)}}auto-zoom to the bounding box of these ids on load{p_end}
 {synopt :{cmd:nozoom}}disable pan, zoom, and click-to-zoom{p_end}
 {synopt :{cmd:swapbutton}}include a "Swap axes" button (bivariate / diff / ratio){p_end}
-{synopt :{cmd:download}}include a "Download PNG" button (full SVG, all panels){p_end}
+{synopt :{cmd:download}}include an "Export {c -(}" menu (PNG, SVG, Print to PDF){p_end}
+{synopt :{cmd:datatable}}add "Download CSV" + "View data table" to the Export menu{p_end}
+{synopt :{cmd:animate}}fade map features in when the chart scrolls into view{p_end}
+{synopt :{cmd:projection(}{it:string}{cmd:)}}{cmd:albers_usa}|{cmd:albers_tx}|{cmd:albers}|{cmd:mercator}; default is auto by {cmd:geo()}{p_end}
+{synopt :{cmd:rotate(}{it:lambda} [{it:phi}]{cmd:)}}override projection rotation in degrees{p_end}
+{synopt :{cmd:parallels(}{it:p1 p2}{cmd:)}}override Albers standard parallels in degrees{p_end}
+{synopt :{cmd:center(}{it:lon lat}{cmd:)}}override projection center in degrees{p_end}
 
 {syntab :Output}
 {synopt :{cmd:title(}{it:string}{cmd:)}}{p_end}
@@ -151,7 +184,11 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{i:default (no} {cmd:nozoom}{i:)}}Mouse wheel zooms in/out. Drag pans. {bf:Clicking a feature} zooms the map to that feature's bounding box. {bf:Double-clicking} the map resets to the initial view. A {bf:Reset zoom} button appears in the controls panel.{p_end}
 {synopt :{cmd:nozoom}}All of the above are disabled — the map renders statically. Use for slide exports.{p_end}
 {synopt :{cmd:swapbutton}}A "Swap axes (X ⇄ Y)" button appears. Clicking flips the variable assignment for bivariate/diff/ratio.{p_end}
-{synopt :{cmd:download}}A "Download PNG" button appears. Clicking rasterises the full SVG (all panels in multiples mode) at 2x.{p_end}
+{synopt :{cmd:download}}An "Export {c -(}" dropdown appears with {bf:Download PNG} (full SVG rasterised, all panels at 2x), {bf:Download SVG} (live SVG with inlined CSS), and {bf:Print to PDF{c 133}} (opens the browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).{p_end}
+{synopt :{cmd:datatable}}Extends the Export menu with {bf:Download CSV} (every row currently embedded, including {cmd:tooltipvars()}, with the original Stata variable names) and {bf:View data table} (a collapsible scrollable HTML table beneath the chart showing the rows that pass the active filters/sliders/search; capped at 500 visible rows for performance — use CSV for the full set).{p_end}
+{synopt :{cmd:animate}}On first paint, the map is invisible; an IntersectionObserver fires when the chart scrolls into view and the features fade in over ~450ms with a small per-feature stagger. One-shot — does not re-trigger on subsequent scrolls.{p_end}
+{synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} the v0.6.1 default change fixes a ~3{c 176} downward lean of the Texas panhandle's top edge that {bf:albers_usa} produced on Texas-only viewports; pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 look exactly.{p_end}
+{synopt :{cmd:rotate() parallels() center()}}Numeric overrides applied on top of the chosen preset.  {cmd:rotate(}{it:lambda}{cmd:)} or {cmd:rotate(}{it:lambda phi}{cmd:)} sets the projection rotation in degrees.  {cmd:parallels(}{it:p1 p2}{cmd:)} sets the two Albers standard parallels in degrees.  {cmd:center(}{it:lon lat}{cmd:)} sets the projection center in degrees.  These have no effect under {cmd:projection(albers_usa)} because the composite projection does not expose them.{p_end}
 {synopt :{cmd:tooltipvars(varlist)}}Each listed variable becomes a labelled row in the tooltip table when hovering over a county/ZIP/state. Labels use {cmd:variable label} when present.{p_end}
 {synopt :{cmd:basemap}}A faded {bf:states} (or {bf:nation}) outline is drawn behind the focused features and remains visible at every zoom level.{p_end}
 {synopt :{cmd:hexradius() hexstat()}}Active only for {cmd:type(hexbin)}. Hovering a hex shows its aggregate value and a sample of the points it contains.{p_end}
@@ -383,6 +420,174 @@ centroids the bins are sparse and align oddly. Use {cmd:type(bivariate)} or
 {phang}{cmd}    type(hexbin) lat(intptlat) lon(intptlon)                  ///{p_end}
 {phang}{cmd}    hexradius(20) hexstat(mean) scheme(viridis) offline       ///{p_end}
 {phang}{cmd}    export("09_districts_hexbin.html"){p_end}
+
+
+{dlgtab:9a. Export menu with data download (v0.6.0)}
+
+{phang}{it:Use the new}{cmd: datatable} {it:option together with}{cmd: download} {it:so the Export menu offers PNG, SVG, Print to PDF, Download CSV, and View data table.}{p_end}
+
+{phang}{cmd}sparkta2 poverty_rate,                                         ///{p_end}
+{phang}{cmd}    id(fips) name(county) type(choropleth) scheme(blues)       ///{p_end}
+{phang}{cmd}    tooltipvars(median_income pop_thou)                        ///{p_end}
+{phang}{cmd}    download datatable offline                                 ///{p_end}
+{phang}{cmd}    title("Texas poverty by county")                           ///{p_end}
+{phang}{cmd}    export("09a_export_menu.html"){p_end}
+
+
+{dlgtab:9b. Animate features on scroll into view (v0.6.0)}
+
+{phang}{it:When the chart enters the viewport, the regions fade in over ~450ms.}
+{it:Useful for one-pagers embedded mid-document so the reader sees motion exactly when they reach the figure.}{p_end}
+
+{phang}{cmd}sparkta2 poverty_rate uninsured_rate,                          ///{p_end}
+{phang}{cmd}    id(fips) name(county) type(bivariate) scheme(rdbu)         ///{p_end}
+{phang}{cmd}    modes(bivariate|x|y|diff|ratio) comparable                 ///{p_end}
+{phang}{cmd}    download datatable animate offline                         ///{p_end}
+{phang}{cmd}    export("09b_animate.html"){p_end}
+
+
+{dlgtab:9d. Projection control (v0.6.1)}
+
+{phang}{it:Default behavior is automatic.}{cmd: geo(texas)} {it:now uses a Texas-tuned Albers projection that drops the panhandle's tilt from ~3.3 degrees down to ~1.3 degrees.}{p_end}
+
+{phang}{it:Restore the pre-0.6.1 tilted look exactly:}{p_end}
+{phang}{cmd}sparkta2 poverty_rate,                                         ///{p_end}
+{phang}{cmd}    id(fips) name(county) type(choropleth)                     ///{p_end}
+{phang}{cmd}    projection(albers_usa)                                     ///{p_end}
+{phang}{cmd}    export("legacy_look.html"){p_end}
+
+{phang}{it:Roll your own Texas projection (the four lines below are identical to the new default):}{p_end}
+{phang}{cmd}sparkta2 poverty_rate,                                         ///{p_end}
+{phang}{cmd}    id(fips) name(county) type(choropleth)                     ///{p_end}
+{phang}{cmd}    projection(albers) rotate(99) parallels(27.5 35.5)         ///{p_end}
+{phang}{cmd}    center(0 31.5)                                             ///{p_end}
+{phang}{cmd}    export("custom_albers.html"){p_end}
+
+{phang}{it:Web Mercator for international or partial-state work:}{p_end}
+{phang}{cmd}sparkta2 some_metric,                                          ///{p_end}
+{phang}{cmd}    id(border_county) name(county) type(choropleth)            ///{p_end}
+{phang}{cmd}    projection(mercator)                                       ///{p_end}
+{phang}{cmd}    export("mercator.html"){p_end}
+
+
+{dlgtab:9c. Points map with all v0.6.0 features}
+
+{phang}{cmd}sparkta2 enrollment,                                           ///{p_end}
+{phang}{cmd}    id(campus_id) name(campus_name) type(points)               ///{p_end}
+{phang}{cmd}    lat(latitude) lon(longitude)                               ///{p_end}
+{phang}{cmd}    geo(texas) idwidth(9)                                      ///{p_end}
+{phang}{cmd}    scheme(viridis) pointsize(5)                               ///{p_end}
+{phang}{cmd}    download datatable animate                                 ///{p_end}
+{phang}{cmd}    tooltipvars(district_name esc_region rating)               ///{p_end}
+{phang}{cmd}    title("Texas campuses by enrollment")                      ///{p_end}
+{phang}{cmd}    export("09c_points_all.html"){p_end}
+
+
+{dlgtab:9e. Donut chart -- enrollment by sector (v0.7.0)}
+
+{phang}{it:One slice per row.}{cmd: name(category)} {it:supplies the slice label and}{cmd: <xvar>} {it:supplies the slice value.  Center label shows the total automatically.}{p_end}
+
+{phang}{cmd}sparkta2 enrollment,                                            ///{p_end}
+{phang}{cmd}    name(sector) type(donut) scheme(tx2036)                     ///{p_end}
+{phang}{cmd}    download datatable animate                                  ///{p_end}
+{phang}{cmd}    title("Texas postsecondary enrollment by sector")           ///{p_end}
+{phang}{cmd}    export("09e_donut.html"){p_end}
+
+
+{dlgtab:9f. Native bar2 / line2 (v0.7.1; with v0.6.0 export menu + animate)}
+
+{phang}{bf:Why bar2 / line2 (not bar / line).}  sparkta (Fahad Mirza) already
+implements {cmd:type(bar)} and {cmd:type(line)} via Chart.js with its own
+multi-variable / {cmd:stat()} / {cmd:fit()} syntax.  v0.7.1 keeps {cmd:bar}
+and {cmd:line} forwarding to sparkta so pre-existing do-files don't break.
+The new D3-native versions are exposed as {cmd:bar2} and {cmd:line2}.{p_end}
+
+{phang}{it:Simple horizontal bar (no}{cmd: over()}{it:, value var =}{cmd: poverty_pct}{it:):}{p_end}
+{phang}{cmd}sparkta2 poverty_pct, name(region) type(bar2) horizontal        ///{p_end}
+{phang}{cmd}    scheme(blues) download datatable animate                    ///{p_end}
+{phang}{cmd}    title("Estimated poverty rate by Comptroller region")       ///{p_end}
+{phang}{cmd}    export("09f_bar_simple.html"){p_end}
+
+{phang}{it:Stacked + normalised to 100% (long input:}{cmd: yr } x{cmd: sector } x{cmd: share}{it:):}{p_end}
+{phang}{cmd}sparkta2 share, name(yr) over(sector) type(bar2) stacked normalize ///{p_end}
+{phang}{cmd}    scheme(tx2036) download datatable                           ///{p_end}
+{phang}{cmd}    title("Enrollment share by sector, 2020-2024")              ///{p_end}
+{phang}{cmd}    export("09f_bar_stacked.html"){p_end}
+
+{phang}{it:Multi-series line.  Two-var input}{cmd: y x }{it: with}{cmd: over(series)}{it:.}{p_end}
+{phang}{cmd}sparkta2 metric yr, over(region) type(line2) scheme(tx2036)     ///{p_end}
+{phang}{cmd}    download datatable animate                                  ///{p_end}
+{phang}{cmd}    title("Trend, 2018-2024") xlabel("Year") ylabel("Value")    ///{p_end}
+{phang}{cmd}    export("09f_line.html"){p_end}
+
+
+{dlgtab:9g. Diverging stacked bar (Pew-style) for Likert items (v0.7.0)}
+
+{phang}{bf:Why this chart.}  Pew Research Center has popularised the
+"diverging stacked bar" for showing Likert-scale survey items: agree /
+disagree responses spread to the right and left of a central zero line, with
+percentages labelled inside each segment and no distracting bottom axis.
+The result is a single panel that lets a reader scan many items by net
+favourability while still reading each item's full breakdown.{p_end}
+
+{phang}{bf:What's bundled by default.}  Setting {cmd:type(divbar)} turns on
+four Pew-style behaviours automatically:{p_end}
+{phang2}o  {bf:Horizontal bars} with {bf:wrapping} on long item text in the
+left margin.  Survey questions can be a sentence long -- sparkta2 wraps to
+multiple lines and vertically-centres the block on its bar.{p_end}
+{phang2}o  {bf:Central zero baseline} ({bf:.zero}): a vertical line drawn at
+the centring response level.  Negative segments (e.g. {it:Disagree},
+{it:Strongly disagree}) extend to the left; positive to the right.{p_end}
+{phang2}o  {bf:Direct labels} inside each segment showing the percentage
+({cmd:directlabels} is on by default for divbar).  Suppressed automatically
+for segments too narrow to host the label.{p_end}
+{phang2}o  {bf:No bottom axis} ({cmd:suppressaxis} on by default).  The
+direct labels do the job a bottom axis would otherwise do; the axis would
+just add clutter.{p_end}
+
+{phang}{bf:Data shape.}  Long form: one row per (item, response level, share).
+{cmd:name()} is the item identifier (a string of any length -- it wraps),
+{cmd:level()} is the response category, and {it:xvar} is the share (numeric
+percent).  {cmd:levelorder()} lets you fix the response order via a
+pipe-separated string; {cmd:centerlevel()} declares which level the bars
+center on (if odd-numbered, defaults to the middle level; if you have a
+"Don't know" level the convention is to drop it before plotting).{p_end}
+
+{phang}{bf:Bonus annotation.}  A {bf:Net (+/-)} column appears at the right
+edge showing each item's net favourability (positive total minus negative
+total).  Blue means net-positive, red means net-negative.{p_end}
+
+{phang}{cmd}* Long-form Likert data: (item q, response, % share){p_end}
+{phang}{cmd}sparkta2 share, name(q) level(response) type(divbar)            ///{p_end}
+{phang}{cmd}    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree") ///{p_end}
+{phang}{cmd}    centerlevel(Neutral)                                        ///{p_end}
+{phang}{cmd}    download datatable                                          ///{p_end}
+{phang}{cmd}    title("Texans on K-12 and higher-ed policy")                ///{p_end}
+{phang}{cmd}    subtitle("Pew-style diverging stacked bar")                 ///{p_end}
+{phang}{cmd}    width(1100) height(560)                                     ///{p_end}
+{phang}{cmd}    export("09g_divbar.html"){p_end}
+
+{phang}{it:Style notes for reproducible Pew-style output:}{p_end}
+{phang2}o  Always pass {cmd:levelorder()} explicitly so the legend and the
+within-bar stacking match.  Don't rely on input row order.{p_end}
+{phang2}o  Hand off the cleaned long file to a separate reproducible step
+that computes {cmd:share} per item -- so the chart itself stays a thin
+visualisation layer.{p_end}
+{phang2}o  Use {cmd:tooltipvars(n)} to show the per-item sample size on
+hover when you have it; the chart itself does not bake n into the labels
+because Pew's house style omits it from in-bar labels.{p_end}
+
+
+{dlgtab:9h. Bar chart race -- categories over time (v0.7.0)}
+
+{phang}{it:Long form input:}{cmd: name(category) time(yvar)}{it: with}
+{cmd: <xvar>}{it: as the bar value.  Top-N is fixed per frame via}
+{cmd: top()}{it:.  A play/pause/replay button appears in the View panel.}{p_end}
+
+{phang}{cmd}sparkta2 pop, name(county) time(yr) type(barrace) top(10)       ///{p_end}
+{phang}{cmd}    duration(15) scheme(tx2036) download datatable              ///{p_end}
+{phang}{cmd}    title("Top-10 Texas counties by population, 2019-2024")     ///{p_end}
+{phang}{cmd}    export("09h_barrace.html"){p_end}
 
 
 {dlgtab:10. Chart pass-through to sparkta}

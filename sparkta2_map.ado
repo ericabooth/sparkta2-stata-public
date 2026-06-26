@@ -1,5 +1,32 @@
-*! sparkta2_map v0.5.3  2026-06-20
+*! sparkta2_map v0.6.1  2026-06-26
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
+*!
+*! v0.6.1 fixes:
+*!   - Texas projection tilt: d3.geoAlbersUsa() was used for every layer
+*!     including geo(texas), but its CONUS-wide standard parallels
+*!     (29.5N / 45.5N) and -96 rotation center the projection near
+*!     Kansas.  Texas, south and west of that center, rendered with a
+*!     ~3.3 degree downward lean of the panhandle's top edge.  Now:
+*!       - geo(texas)   defaults to a Texas-tuned d3.geoAlbers()
+*!                      (rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5])
+*!         which drops the panhandle lean to ~1.3 degrees.
+*!       - geo(us) / layer(states|nation) keeps d3.geoAlbersUsa() (unchanged).
+*!       - New projection() option overrides the default:
+*!           albers_usa | albers_tx | albers | mercator
+*!       - New rotate(), parallels(), center() options let power users
+*!         tune any projection numerically.
+*!     Backward-compat: pass projection(albers_usa) to restore the old
+*!     geo(texas) look exactly.
+*!
+*! v0.6.0 additions:
+*!   - datatable     : add a collapsible "View data" table + CSV download
+*!     to the Export menu beneath the chart.
+*!   - animate       : fade map features in via an IntersectionObserver
+*!     when the chart scrolls into view.
+*!   - Export menu now offers PNG, SVG, "Print to PDF...", and (with the
+*!     datatable option) CSV download + data-table toggle.  Replaces the
+*!     prior single "Download PNG" button.  Backward-compat: passing
+*!     `download' alone still emits a working menu (PNG/SVG/Print only).
 *!
 *! v0.5.3 fixes:
 *!   - String id round-trip overflow: pad with explicit leading zeros instead
@@ -38,7 +65,13 @@ program define sparkta2_map, rclass
         MODES(string)                                      ///  allowed modes in toggle (pipe-sep)
         COMParable                                         ///  declare x/y on comparable units
         SWAPbutton                                         ///  show swap-axes button
-        DOWNload                                           ///  show PNG download button
+        DOWNload                                           ///  show export menu (PNG/SVG/Print)
+        DATATable                                          ///  add CSV download + collapsible data-table view
+        ANIMate                                            ///  fade features in when chart scrolls into view
+        PROJection(string)                                 ///  albers_usa | albers_tx | albers | mercator
+        ROtate(numlist max=2 min=1)                        ///  projection rotation, degrees: lambda [phi]
+        PARallels(numlist max=2 min=2)                     ///  two Albers standard parallels, degrees
+        CENter(numlist max=2 min=2)                        ///  projection center, degrees: lon lat
         MULTiples                                          ///  small-multiples: one panel per mode
         BINS(integer 3)                                    ///  quantile bins per axis for bivariate
         EXPORT(string) OFFLINE NOOPEN                      ///
@@ -114,10 +147,49 @@ program define sparkta2_map, rclass
     local is_offline    = cond("`offline'"    != "", 1, 0)
     local is_swap       = cond("`swapbutton'" != "", 1, 0)
     local is_download   = cond("`download'"   != "", 1, 0)
+    local is_datatable  = cond("`datatable'"  != "", 1, 0)
+    local is_animate    = cond("`animate'"    != "", 1, 0)
     local is_comparable = cond("`comparable'" != "", 1, 0)
     local is_multiples  = cond("`multiples'"  != "", 1, 0)
     local is_zoom       = cond("`nozoom'"     != "", 0, 1)
     local is_search     = cond("`search'"     != "", 1, 0)
+
+    * Projection preset validation.  Empty string means "use the default,
+    * which depends on geo()/layer()".  The engine knows the defaults.
+    if "`projection'" != "" {
+        local _proj = lower("`projection'")
+        local _valid_proj "albers_usa albers_tx albers mercator"
+        if !`:list _proj in _valid_proj' {
+            display as error "sparkta2: projection(`projection') not recognised."
+            display as error "  Valid: albers_usa | albers_tx | albers | mercator"
+            exit 198
+        }
+        local projection "`_proj'"
+    }
+    * Numeric override packing: each numlist becomes a pipe-joined string so
+    * the JSON writer can emit it verbatim.  Empty means "use the preset's
+    * default values".
+    local _rot_str ""
+    if "`rotate'" != "" {
+        foreach _v of numlist `rotate' {
+            if "`_rot_str'" == "" local _rot_str "`_v'"
+            else                  local _rot_str "`_rot_str'|`_v'"
+        }
+    }
+    local _par_str ""
+    if "`parallels'" != "" {
+        foreach _v of numlist `parallels' {
+            if "`_par_str'" == "" local _par_str "`_v'"
+            else                  local _par_str "`_par_str'|`_v'"
+        }
+    }
+    local _ctr_str ""
+    if "`center'" != "" {
+        foreach _v of numlist `center' {
+            if "`_ctr_str'" == "" local _ctr_str "`_v'"
+            else                  local _ctr_str "`_ctr_str'|`_v'"
+        }
+    }
     local is_basemap    = cond("`basemap'"    != "", 1, 0)
 
     if "`title'" == "" {
@@ -453,13 +525,16 @@ program define sparkta2_map, rclass
         mode("`mode'") modes("`modes'")                     ///
         zoomto("`_zoomto_list'")                            ///
         isswap(`is_swap') isdownload(`is_download')         ///
+        isdatatable(`is_datatable') isanimate(`is_animate') ///
         iscomparable(`is_comparable') ismultiples(`is_multiples') ///
         iszoom(`is_zoom') issearch(`is_search')             ///
         isbasemap(`is_basemap')                             ///
+        projection("`projection'") rotatestr("`_rot_str'")  ///
+        parallelsstr("`_par_str'") centerstr("`_ctr_str'")  ///
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.5.3]  `type' map written:"
+    display as text _n "[sparkta2 v0.6.1]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
 

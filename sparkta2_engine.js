@@ -16,7 +16,9 @@
      - In-browser county/ZIP-name search
      - Auto-zoom to a FIPS subset on load
      - Tooltip data table from arbitrary Stata vars
-     - Swap-axes button, full-SVG PNG download
+     - Swap-axes button
+     - Export menu: PNG, SVG, CSV download + view-data table + print-to-PDF
+     - Animate-on-view (IntersectionObserver-gated fade-in)
      - Small-multiples mode
 */
 (function () {
@@ -387,6 +389,68 @@
       }
     }
 
+    // ---- Projection builder (v0.6.1) ------------------------------------
+    // Resolve meta.projection + auto-defaults + numeric overrides into a
+    // configured d3 projection instance.  fitExtent() is applied by the
+    // caller after this returns.
+    function parseNumList(s) {
+      if (!s) return null;
+      var out = String(s).split("|").map(function (v) { return +v; })
+        .filter(Number.isFinite);
+      return out.length ? out : null;
+    }
+    function buildProjection() {
+      var preset = (meta.projection || "").toLowerCase();
+      if (!preset) {
+        if (layerName === "states" || layerName === "nation" || meta.geo === "us") {
+          preset = "albers_usa";
+        } else if (meta.geo === "texas") {
+          preset = "albers_tx";
+        } else {
+          preset = "albers_usa";
+        }
+      }
+
+      var proj;
+      switch (preset) {
+        case "albers_tx":
+          proj = d3.geoAlbers()
+            .rotate([99, 0])
+            .center([0, 31.5])
+            .parallels([27.5, 35.5]);
+          break;
+        case "albers":
+          proj = d3.geoAlbers();
+          break;
+        case "mercator":
+          proj = d3.geoMercator();
+          break;
+        case "albers_usa":
+        default:
+          proj = d3.geoAlbersUsa();
+          break;
+      }
+
+      // Numeric overrides.  geoAlbersUsa is a composite that doesn't expose
+      // rotate/parallels/center, so these flags are silently no-ops there
+      // (d3 will throw if we try -- guard accordingly).
+      var rot = parseNumList(meta.rotate);
+      var par = parseNumList(meta.parallels);
+      var ctr = parseNumList(meta.center);
+
+      if (rot && typeof proj.rotate === "function") {
+        if (rot.length === 1) proj.rotate([rot[0], 0]);
+        else                  proj.rotate([rot[0], rot[1]]);
+      }
+      if (par && par.length === 2 && typeof proj.parallels === "function") {
+        proj.parallels([par[0], par[1]]);
+      }
+      if (ctr && ctr.length === 2 && typeof proj.center === "function") {
+        proj.center([ctr[0], ctr[1]]);
+      }
+      return proj;
+    }
+
     function makePanel(svg, mode, w, h, legendMargin) {
       var margin = { top: 18, right: legendMargin, bottom: 14, left: 10 };
 
@@ -397,15 +461,20 @@
       var fitFeatures = features.length ? features : basemapFeatures;
       var fc = { type: "FeatureCollection", features: fitFeatures };
 
-      // geoAlbersUsa for US (Alaska + Hawaii inset); geoMercator for everything
-      // else.  Detect by inspecting feature longitudes — Albers USA only handles
-      // values in the US bounding box.
-      var projection;
-      if (layerName === "states" || layerName === "nation" || meta.geo === "us") {
-        projection = d3.geoAlbersUsa();
-      } else {
-        projection = d3.geoAlbersUsa();
-      }
+      // Projection selection.  Order of precedence:
+      //   1. meta.projection -- explicit preset (albers_usa|albers_tx|albers|mercator)
+      //   2. Auto-default driven by geo / layer:
+      //        layer = states|nation OR geo = us   -> albers_usa (CONUS composite)
+      //        geo   = texas                        -> albers_tx  (Texas-tuned)
+      //        anything else                         -> albers_usa (legacy default)
+      //   3. Numeric overrides (meta.rotate, meta.parallels, meta.center) layer
+      //      on top of the chosen preset.  Pipe-separated lists like "27.5|35.5".
+      //
+      // The Texas-tuned albers_tx preset corrects a ~3-degree downward lean of
+      // the panhandle's top edge that occurs when geoAlbersUsa()'s CONUS-wide
+      // standard parallels (29.5/45.5) and -96 rotation are applied to a
+      // Texas-only viewport.  See v0.6.1 notes in sparkta2_map.ado.
+      var projection = buildProjection();
       projection.fitExtent(
         [[margin.left, margin.top], [w - margin.right, h - margin.bottom]],
         fc
@@ -800,7 +869,7 @@
       }
 
       var hasZoom = meta.zoom !== 0;
-      if (hasZoom || meta.download) {
+      if (hasZoom || meta.download || meta.datatable) {
         controlsRoot.append("h3").style("margin-top", "14px").text("View");
         if (hasZoom) {
           controlsRoot.append("button")
@@ -809,15 +878,55 @@
             .text("Reset zoom")
             .on("click", resetZoom);
         }
-        if (meta.download) {
-          controlsRoot.append("button")
-            .attr("type", "button")
-            .text("Download PNG")
-            .on("click", downloadPNG);
+        if (meta.download || meta.datatable) {
+          buildExportMenu(controlsRoot);
         }
       }
 
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
+    }
+
+    // ---- Export menu (PNG/SVG/CSV/View data/Print to PDF) ----------------
+    function buildExportMenu(root) {
+      var wrap = root.append("div").attr("class", "exportmenu");
+      var btn = wrap.append("button")
+        .attr("type", "button")
+        .attr("class", "exportbtn")
+        .attr("aria-haspopup", "true")
+        .attr("aria-expanded", "false")
+        .html("Export &#9662;");
+      var menu = wrap.append("div").attr("class", "exportlist").style("display", "none");
+
+      function addItem(label, fn) {
+        menu.append("button")
+          .attr("type", "button")
+          .text(label)
+          .on("click", function () {
+            closeMenu();
+            fn();
+          });
+      }
+      function openMenu()  { menu.style("display", "block"); btn.attr("aria-expanded", "true"); }
+      function closeMenu() { menu.style("display", "none");  btn.attr("aria-expanded", "false"); }
+
+      btn.on("click", function (ev) {
+        ev.stopPropagation();
+        if (menu.style("display") === "none") openMenu();
+        else closeMenu();
+      });
+      // Close on outside click
+      d3.select(document).on("click.exportmenu", function () { closeMenu(); });
+      menu.on("click", function (ev) { ev.stopPropagation(); });
+
+      if (meta.download) {
+        addItem("Download PNG", downloadPNG);
+        addItem("Download SVG", downloadSVG);
+        addItem("Print to PDF…", printToPDF);
+      }
+      if (meta.datatable) {
+        addItem("Download CSV", downloadCSV);
+        addItem("View data table", toggleDataTable);
+      }
     }
 
     function resetZoom() {
@@ -872,6 +981,215 @@
     function downloadPNG() {
       if (state.multiples) compositePNG(panels);
       else compositePNG([panels[0]]);
+    }
+
+    // ---- SVG download: serialize the live SVG with inlined CSS -----------
+    function downloadSVG() {
+      var panelList = state.multiples ? panels : [panels[0]];
+      var inlineCSS =
+        ".region{stroke:#fff;stroke-width:.45px}" +
+        ".region.dim{fill:#f1f5f9}" +
+        ".legend text{font:12px sans-serif;fill:#334155}" +
+        "text{font-family:-apple-system,sans-serif}";
+
+      if (panelList.length === 1) {
+        var clone = panelList[0].svg.node().cloneNode(true);
+        clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        clone.setAttribute("width",  panelList[0].w);
+        clone.setAttribute("height", panelList[0].h);
+        var styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+        styleEl.textContent = inlineCSS;
+        clone.insertBefore(styleEl, clone.firstChild);
+        var svgText = new XMLSerializer().serializeToString(clone);
+        var blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+        triggerDownload(blob, "sparkta2_map.svg");
+        return;
+      }
+
+      // Small-multiples: stack panels in a single SVG so the export is one file.
+      var totalW = Math.max.apply(null, panelList.map(function (p) { return p.w; }));
+      var totalH = panelList.reduce(function (s, p) { return s + p.h + 24; }, 0);
+      var outer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      outer.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      outer.setAttribute("width",  totalW);
+      outer.setAttribute("height", totalH);
+      var s2 = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      s2.textContent = inlineCSS;
+      outer.appendChild(s2);
+      var yOff = 0;
+      panelList.forEach(function (p) {
+        var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("transform", "translate(0," + yOff + ")");
+        // Copy all children of the panel SVG into the wrapping <g>.
+        var src = p.svg.node();
+        for (var i = 0; i < src.childNodes.length; i++) {
+          g.appendChild(src.childNodes[i].cloneNode(true));
+        }
+        outer.appendChild(g);
+        yOff += p.h + 24;
+      });
+      var outerText = new XMLSerializer().serializeToString(outer);
+      var blob2 = new Blob([outerText], { type: "image/svg+xml;charset=utf-8" });
+      triggerDownload(blob2, "sparkta2_multiples.svg");
+    }
+
+    // ---- CSV download: serialize the bound data rows --------------------
+    function downloadCSV() {
+      var rows = data;
+      if (!rows || !rows.length) {
+        alert("No data to download.");
+        return;
+      }
+      // Stable, predictable column order: id, name, x, y, lat, lon, then
+      // f__/s__/t__ helper columns last.  Skip helper-prefix names in the
+      // header by mapping them back to their bare variable name.
+      var coreCols = ["id", "name", "x", "y", "lat", "lon"];
+      var keys = Object.keys(rows[0]);
+      var fCols = keys.filter(function (k) { return k.indexOf("f__") === 0; });
+      var sCols = keys.filter(function (k) { return k.indexOf("s__") === 0; });
+      var tCols = keys.filter(function (k) { return k.indexOf("t__") === 0; });
+      var ordered = coreCols.filter(function (k) { return keys.indexOf(k) >= 0; })
+        .concat(fCols).concat(sCols).concat(tCols);
+
+      // Header line uses the variable's real name (strip f__/s__/t__).
+      var displayHead = ordered.map(function (k) {
+        if (k.indexOf("f__") === 0) return k.slice(3);
+        if (k.indexOf("s__") === 0) return k.slice(3);
+        if (k.indexOf("t__") === 0) return k.slice(3);
+        if (k === "x") return meta.xvar || "x";
+        if (k === "y") return meta.yvar || "y";
+        return k;
+      });
+
+      function csvCell(v) {
+        if (v == null) return "";
+        var s = String(v);
+        if (s.indexOf(",") >= 0 || s.indexOf("\"") >= 0 || s.indexOf("\n") >= 0) {
+          return "\"" + s.replace(/"/g, "\"\"") + "\"";
+        }
+        return s;
+      }
+
+      var lines = [ displayHead.map(csvCell).join(",") ];
+      rows.forEach(function (r) {
+        lines.push(ordered.map(function (k) { return csvCell(r[k]); }).join(","));
+      });
+      var csv = lines.join("\n");
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      triggerDownload(blob, "sparkta2_data.csv");
+    }
+
+    // ---- Toggle the collapsible data-view table -------------------------
+    function toggleDataTable() {
+      var host = d3.select("#datatable");
+      if (host.empty()) return;
+      var shown = host.classed("open");
+      if (shown) {
+        host.classed("open", false).style("display", "none").html("");
+        return;
+      }
+      // Build a simple, scrollable HTML table.  Only show rows that pass the
+      // active filters/sliders/search so what the user reads matches what
+      // the map shows.
+      var rows = data.filter(passes);
+      var coreCols = ["id", "name", "x", "y", "lat", "lon"];
+      var keys = rows.length ? Object.keys(rows[0]) : [];
+      var fCols = keys.filter(function (k) { return k.indexOf("f__") === 0; });
+      var sCols = keys.filter(function (k) { return k.indexOf("s__") === 0; });
+      var tCols = keys.filter(function (k) { return k.indexOf("t__") === 0; });
+      var ordered = coreCols.filter(function (k) { return keys.indexOf(k) >= 0; })
+        .concat(fCols).concat(sCols).concat(tCols);
+      function head(k) {
+        if (k.indexOf("f__") === 0) return k.slice(3);
+        if (k.indexOf("s__") === 0) return k.slice(3);
+        if (k.indexOf("t__") === 0) return k.slice(3);
+        if (k === "x") return meta.xvar || "x";
+        if (k === "y") return meta.yvar || "y";
+        return k;
+      }
+      var html = "<div class='dt-header'><strong>Data behind the map</strong> "
+        + "<span class='dt-count'>" + rows.length + " of " + data.length + " rows shown</span>"
+        + "<button type='button' class='dt-close' aria-label='Close'>&times;</button></div>";
+      html += "<div class='dt-scroll'><table class='dt-table'><thead><tr>";
+      ordered.forEach(function (k) { html += "<th>" + esc(head(k)) + "</th>"; });
+      html += "</tr></thead><tbody>";
+      // Cap visible rows to keep the DOM light; CSV download has the full set.
+      var MAX = 500;
+      rows.slice(0, MAX).forEach(function (r) {
+        html += "<tr>";
+        ordered.forEach(function (k) {
+          var v = r[k];
+          html += "<td>" + esc(v == null ? "" : v) + "</td>";
+        });
+        html += "</tr>";
+      });
+      html += "</tbody></table></div>";
+      if (rows.length > MAX) {
+        html += "<div class='dt-truncated'>Showing first " + MAX + " of "
+          + rows.length + " rows — use <em>Download CSV</em> for the full set.</div>";
+      }
+      host.html(html).classed("open", true).style("display", "block");
+      host.select(".dt-close").on("click", toggleDataTable);
+    }
+
+    // ---- Print to PDF: open the browser's print dialog ------------------
+    function printToPDF() {
+      // The browser-native print path is the most reliable way to a PDF
+      // without bundling a 70KB jsPDF lib.  Use a CSS print sheet to hide
+      // the controls and show only the map.  The user picks "Save as PDF"
+      // in the print dialog.
+      window.print();
+    }
+
+    function triggerDownload(blob, filename) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+    }
+
+    // ---- Animate-on-view: fade regions in when chart enters viewport ----
+    function setupAnimateOnView() {
+      if (!meta.animate) return;
+      if (typeof IntersectionObserver === "undefined") {
+        // Older browser: fall back to immediate fade-in.
+        triggerAnimation();
+        return;
+      }
+      var fired = false;
+      var target = document.getElementById("map") || document.getElementById("panels");
+      if (!target) return;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && !fired) {
+            fired = true;
+            io.disconnect();
+            triggerAnimation();
+          }
+        });
+      }, { threshold: 0.2 });
+      io.observe(target);
+    }
+
+    function triggerAnimation() {
+      // Stagger by feature index for a "sweep across the map" effect; keep
+      // total duration short (under 900ms) so it doesn't feel sluggish.
+      panels.forEach(function (panel) {
+        var sel;
+        if (renderType === "hexbin") sel = panel.gHex.selectAll("path.hex");
+        else if (renderType === "points") sel = panel.gPts.selectAll("circle");
+        else sel = panel.gMap.selectAll("path.region");
+        if (!sel || sel.empty()) return;
+        var n = sel.size();
+        sel.style("opacity", 0)
+           .transition()
+           .duration(450)
+           .delay(function (d, i) { return Math.min(450, i * (450 / Math.max(1, n))); })
+           .style("opacity", null);
+      });
     }
 
     function compositePNG(panelList) {
@@ -929,6 +1247,7 @@
     buildControls();
     buildPanels();
     repaint();
+    setupAnimateOnView();
 
     if (meta.zoomto) {
       var wantFips = (meta.zoomto || "").split("|").filter(Boolean);

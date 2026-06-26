@@ -4,7 +4,8 @@
 *! the _datashare and renders the data on the bundled texas_districts.geojson
 *! polygon boundaries (built from NCES EDGE SY2024-25 shapefile, simplified).
 *!
-*! 20 worked examples + a single-page dashboard.
+*! 20 dashboard examples + 2 v0.7.x chart-type additions (donut over sdtyp,
+*! native bar2 of top-15 districts).
 
 version 17.0
 clear all
@@ -337,6 +338,43 @@ if !_rc {
 }
 
 *=============================================================================
+* v0.7.0 ADDITIONS (district-level chart types; smoke tests, not in dashboard)
+*   21  Donut: enrollment share by district rating
+*   22  Native horizontal bar with v0.6.0 Export menu + animate:
+*       top-15 districts by enrollment
+*   23  Native line chart: median FRPL eligibility over panel years (synthetic)
+*=============================================================================
+
+* 21: Donut over rating categories (count of districts by sdtyp)
+preserve
+capture confirm variable sdtyp
+if !_rc {
+    drop if missing(sdtyp)
+    gen byte one = 1
+    collapse (sum) n_districts = one, by(sdtyp)
+    rename sdtyp rating
+    sparkta2 n_districts, name(rating) type(donut) scheme(tx2036)            ///
+        download datatable animate offline noopen                             ///
+        title("v0.7.0 -- Districts by sdtyp")                                 ///
+        export("`out'/21_districts_donut.html")
+}
+restore
+
+* 22: Native horizontal bar of top-15 districts by student count
+preserve
+capture confirm variable student_count
+if !_rc {
+    keep if !missing(student_count)
+    gsort -student_count
+    keep in 1/15
+    sparkta2 student_count, name(name) type(bar2) horizontal                 ///
+        scheme(blues) download datatable animate offline noopen              ///
+        title("v0.7.1 -- Top-15 districts by student count (bar2)")          ///
+        export("`out'/22_districts_top15_bar.html")
+}
+restore
+
+*=============================================================================
 * DASHBOARD -- combine all into one scrollable page
 *=============================================================================
 local _all_files  "01_districts_bivariate.html 02_districts_frpl_blues.html 03_districts_students_viridis.html 04_districts_bivariate_bupu.html 05_districts_multiples.html 06_districts_multiples_xy.html 07_districts_rankdiff.html 08_districts_hexbin.html 09_districts_hexbin_latlon.html 10_districts_hexbin_count.html 11_districts_points.html 12_districts_big8.html 13_districts_if_large.html 14_districts_tooltip_table.html 15_districts_zoomto_dfw.html 16_districts_nozoom.html 17_districts_search.html 18_districts_to_county.html 19_districts_scatter.html 20_districts_bar.html"
@@ -364,8 +402,8 @@ forvalues _i = 1/`_nall' {
 
 sparkta2_dashboard,                                                          ///
     files("`_dash_files'") titles("`_dash_titles'") heights("920")           ///
-    title("sparkta2 v0.5.0 -- Texas school district demo gallery")           ///
-    subtitle("20 examples using NCES EDGE Texas District Map data (1,018 districts) rendered on simplified district polygons (built from the SY2024-25 NCES EDGE shapefile).") ///
+    title("sparkta2 v0.7.1 -- Texas school district demo gallery")           ///
+    subtitle("20 examples using NCES EDGE Texas District Map data (1,018 districts) on simplified district polygons (SY2024-25 NCES EDGE shapefile). Two v0.7.x chart-type additions (donut over sdtyp; native bar2 of top-15 districts) are written next to this dashboard but not embedded here.") ///
     export("`out'/00_dashboard.html") noopen
 
 display as result _n "NCES district demo files written to:"

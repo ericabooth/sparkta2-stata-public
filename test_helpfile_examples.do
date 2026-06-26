@@ -202,5 +202,160 @@ else {
     display as text "(Skipping example 10: sparkta not installed.)"
 }
 
+*-----------------------------------------------------------------------------
+* Examples 9a-9d: v0.6.0 / v0.6.1 features on the existing county dataset.
+*   9a  Export menu + datatable
+*   9b  Animate on scroll into view
+*   9c  Points map with all v0.6.0 features
+*   9d  Projection control (Texas-tuned default, legacy override, custom)
+*-----------------------------------------------------------------------------
+use "`county_data'", clear
+
+* 9a: download datatable
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) scheme(blues) ///
+    tooltipvars(median_income pop_thou)                                     ///
+    download datatable offline noopen                                        ///
+    title("v0.6.0 -- Export menu + data table")                              ///
+    export("`out'/09a_export_menu.html")
+
+* 9b: animate (IntersectionObserver fade-in)
+sparkta2 poverty_rate uninsured_rate, id(fips) name(county) type(bivariate) ///
+    scheme(rdbu) modes(bivariate|x|y|diff|ratio) comparable                  ///
+    download datatable animate offline noopen                                ///
+    title("v0.6.0 -- Animate on scroll into view")                           ///
+    export("`out'/09b_animate.html")
+
+* 9d: projection control
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
+    projection(albers_usa) offline noopen                                    ///
+    title("v0.6.1 -- legacy projection(albers_usa) for backward-compat")     ///
+    export("`out'/09d_proj_legacy.html")
+
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
+    projection(albers) rotate(99) parallels(27.5 35.5) center(0 31.5)        ///
+    offline noopen                                                           ///
+    title("v0.6.1 -- explicit Texas-tuned Albers overrides")                 ///
+    export("`out'/09d_proj_custom.html")
+
+*-----------------------------------------------------------------------------
+* Examples 9e-9h: v0.7.0 native chart types.
+*   9e  Donut
+*   9f  Native bar + line (with v0.6.0 export menu + animate)
+*   9g  Diverging stacked bar -- Pew-style Likert chart
+*   9h  Bar chart race
+*-----------------------------------------------------------------------------
+
+* 9e: donut (THECB-like enrollment by sector)
+preserve
+clear
+input str30 sector long enroll
+"Public 4-year" 644000
+"Public 2-year" 714000
+"Independent" 162000
+"Career schools" 86000
+"Health-related" 19000
+end
+sparkta2 enroll, name(sector) type(donut) scheme(tx2036)                    ///
+    download datatable animate offline noopen                                ///
+    title("v0.7.0 -- Donut: enrollment by sector")                           ///
+    export("`out'/09e_donut.html")
+restore
+
+* 9f: native bar2 -- horizontal poverty by region group
+*     (v0.7.1: native bar/line are type(bar2)/type(line2) so sparkta's
+*      original type(bar)/type(line) keep working unchanged.)
+preserve
+collapse (mean) poverty_rate, by(region_n)
+sparkta2 poverty_rate, name(region_n) type(bar2) horizontal scheme(blues)   ///
+    download datatable animate offline noopen                                ///
+    title("v0.7.1 -- Native bar2 (horizontal) + export menu + animate")      ///
+    export("`out'/09f_bar.html")
+restore
+
+* 9f': native line -- two synthetic time series via long form
+preserve
+clear
+input double yr str20 series double y
+2018 "Texas"          42
+2019 "Texas"          43.1
+2020 "Texas"          41.5
+2021 "Texas"          42.8
+2022 "Texas"          43.9
+2023 "Texas"          44.5
+2024 "Texas"          45.2
+2018 "ESC 13"         46.5
+2019 "ESC 13"         47.0
+2020 "ESC 13"         46.1
+2021 "ESC 13"         47.2
+2022 "ESC 13"         48.0
+2023 "ESC 13"         48.6
+2024 "ESC 13"         49.3
+end
+sparkta2 y yr, over(series) type(line2) scheme(tx2036)                       ///
+    download datatable animate offline noopen                                ///
+    title("v0.7.1 -- Native multi-series line2")                             ///
+    export("`out'/09f_line.html")
+restore
+
+* 9g: Pew-style diverging stacked bar (Likert)
+preserve
+clear
+input str100 q str22 response double share
+"Texas is on the right track investing in K-12 public education"   "Strongly disagree" 18
+"Texas is on the right track investing in K-12 public education"   "Disagree"          22
+"Texas is on the right track investing in K-12 public education"   "Neutral"           14
+"Texas is on the right track investing in K-12 public education"   "Agree"             29
+"Texas is on the right track investing in K-12 public education"   "Strongly agree"    17
+"Higher education in Texas is affordable for most families"        "Strongly disagree" 29
+"Higher education in Texas is affordable for most families"        "Disagree"          33
+"Higher education in Texas is affordable for most families"        "Neutral"           14
+"Higher education in Texas is affordable for most families"        "Agree"             18
+"Higher education in Texas is affordable for most families"        "Strongly agree"    6
+end
+sparkta2 share, name(q) level(response) type(divbar)                         ///
+    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")    ///
+    centerlevel(Neutral)                                                     ///
+    download datatable offline noopen                                        ///
+    title("v0.7.0 -- Diverging stacked bar (Pew-style, Likert)")             ///
+    width(1100) height(360)                                                  ///
+    export("`out'/09g_divbar.html")
+restore
+
+* 9h: bar chart race (synthetic)
+preserve
+clear
+input long yr str22 name double v
+2020 "Harris"   4731145
+2020 "Dallas"   2613539
+2020 "Tarrant"  2110640
+2020 "Bexar"    2009324
+2020 "Travis"   1290188
+2021 "Harris"   4738253
+2021 "Dallas"   2599883
+2021 "Tarrant"  2126477
+2021 "Bexar"    2028340
+2021 "Travis"   1305057
+2022 "Harris"   4780913
+2022 "Dallas"   2613539
+2022 "Tarrant"  2154595
+2022 "Bexar"    2061226
+2022 "Travis"   1330411
+2023 "Harris"   4835125
+2023 "Dallas"   2606358
+2023 "Tarrant"  2182947
+2023 "Bexar"    2092984
+2023 "Travis"   1351019
+2024 "Harris"   4894753
+2024 "Dallas"   2604722
+2024 "Tarrant"  2211232
+2024 "Bexar"    2126810
+2024 "Travis"   1378260
+end
+sparkta2 v, name(name) time(yr) type(barrace) top(5) duration(10)            ///
+    scheme(tx2036) download datatable offline noopen                         ///
+    title("v0.7.0 -- Bar chart race (synthetic)")                            ///
+    export("`out'/09h_barrace.html")
+restore
+
 display as result _n "All help-file examples written to:"
 display as result "  `out'"

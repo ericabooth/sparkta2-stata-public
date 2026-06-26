@@ -1,8 +1,14 @@
 # sparkta2
 
-**Interactive choropleth, bivariate, hexbin, and point maps from Stata, with chart pass-through to `sparkta`.**
+**Interactive D3 maps + native non-map chart types from Stata, with chart pass-through to `sparkta` for anything else.**
 
-`sparkta2` is a thin Stata dispatcher: when you ask for a map, a bundled D3 v7 engine renders it; for any other chart type the call is forwarded verbatim to **`sparkta`** by Fahad Mirza ([fahad-mirza/sparkta_stata](https://github.com/fahad-mirza/sparkta_stata)). Install `sparkta` separately if you intend to use those chart types.
+`sparkta2` is a thin Stata dispatcher around three engines:
+
+- A bundled **D3 v7 map engine** for `type(bivariate | choropleth | hexbin | points)`.
+- A bundled **D3 v7 chart engine** (new in v0.7.0) for `type(donut | bar2 | line2 | divbar | barrace)`.
+- Forwarding to **`sparkta`** by Fahad Mirza ([fahad-mirza/sparkta_stata](https://github.com/fahad-mirza/sparkta_stata)) for every other chart type (`bar`, `line`, `scatter`, `pie`, `violin`, `histogram`, ...). Install `sparkta` separately if you intend to use those.
+
+> **Why `bar2` / `line2` and not `bar` / `line`?** sparkta already implements `type(bar)` and `type(line)` via Chart.js with its own multi-variable / `stat()` / `fit()` syntax. v0.7.1 keeps `bar` and `line` forwarding to sparkta so every pre-existing do-file works unchanged. The new D3-native versions are exposed as `bar2` and `line2`, which inherit the v0.6.0 Export menu, `datatable`, and `animate` but take simpler input (one numeric var with `name()`, optional `over()` for grouping/stacking).
 
 Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choropleth](https://observablehq.com/@d3/bivariate-choropleth), [mbostock/methods-of-comparison-compared](https://observablehq.com/@mbostock/methods-of-comparison-compared), [d3/zoom-to-bounding-box](https://observablehq.com/@d3/zoom-to-bounding-box)) and the D3 Graph Gallery ([hexbin map](https://d3-graph-gallery.com/graph/hexbinmap_geo_label.html), [background map](https://d3-graph-gallery.com/graph/backgroundmap_country.html)). `d3-hexbin` v0.2.2 is bundled (MIT, © Mike Bostock).
 
@@ -10,10 +16,43 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
-v0.5.0. Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,018 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
+**v0.7.1** (2026-06-26). Backward-compat rename: native bar / line are now `type(bar2)` / `type(line2)`, so sparkta's `type(bar)` / `type(line)` continue to forward unchanged. Existing do-files that called sparkta for bars or lines keep working without edits.
+
+**v0.7.0** (2026-06-26). Native D3 chart types beyond maps: donut, bar2, line2, diverging stacked bar (Pew-style for Likert/survey items), and bar chart race. All inherit the v0.6.0 Export menu, animate-on-view, and CSV data download.
+
+Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,018 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
 
 <img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
 
+
+### What's new in v0.7.1 (2026-06-26)
+
+- **Backward-compat rename.** sparkta2-native bar / line are now exposed as `type(bar2)` and `type(line2)`. `type(bar)` and `type(line)` continue to forward to `sparkta` unchanged so every pre-0.7.0 do-file using sparkta's bar/line syntax (multi-var, `stat()`, `fit()`, `over()` with stat=mean, ...) still works without edits.
+- Opt in to the D3-native versions (Export menu, `animate`, `datatable`, CSV download) by changing `type(bar)` to `type(bar2)` (and likewise `line` → `line2`). The native versions take simpler input — one numeric var with `name()`, optional `over()` for grouping/stacking.
+- `donut`, `divbar`, `barrace` keep their original names — there's no name collision with sparkta for those.
+
+### What's new in v0.7.0 (2026-06-26)
+
+- **Five new sparkta2-native non-map chart types.** All D3 v7, rendered by a new `sparkta2_chart_engine.js` and dispatched by `sparkta2_chart.ado`.
+  - `type(donut)` — ring chart, one slice per row. Center label shows the total.
+  - `type(bar2)` (v0.7.1 rename; was `bar` in v0.7.0) — vertical / horizontal bars; optional `over()` for grouped or `stacked` (+ `normalize`) variants.
+  - `type(line2)` (v0.7.1 rename; was `line` in v0.7.0) — multi-series line via `over(series)`; `y x` input; monotone-X curve.
+  - `type(divbar)` — **Pew-style diverging stacked bar** for Likert/survey items. Horizontal bars, wrapping long item text in the left margin, central zero baseline, direct % labels inside segments, net favourability column on the right, no bottom axis by default. Long-form input: `name(item) level(response) <share>`, with `levelorder()` to fix the level ordering.
+  - `type(barrace)` — animated bar chart race over `time()`, with play/pause/replay button.
+
+### What's new in v0.6.1 (2026-06-26)
+
+- **Texas projection tilt fixed.** `d3.geoAlbersUsa()` was used for every layer including `geo(texas)`, but its CONUS-wide standard parallels (29.5°N / 45.5°N) and –96° rotation centre the projection near Kansas. Texas, south and west of that centre, rendered with a ~3.3° downward lean on the panhandle's top edge. Now:
+  - `geo(texas)` defaults to a Texas-tuned `d3.geoAlbers()` (`rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]`), dropping the lean to ~1.3°.
+  - `geo(us)` and `layer(states|nation)` keep `d3.geoAlbersUsa()` (unchanged).
+- **New options:** `projection(albers_usa | albers_tx | albers | mercator)` for presets, plus `rotate()`, `parallels()`, and `center()` numeric overrides on any non-composite projection.
+- Backward-compat escape hatch: pass `projection(albers_usa)` to restore the pre-0.6.1 look exactly.
+
+### What's new in v0.6.0 (2026-06-23)
+
+- **Export menu** replaces the single "Download PNG" button. Setting `download` now opens a small dropdown with **PNG**, **SVG**, and **Print to PDF…** (browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).
+- **`datatable` option.** Extends the Export menu with **Download CSV** (every embedded row with original Stata variable names, including `tooltipvars()`) and **View data table** (collapsible scrollable HTML table beneath the chart showing rows that pass the active filters/sliders/search).
+- **`animate` option.** IntersectionObserver-gated entry animation: features fade in over ~450ms with a small per-feature stagger when the chart enters the viewport. One-shot; doesn't re-trigger on subsequent scrolls.
 
 ### What's new in v0.5.0
 

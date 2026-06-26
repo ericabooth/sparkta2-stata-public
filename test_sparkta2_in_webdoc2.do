@@ -66,4 +66,24 @@ wdlist
     wditem Iframe height around 820px clears the controls panel; 720 cuts it off.
 wdlistend
 
+* v0.7.0 native chart types embed via the same wdiframe pattern as maps.
+preserve
+clear
+input str30 sector long enroll
+"Public 4-year" 644000
+"Public 2-year" 714000
+"Independent"   162000
+"Career schools" 86000
+"Health-related" 19000
+end
+sparkta2 enroll, name(sector) type(donut) scheme(tx2036) download datatable ///
+    offline noopen title("v0.7.0 donut: enrollment by sector")               ///
+    export("chart_donut.html")
+restore
+
+wputh2 v0.7.0 native chart types
+wput The new D3 chart engine (donut, bar, line, divbar, barrace) emits the same offline HTML shape as the maps; wdiframe handles them identically.
+
+wdiframe chart_donut.html, height(620px)
+
 wdclose

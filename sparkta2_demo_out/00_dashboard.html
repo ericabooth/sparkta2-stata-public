@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sparkta2 v0.4.0 -- Texas county + US state demo gallery</title>
+<style>
+:root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1300px;margin:0 auto;padding:24px 18px 60px}
+header h1{font-size:1.7rem;margin:0 0 4px;color:var(--ink)}
+header p{color:var(--muted);margin:0 0 22px;font-size:.95rem}
+.section{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 22px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.section h2{margin:0;padding:12px 16px;font-size:1.05rem;background:#fff;color:var(--ink);border-bottom:1px solid var(--line)}
+.section h2 .num{display:inline-block;color:var(--accent);font-weight:700;margin-right:8px}
+.section h2 .src{color:var(--muted);font-size:.78rem;font-weight:400;margin-left:8px}
+.section iframe{display:block;width:100%;border:0}
+nav.toc{position:sticky;top:8px;background:rgba(255,255,255,.92);backdrop-filter:saturate(120%) blur(6px);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:.85rem}
+nav.toc strong{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;margin-bottom:4px}
+nav.toc a{color:var(--link);text-decoration:none;margin-right:14px;display:inline-block;margin-bottom:2px}
+nav.toc a:hover{text-decoration:underline}
+footer{color:var(--muted);font-size:.78rem;margin-top:30px}
+</style></head><body>
+<div class="wrap">
+<header><h1>sparkta2 v0.4.0 -- Texas county + US state demo gallery</h1>
+<p>20 worked examples covering bivariate, choropleth, hexbin, basemap, small multiples, subsetting, search, zoom, downloads, tooltip tables, and chart pass-through. The last two examples (US state-level) demonstrate that the engine works outside Texas.</p>
+</header>
+<nav class="toc"><strong>Jump to:</strong>
+  <a href="#sec1">1. Bivariate full UI</a>
+  <a href="#sec2">2. Univariate Blues</a>
+  <a href="#sec3">3. Univariate Viridis</a>
+  <a href="#sec4">4. Bivariate BuPu (static)</a>
+  <a href="#sec5">5. Small multiples (3 panels)</a>
+  <a href="#sec6">6. Small multiples (X and Y)</a>
+  <a href="#sec7">7. Diff-only (value diff)</a>
+  <a href="#sec8">8. Rank-diff fallback</a>
+  <a href="#sec9">9. Big-8 metros subset</a>
+  <a href="#sec10">10. Rural counties (if qualifier)</a>
+  <a href="#sec11">11. Tooltip data table</a>
+  <a href="#sec12">12. Auto-zoom to DFW</a>
+  <a href="#sec13">13. Static (no zoom)</a>
+  <a href="#sec14">14. Search by county name</a>
+  <a href="#sec15">15. Bar chart (sparkta pass-through)</a>
+  <a href="#sec16">16. Scatter + fit (sparkta pass-through)</a>
+  <a href="#sec17">17. Hexbin of TX counties</a>
+  <a href="#sec18">18. Bivariate + basemap</a>
+  <a href="#sec19">19. BONUS: US 50-state choropleth</a>
+  <a href="#sec20">20. BONUS: US 50-state bivariate</a>
+</nav>
+<section class="section" id="sec1">
+  <h2><span class="num">1.</span>Bivariate full UI<span class="src">01_bivariate_full.html</span></h2>
+  <iframe src="01_bivariate_full.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec2">
+  <h2><span class="num">2.</span>Univariate Blues<span class="src">02_choropleth_blues.html</span></h2>
+  <iframe src="02_choropleth_blues.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec3">
+  <h2><span class="num">3.</span>Univariate Viridis<span class="src">03_choropleth_viridis.html</span></h2>
+  <iframe src="03_choropleth_viridis.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec4">
+  <h2><span class="num">4.</span>Bivariate BuPu (static)<span class="src">04_bivariate_bupu.html</span></h2>
+  <iframe src="04_bivariate_bupu.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec5">
+  <h2><span class="num">5.</span>Small multiples (3 panels)<span class="src">05_multiples_3panel.html</span></h2>
+  <iframe src="05_multiples_3panel.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec6">
+  <h2><span class="num">6.</span>Small multiples (X and Y)<span class="src">06_multiples_xy.html</span></h2>
+  <iframe src="06_multiples_xy.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec7">
+  <h2><span class="num">7.</span>Diff-only (value diff)<span class="src">07_diff_only.html</span></h2>
+  <iframe src="07_diff_only.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec8">
+  <h2><span class="num">8.</span>Rank-diff fallback<span class="src">08_rankdiff.html</span></h2>
+  <iframe src="08_rankdiff.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec9">
+  <h2><span class="num">9.</span>Big-8 metros subset<span class="src">09_counties_big8.html</span></h2>
+  <iframe src="09_counties_big8.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec10">
+  <h2><span class="num">10.</span>Rural counties (if qualifier)<span class="src">10_if_rural.html</span></h2>
+  <iframe src="10_if_rural.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec11">
+  <h2><span class="num">11.</span>Tooltip data table<span class="src">11_tooltip_table.html</span></h2>
+  <iframe src="11_tooltip_table.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec12">
+  <h2><span class="num">12.</span>Auto-zoom to DFW<span class="src">12_zoomto_dfw.html</span></h2>
+  <iframe src="12_zoomto_dfw.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec13">
+  <h2><span class="num">13.</span>Static (no zoom)<span class="src">13_nozoom.html</span></h2>
+  <iframe src="13_nozoom.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec14">
+  <h2><span class="num">14.</span>Search by county name<span class="src">14_search.html</span></h2>
+  <iframe src="14_search.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec15">
+  <h2><span class="num">15.</span>Bar chart (sparkta pass-through)<span class="src">15_bar_pass.html</span></h2>
+  <iframe src="15_bar_pass.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec16">
+  <h2><span class="num">16.</span>Scatter + fit (sparkta pass-through)<span class="src">16_scatter_pass.html</span></h2>
+  <iframe src="16_scatter_pass.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec17">
+  <h2><span class="num">17.</span>Hexbin of TX counties<span class="src">17_hexbin_tx.html</span></h2>
+  <iframe src="17_hexbin_tx.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec18">
+  <h2><span class="num">18.</span>Bivariate + basemap<span class="src">18_basemap.html</span></h2>
+  <iframe src="18_basemap.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec19">
+  <h2><span class="num">19.</span>BONUS: US 50-state choropleth<span class="src">19_us_states_choropleth.html</span></h2>
+  <iframe src="19_us_states_choropleth.html" height="920" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec20">
+  <h2><span class="num">20.</span>BONUS: US 50-state bivariate<span class="src">20_us_states_bivariate.html</span></h2>
+  <iframe src="20_us_states_bivariate.html" height="920" loading="lazy"></iframe>
+</section>
+<footer>Built with sparkta2 v0.5.3 — each section is an independent interactive map.</footer>
+</div></body></html>

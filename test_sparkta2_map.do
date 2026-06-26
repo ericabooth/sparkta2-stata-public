@@ -1,5 +1,7 @@
 *! test_sparkta2_map.do
-*! Companion driver for sparkta2 v0.4.0 -- exercises 20 examples + a dashboard.
+*! Companion driver for sparkta2 v0.7.1 -- exercises 20 dashboard examples plus
+*! 8 v0.6.x / v0.7.x additions (Export menu, datatable, animate, Texas-tuned
+*! projection, donut, bar2, divbar, barrace).
 *!
 *!  1. Bivariate -- full UI (toggle, filters, sliders, swap, download, zoom, search)
 *!  2. Univariate Blues (1 filter, 1 slider)
@@ -362,6 +364,122 @@ sparkta2 pop_mil gdp_thou,                                      ///
 use "`county_data'", clear
 
 *=============================================================================
+* v0.6.x + v0.7.0 ADDITIONS (smoke tests; not in the 20-map dashboard above)
+*   21  Export menu + collapsible data table (v0.6.0 download datatable)
+*   22  Animate-on-scroll into view (v0.6.0 animate)
+*   23  Texas-tuned projection default (v0.6.1; visible: panhandle now level)
+*   24  Legacy projection escape hatch (v0.6.1 projection(albers_usa))
+*   25  Native donut chart (v0.7.0)
+*   26  Native horizontal bar with Export menu + animate (v0.7.0)
+*   27  Diverging stacked bar (v0.7.0 divbar, Pew-style; demonstrates wrap +
+*       central zero baseline + direct labels + net favorability column)
+*   28  Bar chart race (v0.7.0 barrace)
+*=============================================================================
+
+* 21
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
+    scheme(blues) tooltipvars(median_income pop_thou)                        ///
+    download datatable offline noopen                                        ///
+    title("v0.6.0 -- Export menu + data table")                              ///
+    export("`out'/21_export_menu.html")
+
+* 22
+sparkta2 poverty_rate uninsured_rate, id(fips) name(county) type(bivariate) ///
+    scheme(rdbu) modes(bivariate|x|y|diff|ratio) comparable                  ///
+    download datatable animate offline noopen                                ///
+    title("v0.6.0 -- Animate on scroll into view")                           ///
+    export("`out'/22_animate.html")
+
+* 23
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
+    offline noopen                                                           ///
+    title("v0.6.1 -- Texas-tuned default (panhandle level)")                 ///
+    export("`out'/23_proj_default.html")
+
+* 24
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
+    projection(albers_usa) offline noopen                                    ///
+    title("v0.6.1 -- legacy projection(albers_usa) for backward-compat")     ///
+    export("`out'/24_proj_legacy.html")
+
+* 25 (donut from a tiny synthetic frame)
+preserve
+clear
+input str30 sector long enroll
+"Public 4-year" 644000
+"Public 2-year" 714000
+"Independent" 162000
+"Career schools" 86000
+"Health-related" 19000
+end
+sparkta2 enroll, name(sector) type(donut) scheme(tx2036)                    ///
+    download datatable animate offline noopen                                ///
+    title("v0.7.0 -- Donut: enrollment by sector")                           ///
+    export("`out'/25_donut.html")
+restore
+
+* 26 (native bar2 -- v0.7.1 rename; sparkta's type(bar) still forwards)
+preserve
+collapse (mean) poverty_rate, by(region_n)
+sparkta2 poverty_rate, name(region_n) type(bar2) horizontal scheme(blues)   ///
+    download datatable animate offline noopen                                ///
+    title("v0.7.1 -- Native bar2 + Export menu + animate")                   ///
+    export("`out'/26_native_bar.html")
+restore
+
+* 27 (divbar Pew-style, synthetic Likert)
+preserve
+clear
+input str100 q str22 response double share
+"Texas is on the right track investing in K-12 public education" "Strongly disagree" 18
+"Texas is on the right track investing in K-12 public education" "Disagree"          22
+"Texas is on the right track investing in K-12 public education" "Neutral"           14
+"Texas is on the right track investing in K-12 public education" "Agree"             29
+"Texas is on the right track investing in K-12 public education" "Strongly agree"    17
+"Higher education in Texas is affordable for most families"      "Strongly disagree" 29
+"Higher education in Texas is affordable for most families"      "Disagree"          33
+"Higher education in Texas is affordable for most families"      "Neutral"           14
+"Higher education in Texas is affordable for most families"      "Agree"             18
+"Higher education in Texas is affordable for most families"      "Strongly agree"    6
+end
+sparkta2 share, name(q) level(response) type(divbar)                         ///
+    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")    ///
+    centerlevel(Neutral)                                                     ///
+    download datatable offline noopen                                        ///
+    title("v0.7.0 -- Diverging stacked bar (Pew-style)")                     ///
+    width(1100) height(360)                                                  ///
+    export("`out'/27_divbar.html")
+restore
+
+* 28 (barrace)
+preserve
+clear
+input long yr str22 name double v
+2020 "Harris"  4731145
+2020 "Dallas"  2613539
+2020 "Tarrant" 2110640
+2020 "Bexar"   2009324
+2020 "Travis"  1290188
+2022 "Harris"  4780913
+2022 "Dallas"  2613539
+2022 "Tarrant" 2154595
+2022 "Bexar"   2061226
+2022 "Travis"  1330411
+2024 "Harris"  4894753
+2024 "Dallas"  2604722
+2024 "Tarrant" 2211232
+2024 "Bexar"   2126810
+2024 "Travis"  1378260
+end
+sparkta2 v, name(name) time(yr) type(barrace) top(5) duration(10)            ///
+    scheme(tx2036) download datatable offline noopen                         ///
+    title("v0.7.0 -- Bar chart race (synthetic)")                            ///
+    export("`out'/28_barrace.html")
+restore
+
+use "`county_data'", clear
+
+*=============================================================================
 * DASHBOARD -- combine all 20 maps + the 2 pass-throughs into one page
 *=============================================================================
 local _all_files  "01_bivariate_full.html 02_choropleth_blues.html 03_choropleth_viridis.html 04_bivariate_bupu.html 05_multiples_3panel.html 06_multiples_xy.html 07_diff_only.html 08_rankdiff.html 09_counties_big8.html 10_if_rural.html 11_tooltip_table.html 12_zoomto_dfw.html 13_nozoom.html 14_search.html 15_bar_pass.html 16_scatter_pass.html 17_hexbin_tx.html 18_basemap.html 19_us_states_choropleth.html 20_us_states_bivariate.html"
@@ -389,8 +507,8 @@ forvalues _i = 1/`_nall' {
 
 sparkta2_dashboard,                                                          ///
     files("`_dash_files'") titles("`_dash_titles'") heights("920")           ///
-    title("sparkta2 v0.4.0 -- Texas county + US state demo gallery")         ///
-    subtitle("20 worked examples covering bivariate, choropleth, hexbin, basemap, small multiples, subsetting, search, zoom, downloads, tooltip tables, and chart pass-through. The last two examples (US state-level) demonstrate that the engine works outside Texas.") ///
+    title("sparkta2 v0.7.1 -- Texas county + US state demo gallery")         ///
+    subtitle("20 worked map examples covering bivariate, choropleth, hexbin, basemap, small multiples, subsetting, search, zoom, downloads, tooltip tables, and chart pass-through. The last two examples (US state-level) demonstrate the engine outside Texas. Eight v0.6.x / v0.7.x additions (Export menu, datatable, animate, Texas-tuned projection, donut, bar2, divbar, barrace) are written next to this dashboard but not embedded here.") ///
     export("`out'/00_dashboard.html") noopen
 
 display as result _n "All sparkta2 demo files written to:"

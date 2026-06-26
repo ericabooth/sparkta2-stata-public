@@ -1,33 +1,32 @@
-*! sparkta2_writehtml v0.2.2  2026-06-26
-*! Assemble the final self-contained HTML for a sparkta2 map.
+*! sparkta2_chart_writehtml v0.7.0  2026-06-26
+*! Assemble the self-contained HTML for a sparkta2 native chart
+*! (donut | bar | line | divbar | barrace).
 *!
-*! v0.2.2: forward projection / rotate / parallels / center option strings
-*!   into the meta JSON so the engine's projection builder can apply them.
-*!
-*! v0.2.1: optional datatable + animate features.  Adds export-menu CSS,
-*!   collapsible data-table container, and print-only stylesheet.
-program define sparkta2_writehtml
+*! Mirrors the page structure of sparkta2_writehtml.ado (Texas 2036 brand
+*! tokens, Export menu CSS, datatable CSS, print stylesheet) but omits the
+*! map-specific machinery (topojson, hexbin, projection, layer selection)
+*! since the chart engine doesn't need any of it.
+
+program define sparkta2_chart_writehtml
     version 17.0
-    syntax , TOPOPATH(string) ENGPATH(string) D3PATH(string) TCPATH(string) ///
-        ROWJSON(string) METAJSON(string)                                     ///
-        EXPORT(string) ISOFFline(integer)                                    ///
-        TYPE(string) SCHEME(string) TITLE(string)                            ///
-        XVAR(string)                                                         ///
-        MODE(string) MODES(string)                                           ///
-        ISSWap(integer) ISDOWNload(integer) ISCOMParable(integer)            ///
-        ISMULTiples(integer) ISBASemap(integer)                              ///
-        ISZoom(integer) ISSEArch(integer)                                    ///
-        BINS(integer)                                                        ///
-        WIDTH(integer) HEIGHT(integer)                                       ///
-        IDWidth(integer)                                                     ///
-        HEXRadius(integer) POINTSIze(integer)                                ///
-        [HXPATH(string) GEO(string)                                          ///
-         SUBtitle(string) NOTE(string) XLAbel(string) YLAbel(string)         ///
-         YVAR(string) ZOOMTo(string) LAYer(string) HEXStat(string)           ///
-         LATvar(string) LONvar(string)                                       ///
-         ISDATAtable(integer 0) ISANImate(integer 0)                         ///
-         PROJection(string) ROTATestr(string)                                ///
-         PARALLELSstr(string) CENTERstr(string)]
+    syntax , ENGPATH(string) D3PATH(string)                              ///
+        ROWJSON(string) TIPJSON(string)                                  ///
+        EXPORT(string) ISOFFline(integer)                                ///
+        TYPE(string) SCHEME(string) TITLE(string)                        ///
+        XVAR(string)                                                     ///
+        HORIzontal(integer) STACKed(integer)                             ///
+        NORMAlize(integer) SUPPRESSaxis(integer)                         ///
+        DIRECTlabels(integer)                                            ///
+        INNERradius(real) TOP(integer) FPS(integer)                      ///
+        DURation(real)                                                   ///
+        ISDOWNload(integer) ISDATAtable(integer) ISANImate(integer)      ///
+        WIDTH(integer) HEIGHT(integer)                                   ///
+        [ SUBtitle(string) NOTE(string)                                  ///
+          XLAbel(string) YLAbel(string)                                  ///
+          YVAR(string) NAME(string) OVER(string)                         ///
+          LEVel(string) TIME(string)                                     ///
+          LEVELORDer(string) CENTERlevel(string)                         ///
+          SORTEDstr(string) ]
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
@@ -42,6 +41,7 @@ program define sparkta2_writehtml
     file write `fh' `"<meta name="viewport" content="width=device-width, initial-scale=1">"' _n
     file write `fh' `"<title>`esc_title'</title>"' _n
     file write `fh' `"<style>"' _n
+    * Texas 2036 brand tokens (matches the map writehtml)
     file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
     file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}"' _n
     file write `fh' `".wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px;}"' _n
@@ -55,40 +55,29 @@ program define sparkta2_writehtml
     file write `fh' `".controls select,.controls button{width:100%;padding:6px 8px;font-size:.85rem;border:1px solid var(--line);border-radius:6px;background:#fff;}"' _n
     file write `fh' `".controls button{cursor:pointer;background:#fff;color:var(--ink);transition:background .12s;}"' _n
     file write `fh' `".controls button:hover{background:#eef2f7;}"' _n
-    file write `fh' `".controls .row{display:flex;gap:6px;margin-top:8px;}"' _n
-    file write `fh' `".modes{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px;}"' _n
-    file write `fh' `".modes button{flex:1 1 auto;padding:4px 8px;font-size:.78rem;}"' _n
-    file write `fh' `".modes button.active{background:var(--ink);color:#fff;border-color:var(--ink);}"' _n
-    file write `fh' `".sliderbox{margin:8px 0 4px;}"' _n
-    file write `fh' `".sliderbox .lbl{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);}"' _n
-    file write `fh' `".sliderbox .track{position:relative;height:6px;background:#e2e8f0;border-radius:3px;margin:6px 4px 0;}"' _n
-    file write `fh' `".sliderbox .fill{position:absolute;top:0;height:100%;background:var(--ink);border-radius:3px;}"' _n
-    file write `fh' `".sliderbox input[type=range]{position:absolute;top:-6px;left:-4px;width:calc(100% + 8px);height:18px;background:none;-webkit-appearance:none;pointer-events:none;}"' _n
-    file write `fh' `".sliderbox input[type=range]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ink);cursor:pointer;}"' _n
-    file write `fh' `".sliderbox input[type=range]::-moz-range-thumb{pointer-events:auto;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--ink);cursor:pointer;}"' _n
     file write `fh' `".meta{font-size:.78rem;color:var(--muted);margin-top:10px;}"' _n
-    file write `fh' `".mapcard{padding:8px;}"' _n
-    file write `fh' `".mapcard svg{display:block;width:100%;height:auto;}"' _n
-    file write `fh' `"#panels{display:none;}"' _n
-    file write `fh' `"#panels.active{display:grid;gap:12px;}"' _n
-    file write `fh' `"#panels.active .panel{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;}"' _n
-    file write `fh' `"#panels.active .panel h4{margin:0 0 6px;font-size:.95rem;color:var(--ink);font-weight:600;}"' _n
-    file write `fh' `"#panels.active .panel svg{display:block;width:100%;height:auto;}"' _n
-    file write `fh' `".legend text{font:12px sans-serif;fill:#334155;}"' _n
-    file write `fh' `".region{stroke:#fff;stroke-width:.45px;}"' _n
-    file write `fh' `".region.dim{fill:#f1f5f9 !important;}"' _n
-    file write `fh' `".region.hl{stroke:#0f172a;stroke-width:1.3px;}"' _n
+    file write `fh' `".chartcard{padding:14px;}"' _n
+    file write `fh' `".chartcard svg{display:block;width:100%;height:auto;}"' _n
+    file write `fh' `".chartcard .axis text{font:11px sans-serif;fill:#475569;}"' _n
+    file write `fh' `".chartcard .axis path,.chartcard .axis line{stroke:#cbd5e1;}"' _n
+    file write `fh' `".chartcard .bar{stroke:#fff;stroke-width:.5px;}"' _n
+    file write `fh' `".chartcard .slice{stroke:#fff;stroke-width:1.5px;}"' _n
+    file write `fh' `".chartcard .label{font:11px sans-serif;fill:#1f2937;pointer-events:none;}"' _n
+    file write `fh' `".chartcard .label-light{fill:#fff;}"' _n
+    file write `fh' `".chartcard .item-label{font:12px sans-serif;fill:#1f2937;}"' _n
+    file write `fh' `".chartcard .legend text{font:11px sans-serif;fill:#334155;}"' _n
+    file write `fh' `".chartcard .zero{stroke:#475569;stroke-width:1px;stroke-dasharray:none;}"' _n
+    file write `fh' `".chartcard .race-time{font:30px sans-serif;font-weight:700;fill:#94a3b8;text-anchor:end;}"' _n
     file write `fh' `"#tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}"' _n
     file write `fh' `".note{margin-top:14px;color:var(--muted);font-size:.78rem;}"' _n
-    * Export menu (PNG/SVG/CSV/Print/View data) — dropdown anchored to the
-    * "Export" button in the View controls section.
+    * Export menu (PNG/SVG/CSV/Print/View data) — same shape as the map writehtml
     file write `fh' `".exportmenu{position:relative;}"' _n
     file write `fh' `".exportbtn{width:100%;padding:6px 8px;font-size:.85rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;text-align:left;}"' _n
     file write `fh' `".exportbtn:hover{background:#eef2f7;}"' _n
     file write `fh' `".exportlist{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 12px rgba(15,23,42,.12);z-index:40;display:flex;flex-direction:column;padding:4px;}"' _n
     file write `fh' `".exportlist button{width:100%;padding:6px 8px;font-size:.85rem;border:none;border-radius:4px;background:none;color:var(--ink);cursor:pointer;text-align:left;}"' _n
     file write `fh' `".exportlist button:hover{background:#eef2f7;}"' _n
-    * Data-table panel (collapsible, full-width, below the chart).
+    * Data-table panel
     file write `fh' `"#datatable{display:none;margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fff;}"' _n
     file write `fh' `"#datatable.open{display:block;}"' _n
     file write `fh' `"#datatable .dt-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);background:#f8fafc;border-radius:8px 8px 0 0;font-size:.9rem;}"' _n
@@ -100,24 +89,16 @@ program define sparkta2_writehtml
     file write `fh' `"#datatable .dt-table td{padding:5px 10px;border-bottom:1px solid #f1f5f9;color:#334155;}"' _n
     file write `fh' `"#datatable .dt-table tr:hover td{background:#f8fafc;}"' _n
     file write `fh' `"#datatable .dt-truncated{padding:8px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:.78rem;background:#f8fafc;border-radius:0 0 8px 8px;}"' _n
-    * Print stylesheet — for "Print to PDF…" via window.print().  Hide the
-    * controls panel, the tooltip, and the data table so only the chart and
-    * page header print.
+    * Print stylesheet
     file write `fh' `"@media print {.controls{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}"' _n
     file write `fh' `"</style>"' _n
 
     if `isoffline' {
         sparkta2_embedjs, fh(`fh') path("`d3path'")  outpath(`"`export'"')
-        sparkta2_embedjs, fh(`fh') path("`tcpath'")  outpath(`"`export'"')
-        if "`hxpath'" != "" {
-            sparkta2_embedjs, fh(`fh') path("`hxpath'") outpath(`"`export'"')
-        }
         sparkta2_embedjs, fh(`fh') path("`engpath'") outpath(`"`export'"')
     }
     else {
         file write `fh' `"<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>"' _n
-        file write `fh' `"<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>"' _n
-        file write `fh' `"<script src="https://cdn.jsdelivr.net/npm/d3-hexbin@0.2.2/build/d3-hexbin.min.js"></script>"' _n
         sparkta2_embedjs, fh(`fh') path("`engpath'") outpath(`"`export'"')
     }
 
@@ -130,9 +111,8 @@ program define sparkta2_writehtml
     }
     file write `fh' `"<div class="panels">"' _n
     file write `fh' `"  <div class="card controls" id="controls"></div>"' _n
-    file write `fh' `"  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div></div>"' _n
+    file write `fh' `"  <div class="card chartcard"><svg id="chart"></svg></div>"' _n
     file write `fh' `"</div>"' _n
-    * Collapsible data-table container — populated by the JS engine on demand.
     file write `fh' `"<div id="datatable"></div>"' _n
     if "`note'" != "" {
         local esc_note : subinstr local note `"&"' `"&amp;"', all
@@ -140,32 +120,31 @@ program define sparkta2_writehtml
     }
     file write `fh' `"</div><div id="tooltip"></div>"' _n
 
+    * --- The JSON payload ------------------------------------------------
     file write `fh' `"<script>"' _n
-    file write `fh' `"window.__SPARKTA2__ = {"' _n
+    file write `fh' `"window.__SPARKTA2_CHART__ = {"' _n
     file write `fh' `""meta":{"' _n
     file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
     file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
     file write `fh' `""xlabel":"`xlabel'","ylabel":"`ylabel'","' _n
-    file write `fh' `""mode":"`mode'","modes":"`modes'","' _n
-    file write `fh' `""comparable":`iscomparable',"swap":`isswap',"download":`isdownload',"multiples":`ismultiples',"' _n
-    file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
-    file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
-    file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
-    file write `fh' `""layer":"`layer'","geo":"`geo'","idwidth":`idwidth',"' _n
-    file write `fh' `""hexradius":`hexradius',"hexstat":"`hexstat'","pointsize":`pointsize',"' _n
-    file write `fh' `""latvar":"`latvar'","lonvar":"`lonvar'","' _n
-    file write `fh' `""bins":`bins',"width":`width',"height":`height'"' _n
+    file write `fh' `""name":"`name'","over":"`over'","' _n
+    file write `fh' `""level":"`level'","time":"`time'","' _n
+    file write `fh' `""levelorder":"`levelorder'","centerlevel":"`centerlevel'","' _n
+    file write `fh' `""horizontal":`horizontal',"stacked":`stacked',"normalize":`normalize',"' _n
+    file write `fh' `""suppressaxis":`suppressaxis',"directlabels":`directlabels',"' _n
+    file write `fh' `""innerradius":`innerradius',"top":`top',"fps":`fps',"duration":`duration',"' _n
+    file write `fh' `""sorted":"`sortedstr'","' _n
+    file write `fh' `""download":`isdownload',"datatable":`isdatatable',"animate":`isanimate',"' _n
+    file write `fh' `""width":`width',"height":`height'"' _n
     file write `fh' `"},"' _n
-    file write `fh' `""controls":"' _n
-    sparkta2_appendfile, fh(`fh') path("`metajson'") outpath(`"`export'"')
+    file write `fh' `""tooltipvars":"' _n
+    sparkta2_appendfile, fh(`fh') path("`tipjson'") outpath(`"`export'"')
     file write `fh' `","' _n
     file write `fh' `""data":["' _n
     sparkta2_appendfile, fh(`fh') path("`rowjson'") outpath(`"`export'"')
-    file write `fh' `"],"' _n
-    file write `fh' `""topo":"' _n
-    sparkta2_appendfile, fh(`fh') path("`topopath'") outpath(`"`export'"')
-    file write `fh' _n `"};"' _n
-    file write `fh' `"sparkta2Render(window.__SPARKTA2__);"' _n
+    file write `fh' `"]"' _n
+    file write `fh' `"};"' _n
+    file write `fh' `"sparkta2RenderChart(window.__SPARKTA2_CHART__);"' _n
     file write `fh' `"</script></body></html>"' _n
     file close `fh'
 end
