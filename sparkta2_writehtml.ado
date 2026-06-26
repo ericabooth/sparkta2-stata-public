@@ -26,8 +26,10 @@ program define sparkta2_writehtml
          YVAR(string) ZOOMTo(string) LAYer(string) HEXStat(string)           ///
          LATvar(string) LONvar(string)                                       ///
          ISDATAtable(integer 0) ISANImate(integer 0)                         ///
+         ISTX2036Style(integer 0) DOWNLOADPos(string)                        ///
          PROJection(string) ROTATestr(string)                                ///
          PARALLELSstr(string) CENTERstr(string)]
+    if "`downloadpos'" == "" local downloadpos "side"
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
@@ -41,9 +43,24 @@ program define sparkta2_writehtml
     file write `fh' `"<meta charset="utf-8">"' _n
     file write `fh' `"<meta name="viewport" content="width=device-width, initial-scale=1">"' _n
     file write `fh' `"<title>`esc_title'</title>"' _n
+    * tx2036style: pull Montserrat from Google Fonts (Texas 2036 brand body
+    * font).  Offline mode falls back to system sans-serif via the
+    * font-family stack below.
+    if `istx2036style' {
+        file write `fh' `"<link rel="preconnect" href="https://fonts.googleapis.com">"' _n
+        file write `fh' `"<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>"' _n
+        file write `fh' `"<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">"' _n
+    }
     file write `fh' `"<style>"' _n
     file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
-    file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}"' _n
+    if `istx2036style' {
+        file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}"' _n
+        file write `fh' `"h1{font-weight:700;letter-spacing:-0.01em;}"' _n
+        file write `fh' `".controls h3{font-weight:600;}"' _n
+    }
+    else {
+        file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}"' _n
+    }
     file write `fh' `".wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px;}"' _n
     file write `fh' `"h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}"' _n
     file write `fh' `".sub{color:var(--muted);margin:0 0 16px;font-size:.95rem;}"' _n
@@ -80,6 +97,20 @@ program define sparkta2_writehtml
     file write `fh' `".region.hl{stroke:#0f172a;stroke-width:1.3px;}"' _n
     file write `fh' `"#tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}"' _n
     file write `fh' `".note{margin-top:14px;color:var(--muted);font-size:.78rem;}"' _n
+    * Under-chart export footer (downloadpos=below).  Drops in below the SVG
+    * inside the chartcard, right-aligned, so the side controls column can
+    * stay narrow (or collapse entirely when only View is active).
+    file write `fh' `"#chart-footer{display:none;justify-content:flex-end;align-items:center;gap:8px;padding:8px 0 0;border-top:1px solid var(--line);margin-top:8px;}"' _n
+    file write `fh' `"#chart-footer.active{display:flex;}"' _n
+    file write `fh' `"#chart-footer button{padding:4px 10px;font-size:.8rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;}"' _n
+    file write `fh' `"#chart-footer button:hover{background:#eef2f7;}"' _n
+    file write `fh' `"#chart-footer .exportmenu{position:relative;}"' _n
+    file write `fh' `"#chart-footer .exportlist{left:auto;right:0;min-width:170px;}"' _n
+    * When downloadpos=below and no other controls live in the side panel,
+    * the layout collapses to a single column so the page doesn't reserve
+    * the 240px sidebar.
+    file write `fh' `".panels.no-sidebar{grid-template-columns:1fr !important;}"' _n
+    file write `fh' `".controls.empty{display:none;}"' _n
     * Export menu (PNG/SVG/CSV/Print/View data) — dropdown anchored to the
     * "Export" button in the View controls section.
     file write `fh' `".exportmenu{position:relative;}"' _n
@@ -130,7 +161,7 @@ program define sparkta2_writehtml
     }
     file write `fh' `"<div class="panels">"' _n
     file write `fh' `"  <div class="card controls" id="controls"></div>"' _n
-    file write `fh' `"  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div></div>"' _n
+    file write `fh' `"  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div><div id="chart-footer"></div></div>"' _n
     file write `fh' `"</div>"' _n
     * Collapsible data-table container — populated by the JS engine on demand.
     file write `fh' `"<div id="datatable"></div>"' _n
@@ -149,6 +180,7 @@ program define sparkta2_writehtml
     file write `fh' `""mode":"`mode'","modes":"`modes'","' _n
     file write `fh' `""comparable":`iscomparable',"swap":`isswap',"download":`isdownload',"multiples":`ismultiples',"' _n
     file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
+    file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
     file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
     file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
     file write `fh' `""layer":"`layer'","geo":"`geo'","idwidth":`idwidth',"' _n

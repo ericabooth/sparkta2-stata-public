@@ -27,19 +27,19 @@ label variable region_n "Region"
 sparkta2 poverty_rate uninsured_rate, id(fips) name(county) ///
     type(bivariate) scheme(rdbu) modes(bivariate|x|y|diff|ratio) ///
     comparable filters(region_n) sliders(poverty_rate uninsured_rate) ///
-    swapbutton download search offline noopen ///
+    swapbutton download search offline noopen tx2036style ///
     title("Texas counties: poverty vs uninsured") ///
     export("map_bivariate.html")
 
 sparkta2 poverty_rate, id(fips) name(county) ///
     type(hexbin) scheme(viridis) hexradius(22) hexstat(mean) ///
-    download offline noopen ///
+    download offline noopen tx2036style ///
     title("Hexbin -- mean poverty rate per hex") ///
     export("map_hexbin.html")
 
 sparkta2 poverty_rate uninsured_rate, id(fips) name(county) ///
     type(bivariate) scheme(rdbu) basemap modes(bivariate|x|y|diff|ratio) ///
-    comparable offline noopen ///
+    comparable offline noopen tx2036style ///
     title("Bivariate + US-state basemap") ///
     export("map_basemap.html")
 
@@ -76,7 +76,7 @@ input str30 sector long enroll
 "Career schools" 86000
 "Health-related" 19000
 end
-sparkta2 enroll, name(sector) type(donut) scheme(tx2036) download datatable ///
+sparkta2 enroll, name(sector) type(donut) scheme(tx2036) download datatable tx2036style downloadpos(below) ///
     offline noopen title("v0.7.0 donut: enrollment by sector")               ///
     export("chart_donut.html")
 restore

@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>v0.7.1 -- Native multi-series line2</title>
+<title>A. Pew-style diverging stacked bar: full Likert distribution</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1348,61 +1348,125 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 </script>
 </head><body>
 <div class="wrap">
-<h1>v0.7.1 -- Native multi-series line2</h1>
+<h1>A. Pew-style diverging stacked bar: full Likert distribution</h1>
+<p class="sub">9 items; sorted by net favourability; central zero baseline</p>
 <div class="panels">
   <div class="card controls" id="controls"></div>
   <div class="card chartcard"><svg id="chart"></svg><div id="chart-footer"></div></div>
 </div>
 <div id="datatable"></div>
+<p class="note">Source: synthetic data for sparkta2 v0.7.2 demonstration.</p>
 </div><div id="tooltip"></div>
 <script>
 window.__SPARKTA2_CHART__ = {
 "meta":{
-"type":"line","scheme":"tx2036",
-"xvar":"y","yvar":"yr",
+"type":"divbar","scheme":"rdbu",
+"xvar":"share","yvar":"",
 "xlabel":"","ylabel":"",
-"name":"","over":"series",
-"level":"","time":"",
-"levelorder":"","centerlevel":"",
+"name":"q","over":"",
+"level":"response","time":"",
+"levelorder":"Strongly disagree|Disagree|Neutral|Agree|Strongly agree","centerlevel":"Neutral",
 "horizontal":0,"stacked":0,"normalize":0,
-"suppressaxis":0,"directlabels":0,
+"suppressaxis":1,"directlabels":1,
 "innerradius":.55,"top":12,"fps":12,"duration":25,
 "sorted":"",
-"download":1,"datatable":1,"animate":1,
+"download":1,"datatable":1,"animate":0,
 "tx2036style":1,"downloadpos":"below",
 "labelwrap":"auto","labelwidth":0,
-"width":980,"height":644
+"width":1100,"height":850
 },
 "tooltipvars":
 [],
 "data":[
-        {"x":42,"y":2018,"g":"Texas"}
+        {"x":36,"name":"Texas should invest more in early childhood education before kindergarten","lev":"Agree"}
 ,
-        {"x":43.1,"y":2019,"g":"Texas"}
+        {"x":13,"name":"Texas should invest more in early childhood education before kindergarten","lev":"Disagree"}
 ,
-        {"x":41.5,"y":2020,"g":"Texas"}
+        {"x":18,"name":"Texas should invest more in early childhood education before kindergarten","lev":"Neutral"}
 ,
-        {"x":42.8,"y":2021,"g":"Texas"}
+        {"x":26,"name":"Texas should invest more in early childhood education before kindergarten","lev":"Strongly agree"}
 ,
-        {"x":43.9,"y":2022,"g":"Texas"}
+        {"x":7,"name":"Texas should invest more in early childhood education before kindergarten","lev":"Strongly disagree"}
 ,
-        {"x":44.5,"y":2023,"g":"Texas"}
+        {"x":39,"name":"My local school district uses its funding effectively","lev":"Agree"}
 ,
-        {"x":45.2,"y":2024,"g":"Texas"}
+        {"x":18,"name":"My local school district uses its funding effectively","lev":"Disagree"}
 ,
-        {"x":46.5,"y":2018,"g":"ESC 13"}
+        {"x":21,"name":"My local school district uses its funding effectively","lev":"Neutral"}
 ,
-        {"x":47,"y":2019,"g":"ESC 13"}
+        {"x":13,"name":"My local school district uses its funding effectively","lev":"Strongly agree"}
 ,
-        {"x":46.1,"y":2020,"g":"ESC 13"}
+        {"x":9,"name":"My local school district uses its funding effectively","lev":"Strongly disagree"}
 ,
-        {"x":47.2,"y":2021,"g":"ESC 13"}
+        {"x":33,"name":"Workforce training programs in my region meet local employer needs","lev":"Agree"}
 ,
-        {"x":48,"y":2022,"g":"ESC 13"}
+        {"x":21,"name":"Workforce training programs in my region meet local employer needs","lev":"Disagree"}
 ,
-        {"x":48.6,"y":2023,"g":"ESC 13"}
+        {"x":24,"name":"Workforce training programs in my region meet local employer needs","lev":"Neutral"}
 ,
-        {"x":49.3,"y":2024,"g":"ESC 13"}
+        {"x":11,"name":"Workforce training programs in my region meet local employer needs","lev":"Strongly agree"}
+,
+        {"x":11,"name":"Workforce training programs in my region meet local employer needs","lev":"Strongly disagree"}
+,
+        {"x":29,"name":"Texas is on the right track when it comes to investing in K-12 public education","lev":"Agree"}
+,
+        {"x":22,"name":"Texas is on the right track when it comes to investing in K-12 public education","lev":"Disagree"}
+,
+        {"x":14,"name":"Texas is on the right track when it comes to investing in K-12 public education","lev":"Neutral"}
+,
+        {"x":17,"name":"Texas is on the right track when it comes to investing in K-12 public education","lev":"Strongly agree"}
+,
+        {"x":18,"name":"Texas is on the right track when it comes to investing in K-12 public education","lev":"Strongly disagree"}
+,
+        {"x":26,"name":"State leaders should expand school choice through publicly funded programs","lev":"Agree"}
+,
+        {"x":18,"name":"State leaders should expand school choice through publicly funded programs","lev":"Disagree"}
+,
+        {"x":12,"name":"State leaders should expand school choice through publicly funded programs","lev":"Neutral"}
+,
+        {"x":20,"name":"State leaders should expand school choice through publicly funded programs","lev":"Strongly agree"}
+,
+        {"x":24,"name":"State leaders should expand school choice through publicly funded programs","lev":"Strongly disagree"}
+,
+        {"x":31,"name":"The state is doing enough to prepare students for careers in high-demand industries","lev":"Agree"}
+,
+        {"x":27,"name":"The state is doing enough to prepare students for careers in high-demand industries","lev":"Disagree"}
+,
+        {"x":19,"name":"The state is doing enough to prepare students for careers in high-demand industries","lev":"Neutral"}
+,
+        {"x":11,"name":"The state is doing enough to prepare students for careers in high-demand industries","lev":"Strongly agree"}
+,
+        {"x":12,"name":"The state is doing enough to prepare students for careers in high-demand industries","lev":"Strongly disagree"}
+,
+        {"x":25,"name":"Texas has the digital infrastructure (broadband, devices) to support every student","lev":"Agree"}
+,
+        {"x":28,"name":"Texas has the digital infrastructure (broadband, devices) to support every student","lev":"Disagree"}
+,
+        {"x":17,"name":"Texas has the digital infrastructure (broadband, devices) to support every student","lev":"Neutral"}
+,
+        {"x":10,"name":"Texas has the digital infrastructure (broadband, devices) to support every student","lev":"Strongly agree"}
+,
+        {"x":20,"name":"Texas has the digital infrastructure (broadband, devices) to support every student","lev":"Strongly disagree"}
+,
+        {"x":19,"name":"Teachers in my community are paid fairly for the work they do","lev":"Agree"}
+,
+        {"x":31,"name":"Teachers in my community are paid fairly for the work they do","lev":"Disagree"}
+,
+        {"x":16,"name":"Teachers in my community are paid fairly for the work they do","lev":"Neutral"}
+,
+        {"x":7,"name":"Teachers in my community are paid fairly for the work they do","lev":"Strongly agree"}
+,
+        {"x":27,"name":"Teachers in my community are paid fairly for the work they do","lev":"Strongly disagree"}
+,
+        {"x":18,"name":"Higher education in Texas is affordable for most families","lev":"Agree"}
+,
+        {"x":33,"name":"Higher education in Texas is affordable for most families","lev":"Disagree"}
+,
+        {"x":14,"name":"Higher education in Texas is affordable for most families","lev":"Neutral"}
+,
+        {"x":6,"name":"Higher education in Texas is affordable for most families","lev":"Strongly agree"}
+,
+        {"x":29,"name":"Higher education in Texas is affordable for most families","lev":"Strongly disagree"}
 ]
 };
 sparkta2RenderChart(window.__SPARKTA2_CHART__);

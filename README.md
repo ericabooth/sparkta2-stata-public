@@ -16,6 +16,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.7.2** (2026-06-26). `tx2036style` option (Texas 2036 brand + Montserrat font from Google Fonts) and `downloadpos(side|below|none)` option to move the Export menu under the chart (collapses the 240px side panel when no other controls live there).
+
 **v0.7.1** (2026-06-26). Backward-compat rename: native bar / line are now `type(bar2)` / `type(line2)`, so sparkta's `type(bar)` / `type(line)` continue to forward unchanged. Existing do-files that called sparkta for bars or lines keep working without edits.
 
 **v0.7.0** (2026-06-26). Native D3 chart types beyond maps: donut, bar2, line2, diverging stacked bar (Pew-style for Likert/survey items), and bar chart race. All inherit the v0.6.0 Export menu, animate-on-view, and CSV data download.
@@ -24,6 +26,12 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 <img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
 
+
+### What's new in v0.7.2 (2026-06-26)
+
+- **`tx2036style` option.** Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography to a Texas 2036 brand look — heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
+- **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
+- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 7 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined onto a single dashboard page via `sparkta2_dashboard`.
 
 ### What's new in v0.7.1 (2026-06-26)
 

@@ -124,13 +124,35 @@
 
     function buildControls() {
       controlsRoot.selectAll("*").remove();
-      if (meta.download || meta.datatable) {
+      var dlpos = (meta.downloadpos || "side").toLowerCase();
+      var hideExport = (dlpos === "none");
+      var exportInFooter = (dlpos === "below");
+
+      if ((meta.download || meta.datatable) && !hideExport && !exportInFooter) {
         controlsRoot.append("h3").text("View");
         buildExportMenu(controlsRoot);
       }
       // Type-specific control widgets are appended by the renderer.
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
       updateMetabox();
+
+      if (exportInFooter && !hideExport && (meta.download || meta.datatable)) {
+        var foot = d3.select("#chart-footer").classed("active", true);
+        foot.selectAll("*").remove();
+        buildExportMenu(foot);
+      }
+      // Collapse the side panel when only the metabox + label-less content
+      // would remain.  This keeps the page narrow when the user only wanted
+      // Export and pushed it under the chart.
+      var ctrlChildren = controlsRoot.node().children;
+      var nonMeta = 0;
+      for (var i = 0; i < ctrlChildren.length; i++) {
+        if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
+      }
+      if (nonMeta === 0) {
+        controlsRoot.classed("empty", true);
+        d3.select(".panels").classed("no-sidebar", true);
+      }
     }
     function updateMetabox() {
       d3.select("#metabox").html("<strong>" + data.length + "</strong> rows");
@@ -498,18 +520,38 @@
       var normalize = !!meta.normalize;
       var hasOver = !!meta.over;
 
-      var margin = horiz
-        ? { top: 24, right: 24, bottom: 36, left: 160 }
-        : { top: 24, right: 24, bottom: 60, left: 64 };
-      var iw = W - margin.left - margin.right;
-      var ih = H - margin.top  - margin.bottom;
-      var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
       // Categories preserve input order
       var cats = [];
       data.forEach(function (d) {
         if (cats.indexOf(d.name) < 0) cats.push(d.name);
       });
+
+      // Label-wrap resolution (v0.7.3).  User-facing options:
+      //   meta.labelwrap = "auto" (default) | "on" | "off"
+      //   meta.labelwidth = explicit left-margin px (0 = use defaults)
+      // "auto" keeps the character-count heuristic: wrap iff the longest
+      // label exceeds ~28 chars on a horizontal single-series bar.
+      // "on" / "off" force the behaviour; "off" truncates with an ellipsis
+      // when a label would overflow the gutter.
+      var maxLabelLen = cats.reduce(function (m, c) {
+        return Math.max(m, String(c || "").length);
+      }, 0);
+      var lwMode = (meta.labelwrap || "auto").toLowerCase();
+      var useWrappedLabels;
+      if      (lwMode === "on")  useWrappedLabels = horiz && !hasOver;
+      else if (lwMode === "off") useWrappedLabels = false;
+      else                        useWrappedLabels = horiz && !hasOver && maxLabelLen > 28;
+      var lwOverride = +meta.labelwidth || 0;
+      var leftMargin;
+      if (lwOverride > 0) leftMargin = lwOverride;
+      else                 leftMargin = horiz ? (useWrappedLabels ? 300 : 160) : 64;
+
+      var margin = horiz
+        ? { top: 24, right: 24, bottom: 36, left: leftMargin }
+        : { top: 24, right: 24, bottom: 60, left: leftMargin };
+      var iw = W - margin.left - margin.right;
+      var ih = H - margin.top  - margin.bottom;
+      var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
       var entered;  // selection of bar rects, returned for animate
 
@@ -522,8 +564,35 @@
         if (horiz) {
           var yScale = d3.scaleBand().domain(cats).range([0, ih]).padding(0.18);
           scaleVal.range([0, iw]);
-          g.append("g").attr("class", "axis")
-            .call(d3.axisLeft(yScale));
+          if (useWrappedLabels) {
+            // Hand-render wrapped labels instead of using d3.axisLeft, so
+            // long survey-item names wrap to 2-3 lines and stay readable.
+            var lbls = g.append("g").attr("class", "item-labels");
+            cats.forEach(function (c) {
+              var y = yScale(c) + yScale.bandwidth() / 2;
+              var t = lbls.append("text")
+                .attr("class", "item-label")
+                .attr("x", -10).attr("y", y)
+                .attr("text-anchor", "end")
+                .attr("dominant-baseline", "middle");
+              wrapText(t, c, margin.left - 20);
+            });
+          } else if (lwMode === "off") {
+            // labelwrap(off): hand-render single-line labels with ellipsis
+            // truncation if a label exceeds the gutter.
+            var lblsT = g.append("g").attr("class", "item-labels");
+            cats.forEach(function (c) {
+              var y = yScale(c) + yScale.bandwidth() / 2;
+              var t = lblsT.append("text")
+                .attr("class", "item-label")
+                .attr("x", -10).attr("y", y)
+                .attr("text-anchor", "end");
+              truncateText(t, c, margin.left - 20);
+            });
+          } else {
+            g.append("g").attr("class", "axis")
+              .call(d3.axisLeft(yScale));
+          }
           g.append("g").attr("class", "axis")
             .attr("transform", "translate(0," + ih + ")")
             .call(d3.axisBottom(scaleVal).ticks(6));
@@ -786,7 +855,17 @@
     // -----------------------------------------------------------------
     function renderDivbar() {
       svg.selectAll("*").remove();
-      var margin = { top: 60, right: 80, bottom: 14, left: 260 };
+      // Label-wrap resolution.  divbar defaults to wrap=on (Pew-style) but
+      // user can pass labelwrap(off) to truncate, and labelwidth(N) to
+      // override the gutter width.
+      var lwModeD = (meta.labelwrap || "auto").toLowerCase();
+      var divDoWrap = (lwModeD !== "off");
+      var divLeftOverride = +meta.labelwidth || 0;
+      // Generous left margin to host wrapped survey-item text; works well
+      // up to ~80-character items with two-line wrap.  Right margin
+      // reserves space for the Net (+/-) annotation column.
+      var margin = { top: 60, right: 90, bottom: 14,
+                     left: (divLeftOverride > 0 ? divLeftOverride : 300) };
       var iw = W - margin.left - margin.right;
       var ih = H - margin.top  - margin.bottom;
       var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -852,7 +931,8 @@
       var xs = d3.scaleLinear().domain([-bound, bound]).range([0, iw]);
       var ys = d3.scaleBand().domain(items).range([0, ih]).padding(0.28);
 
-      // Item labels on the LEFT with text wrapping for long survey items
+      // Item labels on the LEFT.  Default: wrap multi-line (Pew style);
+      // labelwrap(off) switches to truncate-with-ellipsis on a single line.
       var itemLabel = g.append("g").attr("class", "item-labels");
       items.forEach(function (it) {
         var y = ys(it) + ys.bandwidth() / 2;
@@ -861,7 +941,8 @@
           .attr("x", -10).attr("y", y)
           .attr("text-anchor", "end")
           .attr("dominant-baseline", "middle");
-        wrapText(t, it, margin.left - 20);
+        if (divDoWrap) wrapText(t, it, margin.left - 20);
+        else           truncateText(t, it, margin.left - 20);
       });
 
       // Bars: for each item, render segments
@@ -962,6 +1043,28 @@
         },
         duration: 700, stagger: 30
       }];
+    }
+
+    // Truncate-with-ellipsis helper: single-line label that fits in maxPx.
+    // Uses a binary search on `getComputedTextLength` to find the longest
+    // prefix that fits.  No-ops if the full content already fits.
+    function truncateText(text, content, maxPx) {
+      var full = String(content || "");
+      var x = +text.attr("x") || 0;
+      text.text(null);
+      var tspan = text.append("tspan").attr("x", x).attr("dy", "0.32em");
+      tspan.text(full);
+      if (tspan.node().getComputedTextLength() <= maxPx) return;
+      // Binary search: find the longest prefix length L such that
+      // (full.slice(0, L) + "…") fits.
+      var lo = 0, hi = full.length;
+      while (lo < hi) {
+        var mid = Math.ceil((lo + hi) / 2);
+        tspan.text(full.slice(0, mid).replace(/\s+$/, "") + "…");
+        if (tspan.node().getComputedTextLength() <= maxPx) lo = mid;
+        else hi = mid - 1;
+      }
+      tspan.text(full.slice(0, lo).replace(/\s+$/, "") + "…");
     }
 
     // Text-wrap helper for long survey items in the left margin.

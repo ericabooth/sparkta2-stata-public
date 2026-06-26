@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>v0.7.1 -- Native multi-series line2</title>
+<title>9j-a. wraplabel(auto) -- default</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1348,7 +1348,8 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 </script>
 </head><body>
 <div class="wrap">
-<h1>v0.7.1 -- Native multi-series line2</h1>
+<h1>9j-a. wraplabel(auto) -- default</h1>
+<p class="sub">Heuristic wraps when longest label > ~28 chars</p>
 <div class="panels">
   <div class="card controls" id="controls"></div>
   <div class="card chartcard"><svg id="chart"></svg><div id="chart-footer"></div></div>
@@ -1358,51 +1359,41 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 <script>
 window.__SPARKTA2_CHART__ = {
 "meta":{
-"type":"line","scheme":"tx2036",
-"xvar":"y","yvar":"yr",
+"type":"bar","scheme":"blues",
+"xvar":"pct_agree","yvar":"",
 "xlabel":"","ylabel":"",
-"name":"","over":"series",
+"name":"q","over":"",
 "level":"","time":"",
 "levelorder":"","centerlevel":"",
-"horizontal":0,"stacked":0,"normalize":0,
+"horizontal":1,"stacked":0,"normalize":0,
 "suppressaxis":0,"directlabels":0,
 "innerradius":.55,"top":12,"fps":12,"duration":25,
 "sorted":"",
-"download":1,"datatable":1,"animate":1,
+"download":0,"datatable":0,"animate":0,
 "tx2036style":1,"downloadpos":"below",
 "labelwrap":"auto","labelwidth":0,
-"width":980,"height":644
+"width":900,"height":720
 },
 "tooltipvars":
 [],
 "data":[
-        {"x":42,"y":2018,"g":"Texas"}
+        {"x":62,"name":"Texas should invest more in early childhood education before kindergarten"}
 ,
-        {"x":43.1,"y":2019,"g":"Texas"}
+        {"x":52,"name":"My local school district uses its funding effectively"}
 ,
-        {"x":41.5,"y":2020,"g":"Texas"}
+        {"x":44,"name":"Workforce training programs in my region meet local employer needs"}
 ,
-        {"x":42.8,"y":2021,"g":"Texas"}
+        {"x":46,"name":"Texas is on the right track when it comes to investing in K-12 public education"}
 ,
-        {"x":43.9,"y":2022,"g":"Texas"}
+        {"x":46,"name":"State leaders should expand school choice through publicly funded programs"}
 ,
-        {"x":44.5,"y":2023,"g":"Texas"}
+        {"x":42,"name":"The state is doing enough to prepare students for careers in high-demand industries"}
 ,
-        {"x":45.2,"y":2024,"g":"Texas"}
+        {"x":35,"name":"Texas has the digital infrastructure (broadband, devices) to support every student"}
 ,
-        {"x":46.5,"y":2018,"g":"ESC 13"}
+        {"x":26,"name":"Teachers in my community are paid fairly for the work they do"}
 ,
-        {"x":47,"y":2019,"g":"ESC 13"}
-,
-        {"x":46.1,"y":2020,"g":"ESC 13"}
-,
-        {"x":47.2,"y":2021,"g":"ESC 13"}
-,
-        {"x":48,"y":2022,"g":"ESC 13"}
-,
-        {"x":48.6,"y":2023,"g":"ESC 13"}
-,
-        {"x":49.3,"y":2024,"g":"ESC 13"}
+        {"x":24,"name":"Higher education in Texas is affordable for most families"}
 ]
 };
 sparkta2RenderChart(window.__SPARKTA2_CHART__);

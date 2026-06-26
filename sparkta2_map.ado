@@ -66,8 +66,10 @@ program define sparkta2_map, rclass
         COMParable                                         ///  declare x/y on comparable units
         SWAPbutton                                         ///  show swap-axes button
         DOWNload                                           ///  show export menu (PNG/SVG/Print)
+        DOWNLOADPos(string)                                ///  side (default) | below | none -- Export menu placement
         DATATable                                          ///  add CSV download + collapsible data-table view
         ANIMate                                            ///  fade features in when chart scrolls into view
+        TX2036STyle                                        ///  Texas 2036 brand + Montserrat font
         PROJection(string)                                 ///  albers_usa | albers_tx | albers | mercator
         ROtate(numlist max=2 min=1)                        ///  projection rotation, degrees: lambda [phi]
         PARallels(numlist max=2 min=2)                     ///  two Albers standard parallels, degrees
@@ -75,7 +77,7 @@ program define sparkta2_map, rclass
         MULTiples                                          ///  small-multiples: one panel per mode
         BINS(integer 3)                                    ///  quantile bins per axis for bivariate
         EXPORT(string) OFFLINE NOOPEN                      ///
-        WIDTH(integer 980) HEIGHT(integer 720)             ///
+        WIDTH(integer 980) HEIGHT(integer 828)             ///
     ]
 
     marksample touse, novarlist
@@ -149,6 +151,18 @@ program define sparkta2_map, rclass
     local is_download   = cond("`download'"   != "", 1, 0)
     local is_datatable  = cond("`datatable'"  != "", 1, 0)
     local is_animate    = cond("`animate'"    != "", 1, 0)
+    local is_tx2036st   = cond("`tx2036style'" != "", 1, 0)
+
+    * downloadpos validation
+    if "`downloadpos'" == "" local downloadpos "side"
+    local downloadpos = lower("`downloadpos'")
+    local _valid_dlpos "side below none"
+    if !`:list downloadpos in _valid_dlpos' {
+        display as error "sparkta2: downloadpos(`downloadpos') not recognised."
+        display as error "  Valid: side | below | none"
+        exit 198
+    }
+
     local is_comparable = cond("`comparable'" != "", 1, 0)
     local is_multiples  = cond("`multiples'"  != "", 1, 0)
     local is_zoom       = cond("`nozoom'"     != "", 0, 1)
@@ -526,6 +540,7 @@ program define sparkta2_map, rclass
         zoomto("`_zoomto_list'")                            ///
         isswap(`is_swap') isdownload(`is_download')         ///
         isdatatable(`is_datatable') isanimate(`is_animate') ///
+        istx2036style(`is_tx2036st') downloadpos("`downloadpos'") ///
         iscomparable(`is_comparable') ismultiples(`is_multiples') ///
         iszoom(`is_zoom') issearch(`is_search')             ///
         isbasemap(`is_basemap')                             ///
@@ -534,7 +549,7 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.6.1]  `type' map written:"
+    display as text _n "[sparkta2 v0.7.4]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
 

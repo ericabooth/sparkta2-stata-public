@@ -138,8 +138,12 @@ Map {cmd:type()} values:
 {synopt :{cmd:nozoom}}disable pan, zoom, and click-to-zoom{p_end}
 {synopt :{cmd:swapbutton}}include a "Swap axes" button (bivariate / diff / ratio){p_end}
 {synopt :{cmd:download}}include an "Export {c -(}" menu (PNG, SVG, Print to PDF){p_end}
+{synopt :{cmd:downloadpos(}{it:string}{cmd:)}}{cmd:side}|{cmd:below}|{cmd:none} -- Export menu placement (v0.7.2){p_end}
 {synopt :{cmd:datatable}}add "Download CSV" + "View data table" to the Export menu{p_end}
 {synopt :{cmd:animate}}fade map features in when the chart scrolls into view{p_end}
+{synopt :{cmd:tx2036style}}Texas 2036 brand + Montserrat font (v0.7.2; requires online for Google Fonts){p_end}
+{synopt :{cmd:wraplabel(}{it:string}{cmd:)}}{cmd:auto}|{cmd:on}|{cmd:off} -- category-label wrap policy (v0.7.3; for {cmd:bar2}/{cmd:divbar}){p_end}
+{synopt :{cmd:gutterwidth(}{it:#}{cmd:)}}explicit left-margin width in px for horizontal category labels (v0.7.3){p_end}
 {synopt :{cmd:projection(}{it:string}{cmd:)}}{cmd:albers_usa}|{cmd:albers_tx}|{cmd:albers}|{cmd:mercator}; default is auto by {cmd:geo()}{p_end}
 {synopt :{cmd:rotate(}{it:lambda} [{it:phi}]{cmd:)}}override projection rotation in degrees{p_end}
 {synopt :{cmd:parallels(}{it:p1 p2}{cmd:)}}override Albers standard parallels in degrees{p_end}
@@ -187,6 +191,10 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:download}}An "Export {c -(}" dropdown appears with {bf:Download PNG} (full SVG rasterised, all panels at 2x), {bf:Download SVG} (live SVG with inlined CSS), and {bf:Print to PDF{c 133}} (opens the browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).{p_end}
 {synopt :{cmd:datatable}}Extends the Export menu with {bf:Download CSV} (every row currently embedded, including {cmd:tooltipvars()}, with the original Stata variable names) and {bf:View data table} (a collapsible scrollable HTML table beneath the chart showing the rows that pass the active filters/sliders/search; capped at 500 visible rows for performance — use CSV for the full set).{p_end}
 {synopt :{cmd:animate}}On first paint, the map is invisible; an IntersectionObserver fires when the chart scrolls into view and the features fade in over ~450ms with a small per-feature stagger. One-shot — does not re-trigger on subsequent scrolls.{p_end}
+{synopt :{cmd:downloadpos()}}Places the Export menu either in the side controls panel ({cmd:side}, default), in a right-aligned footer below the chart ({cmd:below}), or hides it entirely ({cmd:none}).  When set to {cmd:below} and there are no other controls (no filters, sliders, modes, search), the side panel collapses entirely so the page doesn't reserve the 240px sidebar.{p_end}
+{synopt :{cmd:tx2036style}}Loads Montserrat from Google Fonts as the HTML body font and tightens typography (heavy h1 weight, kerning).  SVG text deliberately stays on the system stack so {cmd:getComputedTextLength} measurements (used by divbar wrap, donut label suppression) stay stable across the async font load.  Falls back to system sans-serif if offline.  Use with {cmd:scheme(tx2036)} for the full brand look.{p_end}
+{synopt :{cmd:wraplabel()}}Controls how long category labels render on {cmd:type(bar2)} (horizontal) and {cmd:type(divbar)}.  {cmd:auto} (default for bar2) wraps when the longest label exceeds ~28 characters.  {cmd:on} (default for divbar; aliased {cmd:wrap}) always wraps to a multi-line block.  {cmd:off} (aliased {cmd:truncate}) renders a single line and truncates with a Unicode ellipsis (...) when a label exceeds the gutter width.  No effect on the other chart types or on vertical bars.{p_end}
+{synopt :{cmd:gutterwidth()}}Override the left-margin width in pixels for the category-label gutter on horizontal {cmd:bar2} and on {cmd:divbar}.  Default depends on context: 160 (bar2 no-wrap), 300 (bar2 wrap), 300 (divbar).  Useful for tight grid embeds where you want to trade wrap fidelity for a narrower chart.{p_end}
 {synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} the v0.6.1 default change fixes a ~3{c 176} downward lean of the Texas panhandle's top edge that {bf:albers_usa} produced on Texas-only viewports; pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 look exactly.{p_end}
 {synopt :{cmd:rotate() parallels() center()}}Numeric overrides applied on top of the chosen preset.  {cmd:rotate(}{it:lambda}{cmd:)} or {cmd:rotate(}{it:lambda phi}{cmd:)} sets the projection rotation in degrees.  {cmd:parallels(}{it:p1 p2}{cmd:)} sets the two Albers standard parallels in degrees.  {cmd:center(}{it:lon lat}{cmd:)} sets the projection center in degrees.  These have no effect under {cmd:projection(albers_usa)} because the composite projection does not expose them.{p_end}
 {synopt :{cmd:tooltipvars(varlist)}}Each listed variable becomes a labelled row in the tooltip table when hovering over a county/ZIP/state. Labels use {cmd:variable label} when present.{p_end}
@@ -578,6 +586,72 @@ hover when you have it; the chart itself does not bake n into the labels
 because Pew's house style omits it from in-bar labels.{p_end}
 
 
+{dlgtab:9i. Likert "three ways" comparison -- 9 items (v0.7.2)}
+
+{phang}{bf:Pattern:}  the same 9 Likert items rendered three different ways
+on a single dashboard page so the viewer can scan trade-offs at a glance --
+(A) divbar full distribution, (B) sparkta2-native bar2 % Agree summary, (C)
+sparkta-forwarded bar % Agree.  All three iframes embed via
+{help sparkta2_dashboard}.{p_end}
+
+{phang}{bf:Sort discipline:}  compute net favourability per item
+({it:%Agree + %Strongly agree minus %Strongly disagree - %Disagree}) and pin
+the row order to that sort across all three charts so the eye can track each
+item down the page.{p_end}
+
+{phang}{cmd}* Long-form input: q | response | share (a 9-item version sits in{p_end}
+{phang}{cmd}* test_helpfile_examples.do, block 9i).  Compute the row order once:{p_end}
+{phang}{cmd}preserve{p_end}
+{phang}{cmd}gen byte _sign = -1 if inlist(response, "Strongly disagree", "Disagree"){p_end}
+{phang}{cmd}replace  _sign =  1 if inlist(response, "Agree", "Strongly agree"){p_end}
+{phang}{cmd}replace  _sign =  0 if response == "Neutral"{p_end}
+{phang}{cmd}gen double _signed = share * _sign{p_end}
+{phang}{cmd}collapse (sum) net_fav = _signed, by(q){p_end}
+{phang}{cmd}gsort -net_fav{p_end}
+{phang}{cmd}gen int item_order = _n{p_end}
+{phang}{cmd}tempfile order; save "`order'", replace{p_end}
+{phang}{cmd}restore{p_end}
+{phang}{cmd}merge m:1 q using "`order'", nogenerate{p_end}
+{phang}{cmd}sort item_order response{p_end}
+
+{phang}{cmd}* (A) Pew-style diverging stacked bar -- full Likert distribution{p_end}
+{phang}{cmd}sparkta2 share, name(q) level(response) type(divbar)                       ///{p_end}
+{phang}{cmd}    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")  ///{p_end}
+{phang}{cmd}    centerlevel(Neutral) tx2036style downloadpos(below) download datatable ///{p_end}
+{phang}{cmd}    title("A. Pew-style diverging stacked bar: full distribution")         ///{p_end}
+{phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
+{phang}{cmd}    export("09i_A_divbar.html"){p_end}
+
+{phang}{cmd}* (B) sparkta2-native bar2 -- % Agree (incl. Strongly agree){p_end}
+{phang}{cmd}preserve{p_end}
+{phang}{cmd}gen byte _pos = inlist(response, "Agree", "Strongly agree"){p_end}
+{phang}{cmd}collapse (sum) pct_agree = share if _pos == 1, by(q item_order){p_end}
+{phang}{cmd}gsort item_order{p_end}
+{phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
+{phang}{cmd}    scheme(blues) tx2036style downloadpos(below) download datatable animate ///{p_end}
+{phang}{cmd}    title("B. sparkta2-native bar2 (D3): % Agree")                          ///{p_end}
+{phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
+{phang}{cmd}    export("09i_B_bar2.html"){p_end}
+{phang}{cmd}restore{p_end}
+
+{phang}{cmd}* (C) sparkta-forwarded bar (Chart.js) -- % Agree{p_end}
+{phang}{cmd}preserve{p_end}
+{phang}{cmd}gen byte pos = inlist(response, "Agree", "Strongly agree"){p_end}
+{phang}{cmd}gen double pct_agree = share * pos{p_end}
+{phang}{cmd}sparkta2 pct_agree, over(q) stat(sum) type(bar)                            ///{p_end}
+{phang}{cmd}    title("C. sparkta-forwarded bar (Chart.js): % Agree")                  ///{p_end}
+{phang}{cmd}    offline export("09i_C_sparkta_bar.html"){p_end}
+{phang}{cmd}restore{p_end}
+
+{phang}{cmd}* Combine all three on a single HTML page for the viewer:{p_end}
+{phang}{cmd}sparkta2_dashboard,                                                        ///{p_end}
+{phang}{cmd}    files("09i_A_divbar.html 09i_B_bar2.html 09i_C_sparkta_bar.html")     ///{p_end}
+{phang}{cmd}    titles("A. Pew divbar|B. bar2 (% Agree)|C. sparkta bar (% Agree)")     ///{p_end}
+{phang}{cmd}    heights("900") tx2036style                                            ///{p_end}
+{phang}{cmd}    title("Likert survey items, three ways (9-item version)")              ///{p_end}
+{phang}{cmd}    export("09i_comparison.html"){p_end}
+
+
 {dlgtab:9h. Bar chart race -- categories over time (v0.7.0)}
 
 {phang}{it:Long form input:}{cmd: name(category) time(yvar)}{it: with}
@@ -588,6 +662,51 @@ because Pew's house style omits it from in-bar labels.{p_end}
 {phang}{cmd}    duration(15) scheme(tx2036) download datatable              ///{p_end}
 {phang}{cmd}    title("Top-10 Texas counties by population, 2019-2024")     ///{p_end}
 {phang}{cmd}    export("09h_barrace.html"){p_end}
+
+
+{dlgtab:9j. Label-wrap control on bar2 / divbar (v0.7.3)}
+
+{phang}{bf:Two options} govern how long category labels render on horizontal
+{cmd:bar2} and on {cmd:divbar}:{p_end}
+
+{phang}{cmd:wraplabel(}{it:string}{cmd:)} -- wrap policy:{p_end}
+{phang2}{cmd:auto}: default for bar2; wraps when the longest label exceeds ~28 chars.{p_end}
+{phang2}{cmd:on}: always wrap (default for divbar).{p_end}
+{phang2}{cmd:off}: never wrap; truncate with Unicode ellipsis if a label overflows.{p_end}
+
+{phang}{cmd:gutterwidth(}{it:#}{cmd:)} -- left-margin width in px for the category-label gutter.  Default depends on context (160 bar2 no-wrap, 300 wrapped).{p_end}
+
+{phang}{bf:When to override.}  The auto rule covers most policy work, but
+real corner cases exist: short labels you want stacked anyway ({cmd:wraplabel(on)});
+very long labels you want cleanly truncated for grid embeds
+({cmd:wraplabel(off)}); narrow charts in a 2x2 panel ({cmd:gutterwidth(220)}).{p_end}
+
+{phang}{bf:All four modes on the same 9-item Likert data:}{p_end}
+
+{phang}{cmd}* (a) Default auto -- wrap kicks in because labels are long{p_end}
+{phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
+{phang}{cmd}    tx2036style downloadpos(below) scheme(blues)                            ///{p_end}
+{phang}{cmd}    title("9j-a. wraplabel(auto) -- default, wraps long items")            ///{p_end}
+{phang}{cmd}    export("09j_a_auto.html"){p_end}
+
+{phang}{cmd}* (b) Force on -- explicit wrap even when labels are short{p_end}
+{phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
+{phang}{cmd}    wraplabel(on) tx2036style downloadpos(below) scheme(blues)              ///{p_end}
+{phang}{cmd}    title("9j-b. wraplabel(on) -- always wrap")                            ///{p_end}
+{phang}{cmd}    export("09j_b_on.html"){p_end}
+
+{phang}{cmd}* (c) Force off -- single line, truncated with ellipsis{p_end}
+{phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
+{phang}{cmd}    wraplabel(off) tx2036style downloadpos(below) scheme(blues)             ///{p_end}
+{phang}{cmd}    title("9j-c. wraplabel(off) -- truncate with ellipsis")                ///{p_end}
+{phang}{cmd}    export("09j_c_off.html"){p_end}
+
+{phang}{cmd}* (d) Narrow gutter via gutterwidth -- truncates more aggressively{p_end}
+{phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
+{phang}{cmd}    wraplabel(off) gutterwidth(180) tx2036style downloadpos(below)           ///{p_end}
+{phang}{cmd}    scheme(blues)                                                           ///{p_end}
+{phang}{cmd}    title("9j-d. gutterwidth(180) + wraplabel(off)")                        ///{p_end}
+{phang}{cmd}    export("09j_d_narrow.html"){p_end}
 
 
 {dlgtab:10. Chart pass-through to sparkta}

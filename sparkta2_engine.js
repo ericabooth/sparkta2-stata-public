@@ -869,7 +869,11 @@
       }
 
       var hasZoom = meta.zoom !== 0;
-      if (hasZoom || meta.download || meta.datatable) {
+      var dlpos = (meta.downloadpos || "side").toLowerCase();
+      var hideExport = (dlpos === "none");
+      var exportInFooter = (dlpos === "below");
+
+      if (hasZoom || ((meta.download || meta.datatable) && !hideExport && !exportInFooter)) {
         controlsRoot.append("h3").style("margin-top", "14px").text("View");
         if (hasZoom) {
           controlsRoot.append("button")
@@ -878,12 +882,38 @@
             .text("Reset zoom")
             .on("click", resetZoom);
         }
-        if (meta.download || meta.datatable) {
+        if ((meta.download || meta.datatable) && !hideExport && !exportInFooter) {
           buildExportMenu(controlsRoot);
         }
       }
 
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
+
+      // Footer placement: when downloadpos=below, build the Export menu
+      // (and Reset zoom button) into the under-chart footer instead.  If
+      // that leaves the side controls panel empty, collapse the layout to
+      // a single column so the page doesn't reserve the 240px sidebar.
+      if (exportInFooter && !hideExport) {
+        var foot = d3.select("#chart-footer").classed("active", true);
+        foot.selectAll("*").remove();
+        if (hasZoom) {
+          foot.append("button").attr("type", "button")
+            .text("Reset zoom").on("click", resetZoom);
+        }
+        if (meta.download || meta.datatable) {
+          buildExportMenu(foot);
+        }
+      }
+      // If the controls panel ended up holding only the metabox, collapse.
+      var ctrlChildren = controlsRoot.node().children;
+      var nonMeta = 0;
+      for (var i = 0; i < ctrlChildren.length; i++) {
+        if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
+      }
+      if (nonMeta === 0) {
+        controlsRoot.classed("empty", true);
+        d3.select(".panels").classed("no-sidebar", true);
+      }
     }
 
     // ---- Export menu (PNG/SVG/CSV/View data/Print to PDF) ----------------

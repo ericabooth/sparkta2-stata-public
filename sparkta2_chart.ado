@@ -57,7 +57,11 @@ program define sparkta2_chart, rclass
         TITLE(string) SUBtitle(string) NOTE(string)                  ///
         XLABel(string) YLABel(string)                                ///
         DOWNload DATATable ANIMate                                   ///  v0.6.0 features
-        WIDTH(integer 980) HEIGHT(integer 560)                       ///
+        DOWNLOADPos(string)                                          ///  side (default) | below | none
+        TX2036STyle                                                  ///  Texas 2036 brand + Montserrat
+        WRAPlabel(string)                                            ///  auto (default) | on | off -- category-label wrap policy
+        GUTTERwidth(integer 0)                                       ///  left-margin width in px for category labels (0 = use default)
+        WIDTH(integer 980) HEIGHT(integer 644)                       ///
         EXPORT(string) OFFLINE NOOPEN                                ///
         TOOLTIPvars(varlist)                                         ///
     ]
@@ -136,6 +140,36 @@ program define sparkta2_chart, rclass
     local is_download   = cond("`download'"   != "", 1, 0)
     local is_datatable  = cond("`datatable'"  != "", 1, 0)
     local is_animate    = cond("`animate'"    != "", 1, 0)
+    local is_tx2036st   = cond("`tx2036style'" != "", 1, 0)
+
+    if "`downloadpos'" == "" local downloadpos "side"
+    local downloadpos = lower("`downloadpos'")
+    local _valid_dlpos "side below none"
+    if !`:list downloadpos in _valid_dlpos' {
+        display as error "sparkta2_chart: downloadpos(`downloadpos') not recognised."
+        display as error "  Valid: side | below | none"
+        exit 198
+    }
+
+    * wraplabel validation.  Synonyms collapse to a canonical form so the
+    * engine's switch stays tight: "wrap" -> "on", "truncate" -> "off".
+    * Public option names use non-overlapping prefixes (wraplabel, gutterwidth)
+    * to dodge a Stata syntax-parser quirk that rejects sibling options sharing
+    * a common prefix even when the abbreviation rules technically disambiguate.
+    if "`wraplabel'" == "" local wraplabel "auto"
+    local wraplabel = lower("`wraplabel'")
+    local _valid_wraplabel "auto on off wrap truncate"
+    if !`:list wraplabel in _valid_wraplabel' {
+        display as error "sparkta2_chart: wraplabel(`wraplabel') not recognised."
+        display as error "  Valid: auto | on | off  (synonyms: wrap | truncate)"
+        exit 198
+    }
+    if "`wraplabel'" == "wrap"     local wraplabel "on"
+    if "`wraplabel'" == "truncate" local wraplabel "off"
+    if `gutterwidth' < 0 {
+        display as error "sparkta2_chart: gutterwidth(`gutterwidth') must be non-negative."
+        exit 198
+    }
 
     if "`title'" == "" {
         if      "`engine_type'" == "donut"   local title "Donut: `xvar'"
@@ -343,10 +377,12 @@ program define sparkta2_chart, rclass
         innerradius(`innerradius') top(`top') fps(`fps')            ///
         duration(`duration') sortedstr("`sorted'")                  ///
         isdownload(`is_download') isdatatable(`is_datatable')       ///
-        isanimate(`is_animate')                                     ///
+        isanimate(`is_animate') istx2036style(`is_tx2036st')         ///
+        downloadpos("`downloadpos'")                                ///
+        wraplabel("`wraplabel'") gutterwidth(`gutterwidth')          ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.1]  `type' chart written:"
+    display as text _n "[sparkta2 v0.7.4]  `type' chart written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Scheme: `scheme'"
 

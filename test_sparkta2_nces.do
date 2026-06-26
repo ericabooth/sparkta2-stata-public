@@ -100,7 +100,7 @@ sparkta2 frpl_pct100 spt,                                       ///
     filters(sdtyp_label region_bucket)                           ///
     sliders(frpl_pct100 spt student_count)                       ///
     tooltipvars(student_count teacher_fte school_count)          ///
-    swapbutton download search                                   ///
+    swapbutton download search tx2036style                       ///
     title("1. Texas school districts -- FRPL% vs S/T ratio")     ///
     subtitle("1,018 NCES EDGE districts; full UI")               ///
     xlabel("FRPL eligibility (%)") ylabel("Students per teacher") ///
@@ -112,7 +112,7 @@ sparkta2 frpl_pct100 spt,                                       ///
 sparkta2 frpl_pct100,                                           ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(choropleth) scheme(blues)                               ///
-    filters(sdtyp_label) sliders(frpl_pct100) download           ///
+    filters(sdtyp_label) sliders(frpl_pct100) download tx2036style ///
     title("2. FRPL eligibility by district")                     ///
     xlabel("FRPL (%)")                                           ///
     offline noopen export("`out'/02_districts_frpl_blues.html")
@@ -123,7 +123,7 @@ sparkta2 frpl_pct100,                                           ///
 sparkta2 student_count,                                          ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(choropleth) scheme(viridis)                             ///
-    filters(region_bucket) sliders(student_count)                ///
+    filters(region_bucket) sliders(student_count) tx2036style    ///
     title("3. Student count by district (Viridis)")              ///
     width(1080) height(760) offline noopen                       ///
     export("`out'/03_districts_students_viridis.html")
@@ -134,7 +134,7 @@ sparkta2 student_count,                                          ///
 sparkta2 frpl_pct100 spt,                                        ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(bivariate) scheme(bupu) bins(3) modes(bivariate)        ///
-    filters(region_bucket)                                       ///
+    filters(region_bucket) tx2036style                           ///
     title("4. Bivariate -- BuPu static")                         ///
     offline noopen export("`out'/04_districts_bivariate_bupu.html")
 
@@ -145,7 +145,7 @@ sparkta2 frpl_pct100 spt,                                        ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(bivariate) scheme(rdbu) modes(bivariate|diff|ratio)     ///
     multiples comparable                                         ///
-    filters(sdtyp_label) sliders(frpl_pct100)                    ///
+    filters(sdtyp_label) sliders(frpl_pct100) tx2036style        ///
     title("5. Small multiples -- bivariate, diff, ratio")        ///
     width(1300) height(620) offline noopen                       ///
     export("`out'/05_districts_multiples.html")
@@ -156,7 +156,7 @@ sparkta2 frpl_pct100 spt,                                        ///
 sparkta2 frpl_pct100 spt,                                        ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(bivariate) scheme(blues) modes(x|y) multiples           ///
-    filters(region_bucket)                                       ///
+    filters(region_bucket) tx2036style                           ///
     title("6. Small multiples -- FRPL% and S/T side-by-side")    ///
     width(1280) height(560) offline noopen                       ///
     export("`out'/06_districts_multiples_xy.html")
@@ -167,7 +167,7 @@ sparkta2 frpl_pct100 spt,                                        ///
 sparkta2 frpl_pct100 student_count,                              ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(bivariate) scheme(puor) mode(diff) modes(diff)          ///
-    filters(sdtyp_label)                                         ///
+    filters(sdtyp_label) tx2036style                             ///
     title("7. Rank-diff -- FRPL% vs student count")              ///
     note("Units differ -> percentile-rank difference.")          ///
     offline noopen export("`out'/07_districts_rankdiff.html")
@@ -178,7 +178,7 @@ sparkta2 frpl_pct100 student_count,                              ///
 sparkta2 frpl_pct100,                                            ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(hexbin) scheme(viridis)                                 ///
-    hexradius(22) hexstat(mean) download                         ///
+    hexradius(22) hexstat(mean) download tx2036style             ///
     tooltipvars(student_count teacher_fte school_count)          ///
     title("8. Hexbin -- mean FRPL% per hex (district centroids)") ///
     offline noopen export("`out'/08_districts_hexbin.html")
@@ -189,7 +189,7 @@ sparkta2 frpl_pct100,                                            ///
 sparkta2 frpl_pct100,                                            ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(hexbin) lat(intptlat) lon(intptlon)                     ///
-    hexradius(20) hexstat(mean) scheme(plasma)                   ///
+    hexradius(20) hexstat(mean) scheme(plasma) tx2036style       ///
     title("9. Hexbin -- using intptlat/intptlon directly")       ///
     offline noopen export("`out'/09_districts_hexbin_latlon.html")
 
@@ -199,7 +199,7 @@ sparkta2 frpl_pct100,                                            ///
 sparkta2 student_count,                                          ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(hexbin) lat(intptlat) lon(intptlon)                     ///
-    hexradius(18) hexstat(count) scheme(reds)                    ///
+    hexradius(18) hexstat(count) scheme(reds) tx2036style        ///
     title("10. Hexbin -- # of districts per hex")                ///
     offline noopen export("`out'/10_districts_hexbin_count.html")
 
@@ -212,7 +212,7 @@ sparkta2 spt,                                                    ///
     pointsize(3) scheme(viridis)                                 ///
     filters(sdtyp_label) sliders(spt)                            ///
     tooltipvars(student_count teacher_fte school_count)          ///
-    download search                                              ///
+    download search tx2036style                                  ///
     title("11. District centroids -- circles by S/T ratio")      ///
     offline noopen export("`out'/11_districts_points.html")
 
@@ -224,7 +224,7 @@ sparkta2 frpl_pct100 spt,                                        ///
     type(bivariate) scheme(rdbu)                                 ///
     counties("`big8_leaid'") zoomto("`big8_leaid'")              ///
     tooltipvars(student_count teacher_fte school_count)          ///
-    download                                                     ///
+    download tx2036style                                         ///
     title("12. Big-8 metro ISDs only")                           ///
     subtitle("Houston, Dallas, Austin, San Antonio, Fort Worth, El Paso, Cy-Fair, Northside") ///
     offline noopen export("`out'/12_districts_big8.html")
@@ -235,7 +235,7 @@ sparkta2 frpl_pct100 spt,                                        ///
 sparkta2 frpl_pct100 spt if student_count > 5000,                ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
     type(bivariate) scheme(gnbu)                                 ///
-    filters(sdtyp_label) sliders(student_count)                  ///
+    filters(sdtyp_label) sliders(student_count) tx2036style      ///
     title("13. Districts with > 5,000 students")                 ///
     offline noopen export("`out'/13_districts_if_large.html")
 
@@ -244,7 +244,7 @@ sparkta2 frpl_pct100 spt if student_count > 5000,                ///
 *=============================================================================
 sparkta2 frpl_pct100,                                            ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
-    type(choropleth) scheme(blues)                               ///
+    type(choropleth) scheme(blues) tx2036style                   ///
     tooltipvars(sdtyp_label student_count school_count teacher_fte spt lunch_eligible) ///
     title("14. Tooltip data table -- 6 fields per district")     ///
     offline noopen export("`out'/14_districts_tooltip_table.html")
@@ -254,7 +254,7 @@ sparkta2 frpl_pct100,                                            ///
 *=============================================================================
 sparkta2 frpl_pct100 spt,                                        ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
-    type(bivariate) scheme(rdbu)                                 ///
+    type(bivariate) scheme(rdbu) tx2036style                     ///
     zoomto("`dfw_leaid'") tooltipvars(student_count school_count) ///
     title("15. Auto-zoom to DFW core ISDs")                      ///
     offline noopen export("`out'/15_districts_zoomto_dfw.html")
@@ -264,7 +264,7 @@ sparkta2 frpl_pct100 spt,                                        ///
 *=============================================================================
 sparkta2 frpl_pct100 spt,                                        ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
-    type(bivariate) scheme(rdbu) nozoom download                 ///
+    type(bivariate) scheme(rdbu) nozoom download tx2036style     ///
     title("16. Static district map (no zoom)")                   ///
     offline noopen export("`out'/16_districts_nozoom.html")
 
@@ -273,7 +273,7 @@ sparkta2 frpl_pct100 spt,                                        ///
 *=============================================================================
 sparkta2 frpl_pct100,                                            ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)         ///
-    type(choropleth) scheme(viridis) search                      ///
+    type(choropleth) scheme(viridis) search tx2036style          ///
     title("17. Search districts by name")                        ///
     subtitle("Try 'Houston' or 'Dallas' in the search box")      ///
     offline noopen export("`out'/17_districts_search.html")
@@ -300,7 +300,7 @@ preserve
     quietly label variable frpl_pct100 "Mean district FRPL (%)"
     sparkta2 frpl_pct100,                                        ///
         id(fips) geo(texas)                                       ///
-        type(choropleth) scheme(blues) download                   ///
+        type(choropleth) scheme(blues) download tx2036style       ///
         tooltipvars(student_count)                                ///
         title("18. District data rolled up to TX counties (demo)") ///
         offline noopen export("`out'/18_districts_to_county.html")
@@ -355,6 +355,7 @@ if !_rc {
     rename sdtyp rating
     sparkta2 n_districts, name(rating) type(donut) scheme(tx2036)            ///
         download datatable animate offline noopen                             ///
+        tx2036style downloadpos(below)                                        ///
         title("v0.7.0 -- Districts by sdtyp")                                 ///
         export("`out'/21_districts_donut.html")
 }
@@ -369,6 +370,7 @@ if !_rc {
     keep in 1/15
     sparkta2 student_count, name(name) type(bar2) horizontal                 ///
         scheme(blues) download datatable animate offline noopen              ///
+        tx2036style downloadpos(below)                                       ///
         title("v0.7.1 -- Top-15 districts by student count (bar2)")          ///
         export("`out'/22_districts_top15_bar.html")
 }

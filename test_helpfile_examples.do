@@ -67,7 +67,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     modes(bivariate|x|y|diff|ratio) comparable                 ///
     filters(region_n urban) sliders(poverty_rate uninsured_rate) ///
     tooltipvars(median_income life_expect)                     ///
-    swapbutton download search offline noopen                  ///
+    swapbutton download search offline noopen tx2036style      ///
     title("Texas counties: poverty vs uninsured")              ///
     export("`out'/01_bivariate.html")
 
@@ -78,6 +78,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) type(bivariate)                      ///
     modes(bivariate|diff|ratio) multiples comparable           ///
     filters(region_n) width(1300) height(620) offline noopen   ///
+    tx2036style                                                ///
     export("`out'/02_multiples.html")
 
 *-----------------------------------------------------------------------------
@@ -88,7 +89,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) type(bivariate)                      ///
     counties("`big8'") zoomto("`big8'")                         ///
     tooltipvars(median_income pop_thou)                        ///
-    download offline noopen                                    ///
+    download offline noopen tx2036style                        ///
     export("`out'/03_big8.html")
 
 *-----------------------------------------------------------------------------
@@ -97,6 +98,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate,                                         ///
     id(fips) name(county) type(hexbin) scheme(viridis)         ///
     hexradius(22) hexstat(mean) download offline noopen        ///
+    tx2036style                                                ///
     title("Mean poverty rate per hex")                         ///
     export("`out'/04_hexbin.html")
 
@@ -106,6 +108,7 @@ sparkta2 poverty_rate,                                         ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) type(bivariate) basemap              ///
     modes(bivariate|x|y|diff|ratio) comparable offline noopen  ///
+    tx2036style                                                ///
     export("`out'/05_basemap.html")
 
 *-----------------------------------------------------------------------------
@@ -138,7 +141,7 @@ sparkta2 pop_mil,                                              ///
     type(choropleth) scheme(blues) download                    ///
     tooltipvars(gdp_thou)                                      ///
     title("US state population")                               ///
-    width(1200) height(720) offline noopen                     ///
+    width(1200) height(720) offline noopen tx2036style         ///
     export("`out'/06_us_states.html")
 
 * (7) US bivariate -- pop vs GDP per capita, full UI
@@ -147,7 +150,7 @@ sparkta2 pop_mil gdp_thou,                                     ///
     layer(states) idwidth(2)                                   ///
     type(bivariate) scheme(rdbu)                                ///
     modes(bivariate|x|y|diff|ratio) swapbutton download         ///
-    width(1200) height(720) offline noopen                     ///
+    width(1200) height(720) offline noopen tx2036style         ///
     export("`out'/07_us_states_bivariate.html")
 
 *-----------------------------------------------------------------------------
@@ -174,7 +177,7 @@ else {
         type(bivariate) scheme(rdbu)                            ///
         filters(sdtyp) sliders(frpl_pct100 student_count)       ///
         tooltipvars(student_count teacher_fte school_count)    ///
-        download search offline noopen                         ///
+        download search offline noopen tx2036style             ///
         export("`out'/08_districts_bivariate.html")
 
     * (9) District hexbin via centroid lat/lon
@@ -182,6 +185,7 @@ else {
         id(leaid) name(name) geo(texas_districts) idwidth(7)   ///
         type(hexbin) lat(intptlat) lon(intptlon)                ///
         hexradius(20) hexstat(mean) scheme(viridis) offline noopen ///
+        tx2036style                                            ///
         export("`out'/09_districts_hexbin.html")
 }
 
@@ -214,26 +218,26 @@ use "`county_data'", clear
 * 9a: download datatable
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth) scheme(blues) ///
     tooltipvars(median_income pop_thou)                                     ///
-    download datatable offline noopen                                        ///
+    download datatable offline noopen tx2036style                            ///
     title("v0.6.0 -- Export menu + data table")                              ///
     export("`out'/09a_export_menu.html")
 
 * 9b: animate (IntersectionObserver fade-in)
 sparkta2 poverty_rate uninsured_rate, id(fips) name(county) type(bivariate) ///
     scheme(rdbu) modes(bivariate|x|y|diff|ratio) comparable                  ///
-    download datatable animate offline noopen                                ///
+    download datatable animate offline noopen tx2036style                    ///
     title("v0.6.0 -- Animate on scroll into view")                           ///
     export("`out'/09b_animate.html")
 
 * 9d: projection control
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
-    projection(albers_usa) offline noopen                                    ///
+    projection(albers_usa) offline noopen tx2036style                        ///
     title("v0.6.1 -- legacy projection(albers_usa) for backward-compat")     ///
     export("`out'/09d_proj_legacy.html")
 
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
     projection(albers) rotate(99) parallels(27.5 35.5) center(0 31.5)        ///
-    offline noopen                                                           ///
+    offline noopen tx2036style                                               ///
     title("v0.6.1 -- explicit Texas-tuned Albers overrides")                 ///
     export("`out'/09d_proj_custom.html")
 
@@ -256,7 +260,7 @@ input str30 sector long enroll
 "Health-related" 19000
 end
 sparkta2 enroll, name(sector) type(donut) scheme(tx2036)                    ///
-    download datatable animate offline noopen                                ///
+    download datatable animate offline noopen tx2036style downloadpos(below) ///
     title("v0.7.0 -- Donut: enrollment by sector")                           ///
     export("`out'/09e_donut.html")
 restore
@@ -267,7 +271,7 @@ restore
 preserve
 collapse (mean) poverty_rate, by(region_n)
 sparkta2 poverty_rate, name(region_n) type(bar2) horizontal scheme(blues)   ///
-    download datatable animate offline noopen                                ///
+    download datatable animate offline noopen tx2036style downloadpos(below) ///
     title("v0.7.1 -- Native bar2 (horizontal) + export menu + animate")      ///
     export("`out'/09f_bar.html")
 restore
@@ -292,7 +296,7 @@ input double yr str20 series double y
 2024 "ESC 13"         49.3
 end
 sparkta2 y yr, over(series) type(line2) scheme(tx2036)                       ///
-    download datatable animate offline noopen                                ///
+    download datatable animate offline noopen tx2036style downloadpos(below) ///
     title("v0.7.1 -- Native multi-series line2")                             ///
     export("`out'/09f_line.html")
 restore
@@ -315,7 +319,7 @@ end
 sparkta2 share, name(q) level(response) type(divbar)                         ///
     levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")    ///
     centerlevel(Neutral)                                                     ///
-    download datatable offline noopen                                        ///
+    download datatable offline noopen tx2036style downloadpos(below)         ///
     title("v0.7.0 -- Diverging stacked bar (Pew-style, Likert)")             ///
     width(1100) height(360)                                                  ///
     export("`out'/09g_divbar.html")
@@ -353,8 +357,219 @@ input long yr str22 name double v
 end
 sparkta2 v, name(name) time(yr) type(barrace) top(5) duration(10)            ///
     scheme(tx2036) download datatable offline noopen                         ///
+    tx2036style downloadpos(below)                                           ///
     title("v0.7.0 -- Bar chart race (synthetic)")                            ///
     export("`out'/09h_barrace.html")
+restore
+
+*-----------------------------------------------------------------------------
+* Example 9i: "Likert survey items, three ways" comparison.
+*
+*   Same 9 synthetic policy items rendered three different ways on a single
+*   dashboard HTML so the viewer can see the trade-offs at a glance:
+*
+*     A. Pew-style diverging stacked bar (sparkta2-native divbar)
+*        - full Likert distribution; central zero baseline; direct % labels;
+*          net favourability column on the right.
+*
+*     B. sparkta2-native bar2 (D3)
+*        - horizontal bar of % Agree (incl. Strongly agree) per item.
+*          Same v0.6.0 Export menu + animate + datatable.
+*
+*     C. sparkta-forwarded bar (Chart.js)
+*        - same % Agree summary, but rendered by the original sparkta
+*          package (Fahad Mirza).  Demonstrates the side-by-side
+*          difference between D3-native vs Chart.js styling.
+*
+*   Items are sorted by net favourability (most-positive at top) and the
+*   ordering is reused for all three charts so the eye can track each item
+*   down the page.
+*-----------------------------------------------------------------------------
+* No outer preserve here -- the block builds its own dataset from scratch
+* via `input', so there is nothing useful to preserve from the caller, and
+* an outer preserve would clash with the per-chart preserve/restore blocks
+* below (charts B and C).
+clear
+input str120 q str22 response double share
+"Texas is on the right track when it comes to investing in K-12 public education"          "Strongly disagree"   18
+"Texas is on the right track when it comes to investing in K-12 public education"          "Disagree"            22
+"Texas is on the right track when it comes to investing in K-12 public education"          "Neutral"             14
+"Texas is on the right track when it comes to investing in K-12 public education"          "Agree"               29
+"Texas is on the right track when it comes to investing in K-12 public education"          "Strongly agree"      17
+"The state is doing enough to prepare students for careers in high-demand industries"      "Strongly disagree"   12
+"The state is doing enough to prepare students for careers in high-demand industries"      "Disagree"            27
+"The state is doing enough to prepare students for careers in high-demand industries"      "Neutral"             19
+"The state is doing enough to prepare students for careers in high-demand industries"      "Agree"               31
+"The state is doing enough to prepare students for careers in high-demand industries"      "Strongly agree"      11
+"My local school district uses its funding effectively"                                     "Strongly disagree"    9
+"My local school district uses its funding effectively"                                     "Disagree"            18
+"My local school district uses its funding effectively"                                     "Neutral"             21
+"My local school district uses its funding effectively"                                     "Agree"               39
+"My local school district uses its funding effectively"                                     "Strongly agree"      13
+"State leaders should expand school choice through publicly funded programs"               "Strongly disagree"   24
+"State leaders should expand school choice through publicly funded programs"               "Disagree"            18
+"State leaders should expand school choice through publicly funded programs"               "Neutral"             12
+"State leaders should expand school choice through publicly funded programs"               "Agree"               26
+"State leaders should expand school choice through publicly funded programs"               "Strongly agree"      20
+"Higher education in Texas is affordable for most families"                                "Strongly disagree"   29
+"Higher education in Texas is affordable for most families"                                "Disagree"            33
+"Higher education in Texas is affordable for most families"                                "Neutral"             14
+"Higher education in Texas is affordable for most families"                                "Agree"               18
+"Higher education in Texas is affordable for most families"                                "Strongly agree"       6
+"Workforce training programs in my region meet local employer needs"                       "Strongly disagree"   11
+"Workforce training programs in my region meet local employer needs"                       "Disagree"            21
+"Workforce training programs in my region meet local employer needs"                       "Neutral"             24
+"Workforce training programs in my region meet local employer needs"                       "Agree"               33
+"Workforce training programs in my region meet local employer needs"                       "Strongly agree"      11
+"Texas has the digital infrastructure (broadband, devices) to support every student"       "Strongly disagree"   20
+"Texas has the digital infrastructure (broadband, devices) to support every student"       "Disagree"            28
+"Texas has the digital infrastructure (broadband, devices) to support every student"       "Neutral"             17
+"Texas has the digital infrastructure (broadband, devices) to support every student"       "Agree"               25
+"Texas has the digital infrastructure (broadband, devices) to support every student"       "Strongly agree"      10
+"Teachers in my community are paid fairly for the work they do"                            "Strongly disagree"   27
+"Teachers in my community are paid fairly for the work they do"                            "Disagree"            31
+"Teachers in my community are paid fairly for the work they do"                            "Neutral"             16
+"Teachers in my community are paid fairly for the work they do"                            "Agree"               19
+"Teachers in my community are paid fairly for the work they do"                            "Strongly agree"       7
+"Texas should invest more in early childhood education before kindergarten"                "Strongly disagree"    7
+"Texas should invest more in early childhood education before kindergarten"                "Disagree"            13
+"Texas should invest more in early childhood education before kindergarten"                "Neutral"             18
+"Texas should invest more in early childhood education before kindergarten"                "Agree"               36
+"Texas should invest more in early childhood education before kindergarten"                "Strongly agree"      26
+end
+label var share "% of respondents"
+tempfile likert9
+save "`likert9'", replace
+
+* --- Compute net favourability per item, then assign a sort key so all
+* --- three charts use the SAME row order (most-positive net at top).
+gen byte _sign = .
+replace _sign = -1 if inlist(response, "Strongly disagree", "Disagree")
+replace _sign =  1 if inlist(response, "Agree", "Strongly agree")
+replace _sign =  0 if response == "Neutral"
+gen double _signed = share * _sign
+collapse (sum) net_fav = _signed, by(q)
+gsort -net_fav
+gen int item_order = _n
+keep q item_order net_fav
+tempfile order9
+save "`order9'", replace
+
+use "`likert9'", clear
+merge m:1 q using "`order9'", nogenerate
+* Sorted long form (used by divbar + sparkta forward).
+sort item_order response
+save "`likert9'", replace
+
+* (A) Pew-style diverging stacked bar -- full distribution
+sparkta2 share, name(q) level(response) type(divbar)                                  ///
+    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")             ///
+    centerlevel(Neutral)                                                              ///
+    tx2036style downloadpos(below) download datatable                                  ///
+    title("A. Pew-style diverging stacked bar: full Likert distribution")             ///
+    subtitle("9 items; sorted by net favourability; central zero baseline")           ///
+    note("Source: synthetic data for sparkta2 v0.7.2 demonstration.")                 ///
+    width(1100) height(850) offline noopen                                            ///
+    export("`out'/09i_A_divbar.html")
+
+* (B) sparkta2-native bar2 -- % Agree summary, same item order as (A)
+preserve
+gen byte _pos = inlist(response, "Agree", "Strongly agree")
+collapse (sum) pct_agree = share if _pos == 1, by(q item_order)
+gsort item_order
+sparkta2 pct_agree, name(q) type(bar2) horizontal                                     ///
+    scheme(blues) tx2036style downloadpos(below) download datatable animate            ///
+    title("B. sparkta2-native bar2 (D3): % Agree (incl. Strongly agree)")             ///
+    subtitle("Same 9 items, same sort order; one positive-share number per item")     ///
+    xlabel("% Agree + Strongly agree")                                                ///
+    width(1100) height(850) offline noopen                                            ///
+    export("`out'/09i_B_bar2.html")
+restore
+
+* (C) sparkta-forwarded bar (Chart.js) -- % Agree, same items
+capture which sparkta
+if !_rc {
+    preserve
+    gen byte pos = inlist(response, "Agree", "Strongly agree")
+    gen double pct_agree = share * pos
+    sparkta2 pct_agree, over(q) stat(sum) type(bar)                                    ///
+        title("C. sparkta-forwarded bar (Chart.js): % Agree")                         ///
+        subtitle("Same 9 items, same metric; rendered by Fahad Mirza's sparkta")      ///
+        offline export("`out'/09i_C_sparkta_bar.html")
+    restore
+}
+
+* Combine all three on a single HTML page for the viewer.
+local _comp_files "09i_A_divbar.html 09i_B_bar2.html"
+local _comp_titles "A. Pew divbar (full Likert distribution)|B. sparkta2-native bar2 (% Agree)"
+capture confirm file "`out'/09i_C_sparkta_bar.html"
+if !_rc {
+    local _comp_files "`_comp_files' 09i_C_sparkta_bar.html"
+    local _comp_titles "`_comp_titles'|C. sparkta-forwarded bar (Chart.js, % Agree)"
+}
+sparkta2_dashboard,                                                                    ///
+    files("`_comp_files'") titles("`_comp_titles'") heights("900")                    ///
+    tx2036style                                                                       ///
+    title("Likert survey items, three ways (9-item version)")                         ///
+    subtitle("Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta-forwarded bar (Chart.js) also showing %-agree.  The first shows nuance; the latter two compress to a single positive-share number.  All three share the same item ordering by net favourability so the eye can track each item across approaches.") ///
+    export("`out'/09i_comparison.html") noopen
+
+*-----------------------------------------------------------------------------
+* Example 9j: wraplabel + gutterwidth controls (v0.7.3).
+*
+*   Same 9-item Likert data collapsed to %-agree per item, then rendered in
+*   four label-wrap modes on horizontal bar2.  Each produces an HTML file;
+*   the four are combined into a 2x2 dashboard so the reader can scan how
+*   the same data renders under each mode.
+*-----------------------------------------------------------------------------
+preserve
+* Build %-agree per item from the long 9-item Likert data we already have on disk.
+use "`likert9'", clear
+gen byte _pos = inlist(response, "Agree", "Strongly agree")
+collapse (sum) pct_agree = share if _pos == 1, by(q item_order)
+gsort item_order
+
+* (a) wraplabel(auto) -- default; wraps because labels are long
+sparkta2 pct_agree, name(q) type(bar2) horizontal                            ///
+    tx2036style downloadpos(below) scheme(blues)                              ///
+    title("9j-a. wraplabel(auto) -- default")                                 ///
+    subtitle("Heuristic wraps when longest label > ~28 chars")                ///
+    width(900) height(720) offline noopen                                     ///
+    export("`out'/09j_a_auto.html")
+
+* (b) wraplabel(on) -- force wrap (no functional change here since auto already wraps)
+sparkta2 pct_agree, name(q) type(bar2) horizontal                            ///
+    wraplabel(on) tx2036style downloadpos(below) scheme(blues)                ///
+    title("9j-b. wraplabel(on) -- always wrap")                              ///
+    subtitle("Explicit wrap policy; same output as auto for long labels")     ///
+    width(900) height(720) offline noopen                                     ///
+    export("`out'/09j_b_on.html")
+
+* (c) wraplabel(off) -- single line, truncated with ellipsis
+sparkta2 pct_agree, name(q) type(bar2) horizontal                            ///
+    wraplabel(off) tx2036style downloadpos(below) scheme(blues)               ///
+    title("9j-c. wraplabel(off) -- single line, ellipsis truncation")        ///
+    subtitle("Same data, but each label is forced to one line")               ///
+    width(900) height(720) offline noopen                                     ///
+    export("`out'/09j_c_off.html")
+
+* (d) gutterwidth(180) + wraplabel(off) -- narrow gutter, more aggressive truncation
+sparkta2 pct_agree, name(q) type(bar2) horizontal                            ///
+    wraplabel(off) gutterwidth(180) tx2036style downloadpos(below)             ///
+    scheme(blues)                                                             ///
+    title("9j-d. gutterwidth(180) + wraplabel(off) -- narrow embed mode")     ///
+    subtitle("Narrower gutter trades label fidelity for a thinner chart")    ///
+    width(900) height(720) offline noopen                                     ///
+    export("`out'/09j_d_narrow.html")
+
+* Combine the four modes into a single dashboard so the user can scan them.
+sparkta2_dashboard,                                                           ///
+    files("09j_a_auto.html 09j_b_on.html 09j_c_off.html 09j_d_narrow.html")  ///
+    titles("a. wraplabel(auto)|b. wraplabel(on)|c. wraplabel(off)|d. gutterwidth(180) + wraplabel(off)") ///
+    heights("740") tx2036style                                                ///
+    title("Label-wrap control on horizontal bar2 (9 Likert items, % Agree)") ///
+    subtitle("Four modes side-by-side: auto (default heuristic), on (always wrap), off (truncate with ellipsis), and a narrow-gutter variant.  All driven by wraplabel() and gutterwidth().") ///
+    export("`out'/09j_wraplabel_demos.html") noopen
 restore
 
 display as result _n "All help-file examples written to:"

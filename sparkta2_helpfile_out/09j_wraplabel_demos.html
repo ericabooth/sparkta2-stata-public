@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label-wrap control on horizontal bar2 (9 Likert items, % Agree)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}
+*{box-sizing:border-box}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em}
+header h1{font-weight:700;letter-spacing:-0.01em}
+.section h2{font-weight:600}
+.wrap{max-width:1300px;margin:0 auto;padding:24px 18px 60px}
+header h1{font-size:1.7rem;margin:0 0 4px;color:var(--ink)}
+header p{color:var(--muted);margin:0 0 22px;font-size:.95rem}
+.section{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 22px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.section h2{margin:0;padding:12px 16px;font-size:1.05rem;background:#fff;color:var(--ink);border-bottom:1px solid var(--line)}
+.section h2 .num{display:inline-block;color:var(--accent);font-weight:700;margin-right:8px}
+.section h2 .src{color:var(--muted);font-size:.78rem;font-weight:400;margin-left:8px}
+.section iframe{display:block;width:100%;border:0}
+nav.toc{position:sticky;top:8px;background:rgba(255,255,255,.92);backdrop-filter:saturate(120%) blur(6px);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:.85rem}
+nav.toc strong{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;margin-bottom:4px}
+nav.toc a{color:var(--link);text-decoration:none;margin-right:14px;display:inline-block;margin-bottom:2px}
+nav.toc a:hover{text-decoration:underline}
+footer{color:var(--muted);font-size:.78rem;margin-top:30px}
+</style></head><body>
+<div class="wrap">
+<header><h1>Label-wrap control on horizontal bar2 (9 Likert items, % Agree)</h1>
+<p>Four modes side-by-side: auto (default heuristic), on (always wrap), off (truncate with ellipsis), and a narrow-gutter variant.  All driven by wraplabel() and gutterwidth().</p>
+</header>
+<nav class="toc"><strong>Jump to:</strong>
+  <a href="#sec1">1. a. wraplabel(auto)</a>
+  <a href="#sec2">2. b. wraplabel(on)</a>
+  <a href="#sec3">3. c. wraplabel(off)</a>
+  <a href="#sec4">4. d. gutterwidth(180) + wraplabel(off)</a>
+</nav>
+<section class="section" id="sec1">
+  <h2><span class="num">1.</span>a. wraplabel(auto)<span class="src">09j_a_auto.html</span></h2>
+  <iframe src="09j_a_auto.html" height="740" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec2">
+  <h2><span class="num">2.</span>b. wraplabel(on)<span class="src">09j_b_on.html</span></h2>
+  <iframe src="09j_b_on.html" height="740" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec3">
+  <h2><span class="num">3.</span>c. wraplabel(off)<span class="src">09j_c_off.html</span></h2>
+  <iframe src="09j_c_off.html" height="740" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec4">
+  <h2><span class="num">4.</span>d. gutterwidth(180) + wraplabel(off)<span class="src">09j_d_narrow.html</span></h2>
+  <iframe src="09j_d_narrow.html" height="740" loading="lazy"></iframe>
+</section>
+<footer>Built with sparkta2 v0.7.4 — each section is an independent interactive map / chart.</footer>
+</div></body></html>

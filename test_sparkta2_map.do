@@ -104,7 +104,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     filters(region_n urban)                                     ///
     sliders(poverty_rate uninsured_rate pop_thou)               ///
     tooltipvars(median_income life_expect pop_thou)             ///
-    comparable swapbutton download search                       ///
+    comparable swapbutton download search tx2036style           ///
     title("1. Bivariate -- full UI")                            ///
     subtitle("Toggle modes, filter, slide, search, swap, zoom, export") ///
     xlabel("Poverty rate (%)") ylabel("Uninsured rate (%)")     ///
@@ -117,7 +117,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate,                                          ///
     id(fips) name(county) geo(texas)                            ///
     type(choropleth) scheme(blues)                              ///
-    filters(region_n) sliders(poverty_rate) download            ///
+    filters(region_n) sliders(poverty_rate) download tx2036style ///
     title("2. Poverty rate -- sequential Blues")                ///
     xlabel("Poverty rate (%)")                                  ///
     offline noopen export("`out'/02_choropleth_blues.html")
@@ -128,7 +128,7 @@ sparkta2 poverty_rate,                                          ///
 sparkta2 uninsured_rate,                                        ///
     id(fips) name(county) geo(texas)                            ///
     type(choropleth) scheme(viridis)                            ///
-    filters(urban region_n) sliders(uninsured_rate)             ///
+    filters(urban region_n) sliders(uninsured_rate) tx2036style ///
     title("3. Uninsured rate -- viridis colormap")              ///
     width(1080) height(760) offline noopen                      ///
     export("`out'/03_choropleth_viridis.html")
@@ -139,7 +139,7 @@ sparkta2 uninsured_rate,                                        ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(bupu) bins(3) modes(bivariate)       ///
-    filters(region_n)                                           ///
+    filters(region_n) tx2036style                               ///
     title("4. Bivariate -- BuPu (static)")                      ///
     xlabel("Poverty rate (%)") ylabel("Uninsured rate (%)")     ///
     offline noopen export("`out'/04_bivariate_bupu.html")
@@ -150,7 +150,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(rdbu) modes(bivariate|diff|ratio)    ///
-    multiples comparable                                        ///
+    multiples comparable tx2036style                            ///
     filters(region_n) sliders(poverty_rate uninsured_rate)      ///
     title("5. Small multiples -- bivariate, diff, ratio")       ///
     width(1300) height(620) offline noopen                      ///
@@ -162,7 +162,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(blues) modes(x|y) multiples          ///
-    filters(region_n)                                           ///
+    filters(region_n) tx2036style                               ///
     title("6. Small multiples -- X and Y univariate")           ///
     width(1280) height(560) offline noopen                      ///
     export("`out'/06_multiples_xy.html")
@@ -173,7 +173,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(rdbu) mode(diff) modes(diff)         ///
-    comparable filters(region_n)                                ///
+    comparable filters(region_n) tx2036style                    ///
     title("7. Diff-only -- uninsured minus poverty")            ///
     offline noopen export("`out'/07_diff_only.html")
 
@@ -183,7 +183,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate pop_thou,                                ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(puor) mode(diff) modes(diff)         ///
-    filters(urban)                                              ///
+    filters(urban) tx2036style                                  ///
     title("8. Rank-diff -- poverty vs population")              ///
     note("`comparable' omitted -> percentile-rank difference.") ///
     offline noopen export("`out'/08_rankdiff.html")
@@ -196,7 +196,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     type(bivariate) scheme(rdbu)                                ///
     counties("`big8'") zoomto("`big8'")                         ///
     tooltipvars(median_income pop_thou)                         ///
-    download                                                    ///
+    download tx2036style                                        ///
     title("9. Big-8 metros only (counties + zoomto)")           ///
     subtitle("Harris, Bexar, Dallas, Tarrant, Travis, El Paso, Hidalgo, Collin") ///
     offline noopen export("`out'/09_counties_big8.html")
@@ -208,7 +208,7 @@ sparkta2 poverty_rate uninsured_rate if urban == 0,            ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(gnbu)                                ///
     filters(region_n) sliders(poverty_rate)                     ///
-    zoomto("`south_fips'")                                      ///
+    zoomto("`south_fips'") tx2036style                          ///
     title("10. Rural counties (if urban==0) + South-TX zoom")   ///
     offline noopen export("`out'/10_if_rural.html")
 
@@ -219,6 +219,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(rdbu)                                ///
     tooltipvars(region_n urban median_income pop_thou life_expect) ///
+    tx2036style                                                 ///
     title("11. Tooltip data table")                             ///
     subtitle("Hover any county -- tooltip shows 5 extra fields") ///
     offline noopen export("`out'/11_tooltip_table.html")
@@ -229,7 +230,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(rdbu)                                ///
-    zoomto("`dfw'") tooltipvars(median_income)                  ///
+    zoomto("`dfw'") tooltipvars(median_income) tx2036style      ///
     title("12. Auto-zoom to DFW metroplex")                     ///
     offline noopen export("`out'/12_zoomto_dfw.html")
 
@@ -238,7 +239,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 *=============================================================================
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
-    type(bivariate) scheme(rdbu) nozoom download                ///
+    type(bivariate) scheme(rdbu) nozoom download tx2036style    ///
     title("13. Static map (no zoom)")                           ///
     offline noopen export("`out'/13_nozoom.html")
 
@@ -247,7 +248,7 @@ sparkta2 poverty_rate uninsured_rate,                          ///
 *=============================================================================
 sparkta2 poverty_rate,                                          ///
     id(fips) name(county) geo(texas)                            ///
-    type(choropleth) scheme(viridis) search                     ///
+    type(choropleth) scheme(viridis) search tx2036style         ///
     title("14. Search by county name")                          ///
     offline noopen export("`out'/14_search.html")
 
@@ -276,7 +277,7 @@ else {
 sparkta2 poverty_rate,                                          ///
     id(fips) name(county) geo(texas)                            ///
     type(hexbin) scheme(viridis)                                ///
-    hexradius(22) hexstat(mean) download                        ///
+    hexradius(22) hexstat(mean) download tx2036style            ///
     tooltipvars(uninsured_rate pop_thou)                        ///
     title("17. Hexbin -- mean poverty rate per hex")            ///
     subtitle("County centroids aggregated into hexagons (d3-hexbin)") ///
@@ -290,7 +291,7 @@ sparkta2 poverty_rate,                                          ///
 sparkta2 poverty_rate uninsured_rate,                          ///
     id(fips) name(county) geo(texas)                            ///
     type(bivariate) scheme(rdbu) basemap                        ///
-    modes(bivariate|x|y|diff|ratio) comparable                  ///
+    modes(bivariate|x|y|diff|ratio) comparable tx2036style      ///
     filters(region_n) sliders(poverty_rate)                     ///
     title("18. Bivariate with US-state basemap")                ///
     subtitle("Faded states/Mexico outline as geographic context") ///
@@ -333,7 +334,7 @@ label variable state_fips "State FIPS (2-digit)"
 sparkta2 pop_mil,                                              ///
     id(state_fips) name(state_name) geo(texas)                  ///
     layer(states) idwidth(2)                                    ///
-    type(choropleth) scheme(blues) download                     ///
+    type(choropleth) scheme(blues) download tx2036style         ///
     tooltipvars(gdp_thou)                                       ///
     title("19. US state population (bonus -- not Texas-only)")  ///
     subtitle("Same topojson, layer(states) + idwidth(2) selects the 56-feature US states layer") ///
@@ -352,7 +353,7 @@ sparkta2 pop_mil gdp_thou,                                      ///
     layer(states) idwidth(2)                                    ///
     type(bivariate) scheme(rdbu) bins(3)                        ///
     modes(bivariate|x|y|diff|ratio)                             ///
-    swapbutton download                                         ///
+    swapbutton download tx2036style                             ///
     tooltipvars(pop_mil gdp_thou)                               ///
     title("20. US 50-state bivariate -- pop x GDP")             ///
     subtitle("Population (millions) vs synthetic GDP per capita ($K)") ///
@@ -379,26 +380,26 @@ use "`county_data'", clear
 * 21
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
     scheme(blues) tooltipvars(median_income pop_thou)                        ///
-    download datatable offline noopen                                        ///
+    download datatable tx2036style offline noopen                            ///
     title("v0.6.0 -- Export menu + data table")                              ///
     export("`out'/21_export_menu.html")
 
 * 22
 sparkta2 poverty_rate uninsured_rate, id(fips) name(county) type(bivariate) ///
     scheme(rdbu) modes(bivariate|x|y|diff|ratio) comparable                  ///
-    download datatable animate offline noopen                                ///
+    download datatable animate tx2036style offline noopen                    ///
     title("v0.6.0 -- Animate on scroll into view")                           ///
     export("`out'/22_animate.html")
 
 * 23
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
-    offline noopen                                                           ///
+    tx2036style offline noopen                                               ///
     title("v0.6.1 -- Texas-tuned default (panhandle level)")                 ///
     export("`out'/23_proj_default.html")
 
 * 24
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth)               ///
-    projection(albers_usa) offline noopen                                    ///
+    projection(albers_usa) tx2036style offline noopen                        ///
     title("v0.6.1 -- legacy projection(albers_usa) for backward-compat")     ///
     export("`out'/24_proj_legacy.html")
 
@@ -413,7 +414,7 @@ input str30 sector long enroll
 "Health-related" 19000
 end
 sparkta2 enroll, name(sector) type(donut) scheme(tx2036)                    ///
-    download datatable animate offline noopen                                ///
+    download datatable animate tx2036style downloadpos(below) offline noopen ///
     title("v0.7.0 -- Donut: enrollment by sector")                           ///
     export("`out'/25_donut.html")
 restore
@@ -422,7 +423,7 @@ restore
 preserve
 collapse (mean) poverty_rate, by(region_n)
 sparkta2 poverty_rate, name(region_n) type(bar2) horizontal scheme(blues)   ///
-    download datatable animate offline noopen                                ///
+    download datatable animate tx2036style downloadpos(below) offline noopen ///
     title("v0.7.1 -- Native bar2 + Export menu + animate")                   ///
     export("`out'/26_native_bar.html")
 restore
@@ -445,7 +446,7 @@ end
 sparkta2 share, name(q) level(response) type(divbar)                         ///
     levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")    ///
     centerlevel(Neutral)                                                     ///
-    download datatable offline noopen                                        ///
+    download datatable tx2036style downloadpos(below) offline noopen         ///
     title("v0.7.0 -- Diverging stacked bar (Pew-style)")                     ///
     width(1100) height(360)                                                  ///
     export("`out'/27_divbar.html")
@@ -472,7 +473,7 @@ input long yr str22 name double v
 2024 "Travis"  1378260
 end
 sparkta2 v, name(name) time(yr) type(barrace) top(5) duration(10)            ///
-    scheme(tx2036) download datatable offline noopen                         ///
+    scheme(tx2036) download datatable tx2036style downloadpos(below) offline noopen ///
     title("v0.7.0 -- Bar chart race (synthetic)")                            ///
     export("`out'/28_barrace.html")
 restore

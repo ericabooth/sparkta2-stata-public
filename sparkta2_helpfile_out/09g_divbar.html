@@ -3,9 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>v0.7.0 -- Diverging stacked bar (Pew-style, Likert)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}
-*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}
+*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}
+h1{font-weight:700;letter-spacing:-0.01em;}
+.controls h3{font-weight:600;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px;}
 h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .sub{color:var(--muted);margin:0 0 16px;font-size:.95rem;}
@@ -32,6 +37,14 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .chartcard .race-time{font:30px sans-serif;font-weight:700;fill:#94a3b8;text-anchor:end;}
 #tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}
 .note{margin-top:14px;color:var(--muted);font-size:.78rem;}
+#chart-footer{display:none;justify-content:flex-end;align-items:center;gap:8px;padding:8px 0 0;border-top:1px solid var(--line);margin-top:8px;}
+#chart-footer.active{display:flex;}
+#chart-footer button{padding:4px 10px;font-size:.8rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;}
+#chart-footer button:hover{background:#eef2f7;}
+#chart-footer .exportmenu{position:relative;}
+#chart-footer .exportlist{left:auto;right:0;min-width:170px;}
+.panels.no-sidebar{grid-template-columns:1fr !important;}
+.controls.empty{display:none;}
 .exportmenu{position:relative;}
 .exportbtn{width:100%;padding:6px 8px;font-size:.85rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;text-align:left;}
 .exportbtn:hover{background:#eef2f7;}
@@ -183,13 +196,35 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 
     function buildControls() {
       controlsRoot.selectAll("*").remove();
-      if (meta.download || meta.datatable) {
+      var dlpos = (meta.downloadpos || "side").toLowerCase();
+      var hideExport = (dlpos === "none");
+      var exportInFooter = (dlpos === "below");
+
+      if ((meta.download || meta.datatable) && !hideExport && !exportInFooter) {
         controlsRoot.append("h3").text("View");
         buildExportMenu(controlsRoot);
       }
       // Type-specific control widgets are appended by the renderer.
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
       updateMetabox();
+
+      if (exportInFooter && !hideExport && (meta.download || meta.datatable)) {
+        var foot = d3.select("#chart-footer").classed("active", true);
+        foot.selectAll("*").remove();
+        buildExportMenu(foot);
+      }
+      // Collapse the side panel when only the metabox + label-less content
+      // would remain.  This keeps the page narrow when the user only wanted
+      // Export and pushed it under the chart.
+      var ctrlChildren = controlsRoot.node().children;
+      var nonMeta = 0;
+      for (var i = 0; i < ctrlChildren.length; i++) {
+        if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
+      }
+      if (nonMeta === 0) {
+        controlsRoot.classed("empty", true);
+        d3.select(".panels").classed("no-sidebar", true);
+      }
     }
     function updateMetabox() {
       d3.select("#metabox").html("<strong>" + data.length + "</strong> rows");
@@ -557,18 +592,38 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       var normalize = !!meta.normalize;
       var hasOver = !!meta.over;
 
-      var margin = horiz
-        ? { top: 24, right: 24, bottom: 36, left: 160 }
-        : { top: 24, right: 24, bottom: 60, left: 64 };
-      var iw = W - margin.left - margin.right;
-      var ih = H - margin.top  - margin.bottom;
-      var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
       // Categories preserve input order
       var cats = [];
       data.forEach(function (d) {
         if (cats.indexOf(d.name) < 0) cats.push(d.name);
       });
+
+      // Label-wrap resolution (v0.7.3).  User-facing options:
+      //   meta.labelwrap = "auto" (default) | "on" | "off"
+      //   meta.labelwidth = explicit left-margin px (0 = use defaults)
+      // "auto" keeps the character-count heuristic: wrap iff the longest
+      // label exceeds ~28 chars on a horizontal single-series bar.
+      // "on" / "off" force the behaviour; "off" truncates with an ellipsis
+      // when a label would overflow the gutter.
+      var maxLabelLen = cats.reduce(function (m, c) {
+        return Math.max(m, String(c || "").length);
+      }, 0);
+      var lwMode = (meta.labelwrap || "auto").toLowerCase();
+      var useWrappedLabels;
+      if      (lwMode === "on")  useWrappedLabels = horiz && !hasOver;
+      else if (lwMode === "off") useWrappedLabels = false;
+      else                        useWrappedLabels = horiz && !hasOver && maxLabelLen > 28;
+      var lwOverride = +meta.labelwidth || 0;
+      var leftMargin;
+      if (lwOverride > 0) leftMargin = lwOverride;
+      else                 leftMargin = horiz ? (useWrappedLabels ? 300 : 160) : 64;
+
+      var margin = horiz
+        ? { top: 24, right: 24, bottom: 36, left: leftMargin }
+        : { top: 24, right: 24, bottom: 60, left: leftMargin };
+      var iw = W - margin.left - margin.right;
+      var ih = H - margin.top  - margin.bottom;
+      var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
       var entered;  // selection of bar rects, returned for animate
 
@@ -581,8 +636,35 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
         if (horiz) {
           var yScale = d3.scaleBand().domain(cats).range([0, ih]).padding(0.18);
           scaleVal.range([0, iw]);
-          g.append("g").attr("class", "axis")
-            .call(d3.axisLeft(yScale));
+          if (useWrappedLabels) {
+            // Hand-render wrapped labels instead of using d3.axisLeft, so
+            // long survey-item names wrap to 2-3 lines and stay readable.
+            var lbls = g.append("g").attr("class", "item-labels");
+            cats.forEach(function (c) {
+              var y = yScale(c) + yScale.bandwidth() / 2;
+              var t = lbls.append("text")
+                .attr("class", "item-label")
+                .attr("x", -10).attr("y", y)
+                .attr("text-anchor", "end")
+                .attr("dominant-baseline", "middle");
+              wrapText(t, c, margin.left - 20);
+            });
+          } else if (lwMode === "off") {
+            // labelwrap(off): hand-render single-line labels with ellipsis
+            // truncation if a label exceeds the gutter.
+            var lblsT = g.append("g").attr("class", "item-labels");
+            cats.forEach(function (c) {
+              var y = yScale(c) + yScale.bandwidth() / 2;
+              var t = lblsT.append("text")
+                .attr("class", "item-label")
+                .attr("x", -10).attr("y", y)
+                .attr("text-anchor", "end");
+              truncateText(t, c, margin.left - 20);
+            });
+          } else {
+            g.append("g").attr("class", "axis")
+              .call(d3.axisLeft(yScale));
+          }
           g.append("g").attr("class", "axis")
             .attr("transform", "translate(0," + ih + ")")
             .call(d3.axisBottom(scaleVal).ticks(6));
@@ -845,7 +927,17 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
     // -----------------------------------------------------------------
     function renderDivbar() {
       svg.selectAll("*").remove();
-      var margin = { top: 60, right: 80, bottom: 14, left: 260 };
+      // Label-wrap resolution.  divbar defaults to wrap=on (Pew-style) but
+      // user can pass labelwrap(off) to truncate, and labelwidth(N) to
+      // override the gutter width.
+      var lwModeD = (meta.labelwrap || "auto").toLowerCase();
+      var divDoWrap = (lwModeD !== "off");
+      var divLeftOverride = +meta.labelwidth || 0;
+      // Generous left margin to host wrapped survey-item text; works well
+      // up to ~80-character items with two-line wrap.  Right margin
+      // reserves space for the Net (+/-) annotation column.
+      var margin = { top: 60, right: 90, bottom: 14,
+                     left: (divLeftOverride > 0 ? divLeftOverride : 300) };
       var iw = W - margin.left - margin.right;
       var ih = H - margin.top  - margin.bottom;
       var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -911,7 +1003,8 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       var xs = d3.scaleLinear().domain([-bound, bound]).range([0, iw]);
       var ys = d3.scaleBand().domain(items).range([0, ih]).padding(0.28);
 
-      // Item labels on the LEFT with text wrapping for long survey items
+      // Item labels on the LEFT.  Default: wrap multi-line (Pew style);
+      // labelwrap(off) switches to truncate-with-ellipsis on a single line.
       var itemLabel = g.append("g").attr("class", "item-labels");
       items.forEach(function (it) {
         var y = ys(it) + ys.bandwidth() / 2;
@@ -920,7 +1013,8 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
           .attr("x", -10).attr("y", y)
           .attr("text-anchor", "end")
           .attr("dominant-baseline", "middle");
-        wrapText(t, it, margin.left - 20);
+        if (divDoWrap) wrapText(t, it, margin.left - 20);
+        else           truncateText(t, it, margin.left - 20);
       });
 
       // Bars: for each item, render segments
@@ -1021,6 +1115,28 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
         },
         duration: 700, stagger: 30
       }];
+    }
+
+    // Truncate-with-ellipsis helper: single-line label that fits in maxPx.
+    // Uses a binary search on `getComputedTextLength` to find the longest
+    // prefix that fits.  No-ops if the full content already fits.
+    function truncateText(text, content, maxPx) {
+      var full = String(content || "");
+      var x = +text.attr("x") || 0;
+      text.text(null);
+      var tspan = text.append("tspan").attr("x", x).attr("dy", "0.32em");
+      tspan.text(full);
+      if (tspan.node().getComputedTextLength() <= maxPx) return;
+      // Binary search: find the longest prefix length L such that
+      // (full.slice(0, L) + "…") fits.
+      var lo = 0, hi = full.length;
+      while (lo < hi) {
+        var mid = Math.ceil((lo + hi) / 2);
+        tspan.text(full.slice(0, mid).replace(/\s+$/, "") + "…");
+        if (tspan.node().getComputedTextLength() <= maxPx) lo = mid;
+        else hi = mid - 1;
+      }
+      tspan.text(full.slice(0, lo).replace(/\s+$/, "") + "…");
     }
 
     // Text-wrap helper for long survey items in the left margin.
@@ -1235,7 +1351,7 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 <h1>v0.7.0 -- Diverging stacked bar (Pew-style, Likert)</h1>
 <div class="panels">
   <div class="card controls" id="controls"></div>
-  <div class="card chartcard"><svg id="chart"></svg></div>
+  <div class="card chartcard"><svg id="chart"></svg><div id="chart-footer"></div></div>
 </div>
 <div id="datatable"></div>
 </div><div id="tooltip"></div>
@@ -1253,6 +1369,8 @@ window.__SPARKTA2_CHART__ = {
 "innerradius":.55,"top":12,"fps":12,"duration":25,
 "sorted":"",
 "download":1,"datatable":1,"animate":0,
+"tx2036style":1,"downloadpos":"below",
+"labelwrap":"auto","labelwidth":0,
 "width":1100,"height":360
 },
 "tooltipvars":

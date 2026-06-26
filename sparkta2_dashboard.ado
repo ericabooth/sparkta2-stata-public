@@ -1,7 +1,11 @@
-*! sparkta2_dashboard v0.3.0  2026-06-20
+*! sparkta2_dashboard v0.4.0  2026-06-26
 *! Compose a scrollable single-page dashboard that embeds a list of
-*! sparkta2 map HTML files via <iframe>. Each section is a self-contained
-*! interactive map; filters/zoom/etc. work independently per iframe.
+*! sparkta2 map / chart HTML files via <iframe>. Each section is
+*! self-contained; filters/zoom/etc. work independently per iframe.
+*!
+*! v0.4.0: tx2036style option (Texas 2036 brand + Montserrat for the
+*!         wrapper page); default iframe height bumped 920 -> 1060
+*!         (~15% taller) to reduce the amount of scrolling per section.
 *!
 *! Usage:
 *!   sparkta2_dashboard,                                                   ///
@@ -23,7 +27,9 @@ program define sparkta2_dashboard, rclass
     version 17.0
 
     syntax , FILES(string) EXPORT(string) [TITLE(string) SUBtitle(string) ///
-        TITLES(string) HEIGHTS(string) NOOPEN]
+        TITLES(string) HEIGHTS(string) NOOPEN TX2036STyle]
+
+    local is_tx2036st = cond("`tx2036style'" != "", 1, 0)
 
     if "`title'" == "" local title "sparkta2 dashboard"
 
@@ -51,8 +57,10 @@ program define sparkta2_dashboard, rclass
         local _title`_ntitles' = strtrim(`"`_trest'"')
     }
 
-    * Heights: single number -> apply to all; multiple -> per-file
-    if "`heights'" == "" local heights "920"
+    * Heights: single number -> apply to all; multiple -> per-file.
+    * Default bumped from 920 to 1060 in v0.4.0 (~15% taller) so each
+    * embedded chart shows more vertically before the reader scrolls.
+    if "`heights'" == "" local heights "1060"
     local _hlist = itrim("`heights'")
     local _nhts = wordcount("`_hlist'")
 
@@ -68,9 +76,24 @@ program define sparkta2_dashboard, rclass
     file write `fh' `"<meta charset="utf-8">"' _n
     file write `fh' `"<meta name="viewport" content="width=device-width, initial-scale=1">"' _n
     file write `fh' `"<title>`esc_title'</title>"' _n
+    * tx2036style: pull Montserrat from Google Fonts for the wrapper page.
+    * Inner iframes are independent documents and bring their own typography
+    * (each chart/map sets its own font stack via its writehtml).
+    if `is_tx2036st' {
+        file write `fh' `"<link rel="preconnect" href="https://fonts.googleapis.com">"' _n
+        file write `fh' `"<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>"' _n
+        file write `fh' `"<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">"' _n
+    }
     file write `fh' `"<style>"' _n
     file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}"' _n
-    file write `fh' `"*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}"' _n
+    if `is_tx2036st' {
+        file write `fh' `"*{box-sizing:border-box}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em}"' _n
+        file write `fh' `"header h1{font-weight:700;letter-spacing:-0.01em}"' _n
+        file write `fh' `".section h2{font-weight:600}"' _n
+    }
+    else {
+        file write `fh' `"*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}"' _n
+    }
     file write `fh' `".wrap{max-width:1300px;margin:0 auto;padding:24px 18px 60px}"' _n
     file write `fh' `"header h1{font-size:1.7rem;margin:0 0 4px;color:var(--ink)}"' _n
     file write `fh' `"header p{color:var(--muted);margin:0 0 22px;font-size:.95rem}"' _n
@@ -123,7 +146,7 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"</section>"' _n
     }
 
-    file write `fh' `"<footer>Built with sparkta2 v0.5.3 — each section is an independent interactive map.</footer>"' _n
+    file write `fh' `"<footer>Built with sparkta2 v0.7.4 — each section is an independent interactive map / chart.</footer>"' _n
     file write `fh' `"</div></body></html>"' _n
     file close `fh'
 
