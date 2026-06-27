@@ -505,10 +505,20 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       var proj;
       switch (preset) {
         case "albers_tx":
+          // Central meridian = panhandle top midpoint (-101.5 deg lon), upper
+          // standard parallel = panhandle top latitude (36.5 deg N).  In
+          // Albers conic, a latitude line renders as an arc symmetric around
+          // the central meridian; setting the CM to the panhandle midpoint
+          // makes the two ends of the top edge (-103 deg W and -100 deg W)
+          // land at the same y, which renders the top edge horizontally
+          // flat instead of with the residual ~1.3 deg lean the previous
+          // (rotate=99, parallels=27.5/35.5) tuning still produced.  Also
+          // placing the upper parallel at exactly the panhandle latitude
+          // makes that latitude conformal (zero N-S distortion at the top).
           proj = d3.geoAlbers()
-            .rotate([99, 0])
+            .rotate([101.5, 0])
             .center([0, 31.5])
-            .parallels([27.5, 35.5]);
+            .parallels([27.5, 36.5]);
           break;
         case "albers":
           proj = d3.geoAlbers();

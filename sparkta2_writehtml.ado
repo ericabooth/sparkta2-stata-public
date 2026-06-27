@@ -1,4 +1,4 @@
-*! sparkta2_writehtml v0.7.7  2026-06-26
+*! sparkta2_writehtml v0.7.8  2026-06-26
 *! Assemble the final self-contained HTML for a sparkta2 map.
 *!
 *! v0.2.2: forward projection / rotate / parallels / center option strings

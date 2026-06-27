@@ -16,6 +16,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.7.8** (2026-06-26). Texas-tuned Albers retuned to make the panhandle top edge perfectly horizontal: central meridian moved from `–99°` to `–101.5°` (the panhandle's longitudinal midpoint) and upper standard parallel from `35.5°` to `36.5°` (the panhandle's latitude). The v0.6.1 fix had reduced the original `albers_usa` ~3.3° lean to ~1.3°; v0.7.8 takes it to 0.0°. See [Projection: Texas-tuned Albers and how to override it](#projection-texas-tuned-albers-and-how-to-override-it) below for the geometry, trade-offs, and escape hatches.
+
 **v0.7.7** (2026-06-26). Iframe auto-resize protocol: every sparkta2-native HTML output now posts its rendered content height to its parent page on load / resize / DOM mutation, and parent pages (sparkta2_dashboard wrappers + the webdoc2 demos) grow each iframe to fit + set `scrolling="no"`, so embeds never get clipped behind a scrollbar. Opt out per-iframe with the `data-skip-resize="1"` HTML attribute (used for sparkta / Chart.js pass-throughs that don't speak the resize protocol).
 
 **v0.7.3** (2026-06-26). Chart label policy: `wraplabel(auto | on | off)` (synonyms `wrap`, `truncate`) + `gutterwidth(N)` left-margin override. `auto` keeps long labels on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines don't fit. Useful for divbar/bar2/line2 with long category names.
@@ -241,6 +243,68 @@ Drop a `<geo>_counties.topojson` next to the ado files and pass `geo(<geo>)`. Th
 4. Save as `<geo>_counties.topojson` next to `sparkta2_engine.js`, then re-run `adopath ++ "<that dir>"`.
 
 If you want a custom basemap, include `states` (admin1/regions) and `nation` (country outline) objects in the same topojson; `basemap` will pick them up automatically.
+
+## Projection: Texas-tuned Albers and how to override it
+
+sparkta2 picks one of three projection presets by default and exposes the full d3 projection tunables (`rotate`, `parallels`, `center`) for fine control. The defaults are calibrated for a flat Texas panhandle — but readers running the same code may see slightly different tilt depending on their `geo()`, `layer()`, and sparkta2 version. This section explains why and what to do about it.
+
+### Defaults and what they look like
+
+| `geo()` / `layer()` | preset | rotate | parallels | center |
+|---|---|---|---|---|
+| `geo(texas)` (counties / districts / hexbin / points) | **albers_tx** | `[101.5, 0]` | `[27.5, 36.5]` | `[0, 31.5]` |
+| `geo(us)` *or any* `layer(states\|nation)` | **albers_usa** | composite (AK/HI insets) | composite | composite |
+| any other `geo()` | **albers_usa** | composite | composite | composite |
+
+`albers_tx` is a Texas-tuned d3.geoAlbers — a single non-composite Albers conic with parameters chosen so the panhandle top edge renders horizontally flat. `albers_usa` is d3's composite that ships AK and HI as insets and centers CONUS near Kansas; it's the right call for multi-state maps but renders Texas-only viewports with a noticeable downward lean on the panhandle's top edge.
+
+### Why the v0.7.8 retuning
+
+| Version | preset | rotate | parallels | Panhandle top lean |
+|---|---|---|---|---|
+| ≤ v0.6.0 (`geo(texas)` was using `albers_usa`) | composite | `[-96, 0]` (CONUS-tuned) | `[29.5, 45.5]` | ~3.3° |
+| v0.6.1 – v0.7.7 (`albers_tx` first cut) | `albers_tx` | `[99, 0]` | `[27.5, 35.5]` | ~1.3° |
+| **v0.7.8** (`albers_tx` retune) | `albers_tx` | **`[101.5, 0]`** | **`[27.5, 36.5]`** | **0.0°** |
+
+### The geometry
+
+In an Albers conic, lines of constant latitude render as **circular arcs centered on the cone apex** — not as straight horizontal lines. Two settings control whether any given latitude line slopes on the rendered map:
+
+1. The **central meridian** (set by `rotate(λ)`) determines where the arc peaks. For the arc between two endpoints to render as a horizontal chord, the central meridian must sit at the **longitudinal midpoint** of those endpoints.
+2. The **standard parallels** (set by `parallels(φ1 φ2)`) mark where the projection is conformal (zero N-S distortion). Placing a parallel exactly at the latitude you want to render flat makes that latitude line conformal.
+
+The Texas panhandle's top edge runs from `–103°W` to `–100°W` at `36.5°N`. Midpoint: **`–101.5°W`**. Latitude: **`36.5°N`**. Those are the v0.7.8 `albers_tx` values exactly — that's where the flat panhandle comes from.
+
+### Trade-off
+
+Shifting the central meridian 2.5° west of the state's longitudinal centroid (`–99.5°W`) means **East Texas** longitude lines tilt slightly more from vertical — Sabine Pass (`–93.5°W`) now sits 8° east of the central meridian instead of the 5.5° it sat at under the v0.6.1 tuning. At Texas scale this is visually negligible, but if you place an `albers_usa` Texas render alongside the v0.7.8 `albers_tx` one you'll see East Texas counties subtly rotated.
+
+If a flat panhandle isn't important to your use case — you want minimal shear across the whole state, or you're matching another atlas — use one of the escape hatches.
+
+### Escape hatches
+
+```stata
+* Restore the v0.6.1 tuning (panhandle ~1.3° lean, less East Texas shear):
+sparkta2 ..., geo(texas) projection(albers_tx) rotate(99) parallels(27.5 35.5)
+
+* Restore the pre-v0.6.1 composite look (panhandle ~3.3° lean, AK/HI compatible):
+sparkta2 ..., geo(texas) projection(albers_usa)
+
+* Use plain Albers with your own tuning (no Texas-specific defaults):
+sparkta2 ..., projection(albers) rotate(99) parallels(27.5 35.5) center(0 31.5)
+
+* Use Mercator (web-tile interop; Texas gets a slight upward bulge above ~30°N):
+sparkta2 ..., projection(mercator)
+```
+
+### Why your map might look tilted differently
+
+If your panhandle top is not flat, or is tilted differently from what's shown here, check in order:
+
+1. **`geo()` value.** `geo(texas)` picks `albers_tx`; `geo(us)` picks `albers_usa`; other geos pick `albers_usa`. Different defaults render the same data with different lean.
+2. **`layer()` value.** `layer(states|nation)` overrides the geo default and forces `albers_usa` — so `geo(texas) layer(states)` is using the composite, not the Texas-tuned preset.
+3. **Explicit `projection() / rotate() / parallels() / center()`** you've passed. These take precedence over the preset defaults.
+4. **Installed version.** v0.5.x and earlier used `albers_usa` for every map; v0.6.1 introduced `albers_tx` with a ~1.3° residual lean; v0.7.8 retunes `albers_tx` to zero lean. Every sparkta2 map call prints a dispatcher banner like `[sparkta2 v0.7.8]` in the Stata Results window — that's the running version.
 
 ## Worked examples
 

@@ -1,4 +1,4 @@
-*! sparkta2 v0.7.7  2026-06-26
+*! sparkta2 v0.7.8  2026-06-26
 *! sparkta + interactive choropleth maps + native D3 charts in one command.
 *!
 *! Dispatcher:
@@ -46,7 +46,7 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.7.7"
+    local sparkta2_version "0.7.8"
     display as text "  [sparkta2 v`sparkta2_version']"
 
     * Peek at user-supplied type() without consuming any args.

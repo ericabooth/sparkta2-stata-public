@@ -1,5 +1,5 @@
 *! test_sparkta2_map.do
-*! Companion driver for sparkta2 v0.7.7 -- exercises 20 dashboard examples plus
+*! Companion driver for sparkta2 v0.7.8 -- exercises 20 dashboard examples plus
 *! v0.6.x / v0.7.x additions (Export menu, datatable, animate, Texas-tuned
 *! projection, donut, bar2, line2, divbar, barrace, wraplabel/gutterwidth,
 *! tx2036style, downloadpos, iframe auto-resize protocol).

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.7.7  26jun2026}{...}
+{* *! version 0.7.8  26jun2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.7):
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.8):
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -195,7 +195,7 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:tx2036style}}Loads Montserrat from Google Fonts as the HTML body font and tightens typography (heavy h1 weight, kerning).  SVG text deliberately stays on the system stack so {cmd:getComputedTextLength} measurements (used by divbar wrap, donut label suppression) stay stable across the async font load.  Falls back to system sans-serif if offline.  Use with {cmd:scheme(tx2036)} for the full brand look.{p_end}
 {synopt :{cmd:wraplabel()}}Controls how long category labels render on {cmd:type(bar2)} (horizontal) and {cmd:type(divbar)}.  {cmd:auto} (default for bar2) wraps when the longest label exceeds ~28 characters.  {cmd:on} (default for divbar; aliased {cmd:wrap}) always wraps to a multi-line block.  {cmd:off} (aliased {cmd:truncate}) renders a single line and truncates with a Unicode ellipsis (...) when a label exceeds the gutter width.  No effect on the other chart types or on vertical bars.{p_end}
 {synopt :{cmd:gutterwidth()}}Override the left-margin width in pixels for the category-label gutter on horizontal {cmd:bar2} and on {cmd:divbar}.  Default depends on context: 160 (bar2 no-wrap), 300 (bar2 wrap), 300 (divbar).  Useful for tight grid embeds where you want to trade wrap fidelity for a narrower chart.{p_end}
-{synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} the v0.6.1 default change fixes a ~3{c 176} downward lean of the Texas panhandle's top edge that {bf:albers_usa} produced on Texas-only viewports; pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 look exactly.{p_end}
+{synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, v0.7.8: rotate=[101.5,0], center=[0,31.5], parallels=[27.5,36.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} v0.7.8 retunes the {bf:albers_tx} preset so the panhandle's top edge renders horizontally flat (central meridian at the panhandle's longitudinal midpoint -101.5{c 176}; upper standard parallel at the panhandle latitude 36.5{c 176}).  The original v0.6.1 fix (rotate=[99,0], parallels=[27.5,35.5]) reduced the {bf:albers_usa} ~3.3{c 176} lean to ~1.3{c 176}; v0.7.8 takes it to ~0{c 176}.  Pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 composite look exactly, or {cmd:rotate(99) parallels(27.5 35.5)} on top of {cmd:projection(albers_tx)} to recover the v0.6.1 look.{p_end}
 {synopt :{cmd:rotate() parallels() center()}}Numeric overrides applied on top of the chosen preset.  {cmd:rotate(}{it:lambda}{cmd:)} or {cmd:rotate(}{it:lambda phi}{cmd:)} sets the projection rotation in degrees.  {cmd:parallels(}{it:p1 p2}{cmd:)} sets the two Albers standard parallels in degrees.  {cmd:center(}{it:lon lat}{cmd:)} sets the projection center in degrees.  These have no effect under {cmd:projection(albers_usa)} because the composite projection does not expose them.{p_end}
 {synopt :{cmd:tooltipvars(varlist)}}Each listed variable becomes a labelled row in the tooltip table when hovering over a county/ZIP/state. Labels use {cmd:variable label} when present.{p_end}
 {synopt :{cmd:basemap}}A faded {bf:states} (or {bf:nation}) outline is drawn behind the focused features and remains visible at every zoom level.{p_end}
@@ -319,6 +319,102 @@ the same topojson; {cmd:basemap} will pick them up automatically.
 {pstd}
 For US-wide work outside Texas, the bundled topojson is sufficient via the
 {cmd:layer(states)} trick — see the bonus examples below.
+
+
+{title:Projection tuning -- Texas-tuned Albers and how to override it}
+
+{pstd}
+sparkta2 ships with three projection presets and an unspecified-Albers
+escape hatch:
+
+{phang}1. {bf:albers_usa} -- the d3.geoAlbersUsa composite with AK/HI insets.
+Default for {cmd:geo(us)} and for any {cmd:layer(states|nation)} call.
+Optimized for CONUS; centers near Kansas with parallels (29.5{c 176}, 45.5{c 176}).{p_end}
+
+{phang}2. {bf:albers_tx} -- a Texas-tuned d3.geoAlbers preset.  Default for
+{cmd:geo(texas)}.  Currently (v0.7.8): {bf:rotate=[101.5,0]},
+{bf:parallels=[27.5,36.5]}, {bf:center=[0,31.5]}.{p_end}
+
+{phang}3. {bf:mercator} -- d3.geoMercator.  Useful for web-tile interop.
+Produces a noticeable upward bulge in Texas because Mercator's polar
+distortion grows quickly above ~30{c 176} N.{p_end}
+
+{phang}4. {bf:albers} -- a generic d3.geoAlbers with default settings.  Pair
+with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} for arbitrary tuning.{p_end}
+
+{pstd}
+{bf:Why the v0.7.8 retuning.}  d3.geoAlbersUsa was used for every layer
+including {cmd:geo(texas)} prior to v0.6.1, producing a ~3.3{c 176} downward
+lean on the panhandle's top edge.  v0.6.1 introduced {bf:albers_tx} with
+{bf:rotate=[99,0]}, {bf:parallels=[27.5,35.5]} -- this cut the lean to ~1.3{c 176}
+but didn't eliminate it.  v0.7.8 retunes to {bf:rotate=[101.5,0]},
+{bf:parallels=[27.5,36.5]} -- the lean is now 0.0{c 176} (panhandle top edge
+renders perfectly horizontal).
+
+{pstd}
+{bf:The geometry.}  In Albers conic, lines of constant latitude render as
+{bf:circular arcs} centered on the cone apex.  Two settings control how
+any one latitude line slopes on the rendered map:
+
+{phang}- The {bf:central meridian} (set by {cmd:rotate(}{it:lambda}{cmd:)})
+determines where the arc {it:peaks}.  For the arc between two endpoints
+to render as a horizontal chord, the central meridian must be at the
+{bf:longitudinal midpoint} of those endpoints.{p_end}
+
+{phang}- The {bf:standard parallels} (set by {cmd:parallels(}{it:phi1 phi2}{cmd:)})
+mark where the projection is conformal (zero N-S distortion).  Placing
+one parallel exactly at the latitude you want to render flat makes that
+latitude line conformal.{p_end}
+
+{pstd}
+The Texas panhandle's top edge runs from -103{c 176} W to -100{c 176} W at 36.5{c 176} N.
+Midpoint: {bf:-101.5{c 176} W}.  Latitude: {bf:36.5{c 176} N}.  Those are the
+v0.7.8 albers_tx values exactly.
+
+{pstd}
+{bf:Trade-off.}  Shifting the central meridian 2.5{c 176} west of the state's
+longitudinal centroid (-99.5{c 176}) means {bf:East Texas} longitude lines
+tilt slightly more from vertical -- Sabine Pass (-93.5{c 176} W) sits 8{c 176} east
+of CM instead of the 5.5{c 176} it sat at under v0.6.1.  At Texas scale this
+is visually negligible, but a close compare against an albers_usa
+rendering of the same data will show East Texas counties subtly rotated.
+
+{pstd}
+{bf:Common overrides.}
+
+{phang}{cmd}* Restore the v0.6.1 tuning (panhandle ~1.3 deg lean, less East Texas shear):{p_end}
+{phang}{cmd}sparkta2 ..., geo(texas) projection(albers_tx) rotate(99) parallels(27.5 35.5){p_end}
+
+{phang}{cmd}* Restore the pre-v0.6.1 composite look (panhandle ~3.3 deg lean, AK/HI compatible):{p_end}
+{phang}{cmd}sparkta2 ..., geo(texas) projection(albers_usa){p_end}
+
+{phang}{cmd}* Use plain Albers conic with custom parameters (no Texas-specific tuning):{p_end}
+{phang}{cmd}sparkta2 ..., projection(albers) rotate(99) parallels(27.5 35.5) center(0 31.5){p_end}
+
+{phang}{cmd}* Use Mercator (web-tile interop; Texas gets a slight upward bulge):{p_end}
+{phang}{cmd}sparkta2 ..., projection(mercator){p_end}
+
+{pstd}
+{bf:Why your map might look tilted differently from this gallery.}
+If your map's panhandle top is not flat (or is tilted more than expected),
+check, in order:
+
+{phang}1. The {cmd:geo()} value.  {cmd:geo(texas)} defaults to albers_tx;
+{cmd:geo(us)} defaults to albers_usa; other geos default to albers_usa.
+Different defaults render the same data with different lean.{p_end}
+
+{phang}2. The {cmd:layer()} value.  {cmd:layer(states|nation)} forces
+albers_usa regardless of {cmd:geo()} -- so a {cmd:geo(texas) layer(states)}
+call uses albers_usa, not albers_tx.{p_end}
+
+{phang}3. Any explicit {cmd:projection() / rotate() / parallels() / center()}
+overrides you've passed.  These take precedence over the preset defaults.{p_end}
+
+{phang}4. The sparkta2 version installed.  v0.5.x and earlier used
+albers_usa for everything; v0.6.1 introduced albers_tx with a ~1.3 deg
+residual lean; v0.7.8 retunes albers_tx to zero lean.  Run any sparkta2
+map call and the dispatcher banner at the top of the Stata Results window
+prints the running version.{p_end}
 
 
 {title:Examples}

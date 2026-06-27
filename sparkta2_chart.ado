@@ -1,4 +1,4 @@
-*! sparkta2_chart v0.7.7  2026-06-26
+*! sparkta2_chart v0.7.8  2026-06-26
 *! D3-native non-map chart types for sparkta2.
 *!
 *! Supported types:
@@ -382,7 +382,7 @@ program define sparkta2_chart, rclass
         wraplabel("`wraplabel'") gutterwidth(`gutterwidth')          ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.7]  `type' chart written:"
+    display as text _n "[sparkta2 v0.7.8]  `type' chart written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Scheme: `scheme'"
 

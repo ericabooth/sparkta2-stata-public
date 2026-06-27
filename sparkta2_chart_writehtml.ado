@@ -1,4 +1,4 @@
-*! sparkta2_chart_writehtml v0.7.7  2026-06-26
+*! sparkta2_chart_writehtml v0.7.8  2026-06-26
 *! Assemble the self-contained HTML for a sparkta2 native chart
 *! (donut | bar | line | divbar | barrace).
 *!

@@ -216,12 +216,15 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       // Collapse the side panel when only the metabox + label-less content
       // would remain.  This keeps the page narrow when the user only wanted
       // Export and pushed it under the chart.
+      // Skip the collapse for type(barrace): the bar-chart-race renderer
+      // inserts its own Race/Play/Pause/Replay controls into #controls AFTER
+      // buildControls() runs, so a premature no-sidebar would hide them.
       var ctrlChildren = controlsRoot.node().children;
       var nonMeta = 0;
       for (var i = 0; i < ctrlChildren.length; i++) {
         if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
       }
-      if (nonMeta === 0) {
+      if (nonMeta === 0 && meta.type !== "barrace") {
         controlsRoot.classed("empty", true);
         d3.select(".panels").classed("no-sidebar", true);
       }

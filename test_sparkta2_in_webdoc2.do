@@ -1,4 +1,4 @@
-*! test_sparkta2_in_webdoc2.do  v0.7.7
+*! test_sparkta2_in_webdoc2.do  v0.7.8
 *!
 *!   Comprehensive single-page demo embedding many sparkta2 outputs via
 *!   webdoc2.  Uses webdoc2's NATIVE theme (Bootstrap 5.3 navbar + Inter
@@ -375,7 +375,7 @@ wdinit index, replace
 * ----- Bootstrap navbar (matches the data_centers webdoc2 site convention) ----
 wput <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-3">
 wput <div class="container-fluid">
-wput <a class="navbar-brand" href="#" title="sparkta2 v0.7.7 demo">SPARKTA2 v0.7.7 demo</a>
+wput <a class="navbar-brand" href="#" title="sparkta2 v0.7.8 demo">SPARKTA2 v0.7.8 demo</a>
 wput <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 wput <div class="collapse navbar-collapse" id="mainNavbar">
 wput <ul class="navbar-nav me-auto mb-2 mb-lg-0">
@@ -485,7 +485,7 @@ wput <p class="text-muted small">Source: <code>s12_sparkta_bar.html</code></p>
 * deliberate-scrollbar demo on this page is s11.
 wdiframe s12_sparkta_bar.html, height(1920px)
 
-wput <hr><p class="text-muted small">Built with sparkta2 v0.7.7 + webdoc2.  Each iframe is independent; the postMessage listener loaded below resizes every sparkta2-native iframe to match its content height (and sets scrolling="no"), except for iframes marked with <code>data-skip-resize="1"</code>, which keep their declared height and native scrollbar (see section 11).</p>
+wput <hr><p class="text-muted small">Built with sparkta2 v0.7.8 + webdoc2.  Each iframe is independent; the postMessage listener loaded below resizes every sparkta2-native iframe to match its content height (and sets scrolling="no"), except for iframes marked with <code>data-skip-resize="1"</code>, which keep their declared height and native scrollbar (see section 11).</p>
 wput <script src="sparkta2_resize.js"></script>
 
 wdclose

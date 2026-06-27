@@ -1,22 +1,41 @@
-*! sparkta2_map v0.7.7  2026-06-26
+*! sparkta2_map v0.7.8  2026-06-26
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
 *!
-*! v0.6.1 fixes:
-*!   - Texas projection tilt: d3.geoAlbersUsa() was used for every layer
-*!     including geo(texas), but its CONUS-wide standard parallels
-*!     (29.5N / 45.5N) and -96 rotation center the projection near
-*!     Kansas.  Texas, south and west of that center, rendered with a
-*!     ~3.3 degree downward lean of the panhandle's top edge.  Now:
-*!       - geo(texas)   defaults to a Texas-tuned d3.geoAlbers()
-*!                      (rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5])
-*!         which drops the panhandle lean to ~1.3 degrees.
+*! v0.7.8 fix:
+*!   - Texas projection tilt iteration: the v0.6.1 settings
+*!     (rotate=[99,0], parallels=[27.5,35.5]) reduced the panhandle lean
+*!     from ~3.3 deg to ~1.3 deg but didn't eliminate it.  Updated to
+*!     rotate=[101.5,0] and parallels=[27.5,36.5]:
+*!       - Central meridian at -101.5 deg = midpoint of the panhandle's
+*!         top edge (-103 deg W to -100 deg W).  In Albers conic, lines
+*!         of latitude render as circular arcs symmetric around the
+*!         central meridian, so centering the CM on the panhandle's
+*!         longitudinal midpoint makes the two ends of the top edge
+*!         (-103 deg W and -100 deg W) land at the same y -> the top
+*!         renders horizontally flat.
+*!       - Upper standard parallel at 36.5 deg N = panhandle top
+*!         latitude.  A standard parallel is conformal (zero N-S
+*!         distortion), so the 36.5 deg latitude line specifically gets
+*!         the cleanest projection treatment.
+*!     Tradeoff: shifting the central meridian 2.5 deg west adds a few
+*!     degrees of N-S shear to East Texas (longitude lines tilt slightly
+*!     more from vertical at Sabine Pass).  Negligible at this scale.
+*!
+*! v0.6.1 fix (superseded by v0.7.8 above):
+*!   - First-pass Texas projection tilt fix.  d3.geoAlbersUsa() was used
+*!     for every layer including geo(texas), but its CONUS-wide standard
+*!     parallels (29.5N / 45.5N) and -96 rotation center the projection
+*!     near Kansas.  Texas, south and west of that center, rendered with
+*!     a ~3.3 degree downward lean of the panhandle's top edge.  v0.6.1
+*!     introduced a Texas-tuned d3.geoAlbers() preset:
+*!       - geo(texas) defaults to albers_tx (Texas-tuned d3.geoAlbers).
 *!       - geo(us) / layer(states|nation) keeps d3.geoAlbersUsa() (unchanged).
 *!       - New projection() option overrides the default:
 *!           albers_usa | albers_tx | albers | mercator
 *!       - New rotate(), parallels(), center() options let power users
 *!         tune any projection numerically.
-*!     Backward-compat: pass projection(albers_usa) to restore the old
-*!     geo(texas) look exactly.
+*!     Backward-compat: pass projection(albers_usa) to restore the
+*!     pre-0.6.1 geo(texas) look exactly.
 *!
 *! v0.6.0 additions:
 *!   - datatable     : add a collapsible "View data" table + CSV download
@@ -549,7 +568,7 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.7]  `type' map written:"
+    display as text _n "[sparkta2 v0.7.8]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
 
