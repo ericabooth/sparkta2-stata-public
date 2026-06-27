@@ -27,24 +27,32 @@ footer{color:var(--muted);font-size:.78rem;margin-top:30px}
 </style></head><body>
 <div class="wrap">
 <header><h1>Likert survey items, three ways (9-item version)</h1>
-<p>Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta-forwarded bar (Chart.js) also showing %-agree.  The first shows nuance; the latter two compress to a single positive-share number.  All three share the same item ordering by net favourability so the eye can track each item across approaches.</p>
+<p>Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta2-native bar2 showing net favourability ((Agree+Strongly agree) - (Disagree+Strongly disagree)) with an RdBu diverging palette and animate-on-scroll.  The first shows nuance, the second compresses to a single positive number per item, the third reads net direction at a glance.  All three share the same item ordering by net favourability so the eye can track each item across approaches.</p>
 </header>
 <nav class="toc"><strong>Jump to:</strong>
   <a href="#sec1">1. A. Pew divbar (full Likert distribution)</a>
   <a href="#sec2">2. B. sparkta2-native bar2 (% Agree)</a>
-  <a href="#sec3">3. C. sparkta-forwarded bar (Chart.js, % Agree)</a>
+  <a href="#sec3">3. C. sparkta2-native bar2 (net favourability)</a>
 </nav>
 <section class="section" id="sec1">
   <h2><span class="num">1.</span>A. Pew divbar (full Likert distribution)<span class="src">09i_A_divbar.html</span></h2>
-  <iframe src="09i_A_divbar.html" height="900" loading="lazy"></iframe>
+  <iframe src="09i_A_divbar.html" height="900" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec2">
   <h2><span class="num">2.</span>B. sparkta2-native bar2 (% Agree)<span class="src">09i_B_bar2.html</span></h2>
-  <iframe src="09i_B_bar2.html" height="900" loading="lazy"></iframe>
+  <iframe src="09i_B_bar2.html" height="900" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec3">
-  <h2><span class="num">3.</span>C. sparkta-forwarded bar (Chart.js, % Agree)<span class="src">09i_C_sparkta_bar.html</span></h2>
-  <iframe src="09i_C_sparkta_bar.html" height="900" loading="lazy"></iframe>
+  <h2><span class="num">3.</span>C. sparkta2-native bar2 (net favourability)<span class="src">09i_C_bar2_netfav.html</span></h2>
+  <iframe src="09i_C_bar2_netfav.html" height="900" scrolling="no" loading="lazy"></iframe>
 </section>
-<footer>Built with sparkta2 v0.7.4 — each section is an independent interactive map / chart.</footer>
+<footer>Built with sparkta2 v0.7.7 — each section is an independent interactive map / chart.</footer>
+<script>
+window.addEventListener('message',function(e){
+if(!e.data||e.data.type!=='sparkta2-resize')return;
+var ifrs=document.querySelectorAll('iframe');
+for(var i=0;i<ifrs.length;i++){
+if(ifrs[i].contentWindow===e.source){ifrs[i].style.height=(e.data.height+12)+'px';ifrs[i].setAttribute('scrolling','no');break;}
+}});
+</script>
 </div></body></html>

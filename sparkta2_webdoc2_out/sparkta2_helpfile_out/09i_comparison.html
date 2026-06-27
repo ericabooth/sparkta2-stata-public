@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Likert survey items, three ways (9-item version)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}
+*{box-sizing:border-box}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em}
+header h1{font-weight:700;letter-spacing:-0.01em}
+.section h2{font-weight:600}
+.wrap{max-width:1300px;margin:0 auto;padding:24px 18px 60px}
+header h1{font-size:1.7rem;margin:0 0 4px;color:var(--ink)}
+header p{color:var(--muted);margin:0 0 22px;font-size:.95rem}
+.section{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 22px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.section h2{margin:0;padding:12px 16px;font-size:1.05rem;background:#fff;color:var(--ink);border-bottom:1px solid var(--line)}
+.section h2 .num{display:inline-block;color:var(--accent);font-weight:700;margin-right:8px}
+.section h2 .src{color:var(--muted);font-size:.78rem;font-weight:400;margin-left:8px}
+.section iframe{display:block;width:100%;border:0}
+nav.toc{position:sticky;top:8px;background:rgba(255,255,255,.92);backdrop-filter:saturate(120%) blur(6px);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:.85rem}
+nav.toc strong{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;margin-bottom:4px}
+nav.toc a{color:var(--link);text-decoration:none;margin-right:14px;display:inline-block;margin-bottom:2px}
+nav.toc a:hover{text-decoration:underline}
+footer{color:var(--muted);font-size:.78rem;margin-top:30px}
+</style></head><body>
+<div class="wrap">
+<header><h1>Likert survey items, three ways (9-item version)</h1>
+<p>Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta-forwarded bar (Chart.js) also showing %-agree.  The first shows nuance; the latter two compress to a single positive-share number.  All three share the same item ordering by net favourability so the eye can track each item across approaches.</p>
+</header>
+<nav class="toc"><strong>Jump to:</strong>
+  <a href="#sec1">1. A. Pew divbar (full Likert distribution)</a>
+  <a href="#sec2">2. B. sparkta2-native bar2 (% Agree)</a>
+  <a href="#sec3">3. C. sparkta-forwarded bar (Chart.js, % Agree)</a>
+</nav>
+<section class="section" id="sec1">
+  <h2><span class="num">1.</span>A. Pew divbar (full Likert distribution)<span class="src">09i_A_divbar.html</span></h2>
+  <iframe src="09i_A_divbar.html" height="900" scrolling="no" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec2">
+  <h2><span class="num">2.</span>B. sparkta2-native bar2 (% Agree)<span class="src">09i_B_bar2.html</span></h2>
+  <iframe src="09i_B_bar2.html" height="900" scrolling="no" loading="lazy"></iframe>
+</section>
+<section class="section" id="sec3">
+  <h2><span class="num">3.</span>C. sparkta-forwarded bar (Chart.js, % Agree)<span class="src">09i_C_sparkta_bar.html</span></h2>
+  <iframe src="09i_C_sparkta_bar.html" height="900" scrolling="no" loading="lazy"></iframe>
+</section>
+<footer>Built with sparkta2 v0.7.7 — each section is an independent interactive map / chart.</footer>
+<script>
+window.addEventListener('message',function(e){
+if(!e.data||e.data.type!=='sparkta2-resize')return;
+var ifrs=document.querySelectorAll('iframe');
+for(var i=0;i<ifrs.length;i++){
+if(ifrs[i].contentWindow===e.source){ifrs[i].style.height=(e.data.height+12)+'px';ifrs[i].setAttribute('scrolling','no');break;}
+}});
+</script>
+</div></body></html>

@@ -3,9 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>12. Auto-zoom to DFW metroplex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}
-*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}
+*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}
+h1{font-weight:700;letter-spacing:-0.01em;}
+.controls h3{font-weight:600;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px;}
 h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .sub{color:var(--muted);margin:0 0 16px;font-size:.95rem;}
@@ -42,6 +47,14 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .region.hl{stroke:#0f172a;stroke-width:1.3px;}
 #tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}
 .note{margin-top:14px;color:var(--muted);font-size:.78rem;}
+#chart-footer{display:none;justify-content:flex-end;align-items:center;gap:8px;padding:8px 0 0;border-top:1px solid var(--line);margin-top:8px;}
+#chart-footer.active{display:flex;}
+#chart-footer button{padding:4px 10px;font-size:.8rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;}
+#chart-footer button:hover{background:#eef2f7;}
+#chart-footer .exportmenu{position:relative;}
+#chart-footer .exportlist{left:auto;right:0;min-width:170px;}
+.panels.no-sidebar{grid-template-columns:1fr !important;}
+.controls.empty{display:none;}
 .exportmenu{position:relative;}
 .exportbtn{width:100%;padding:6px 8px;font-size:.85rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;text-align:left;}
 .exportbtn:hover{background:#eef2f7;}
@@ -947,7 +960,11 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       }
 
       var hasZoom = meta.zoom !== 0;
-      if (hasZoom || meta.download || meta.datatable) {
+      var dlpos = (meta.downloadpos || "side").toLowerCase();
+      var hideExport = (dlpos === "none");
+      var exportInFooter = (dlpos === "below");
+
+      if (hasZoom || ((meta.download || meta.datatable) && !hideExport && !exportInFooter)) {
         controlsRoot.append("h3").style("margin-top", "14px").text("View");
         if (hasZoom) {
           controlsRoot.append("button")
@@ -956,12 +973,38 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
             .text("Reset zoom")
             .on("click", resetZoom);
         }
-        if (meta.download || meta.datatable) {
+        if ((meta.download || meta.datatable) && !hideExport && !exportInFooter) {
           buildExportMenu(controlsRoot);
         }
       }
 
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
+
+      // Footer placement: when downloadpos=below, build the Export menu
+      // (and Reset zoom button) into the under-chart footer instead.  If
+      // that leaves the side controls panel empty, collapse the layout to
+      // a single column so the page doesn't reserve the 240px sidebar.
+      if (exportInFooter && !hideExport) {
+        var foot = d3.select("#chart-footer").classed("active", true);
+        foot.selectAll("*").remove();
+        if (hasZoom) {
+          foot.append("button").attr("type", "button")
+            .text("Reset zoom").on("click", resetZoom);
+        }
+        if (meta.download || meta.datatable) {
+          buildExportMenu(foot);
+        }
+      }
+      // If the controls panel ended up holding only the metabox, collapse.
+      var ctrlChildren = controlsRoot.node().children;
+      var nonMeta = 0;
+      for (var i = 0; i < ctrlChildren.length; i++) {
+        if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
+      }
+      if (nonMeta === 0) {
+        controlsRoot.classed("empty", true);
+        d3.select(".panels").classed("no-sidebar", true);
+      }
     }
 
     // ---- Export menu (PNG/SVG/CSV/View data/Print to PDF) ----------------
@@ -1345,10 +1388,18 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 <h1>12. Auto-zoom to DFW metroplex</h1>
 <div class="panels">
   <div class="card controls" id="controls"></div>
-  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div></div>
+  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div><div id="chart-footer"></div></div>
 </div>
 <div id="datatable"></div>
 </div><div id="tooltip"></div>
+<script>
+(function(){if(window.parent===window)return;
+function r(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight,document.body.offsetHeight,document.documentElement.offsetHeight);try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}
+window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});
+window.addEventListener('resize',r);
+if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}
+})();
+</script>
 <script>
 window.__SPARKTA2__ = {
 "meta":{
@@ -1358,12 +1409,13 @@ window.__SPARKTA2__ = {
 "mode":"bivariate","modes":"bivariate|x|y|diff|ratio",
 "comparable":0,"swap":0,"download":0,"multiples":0,
 "datatable":0,"animate":0,
+"tx2036style":1,"downloadpos":"side",
 "projection":"","rotate":"","parallels":"","center":"",
 "zoom":1,"search":0,"basemap":0,"zoomto":"48113|48439|48085|48121|48397|48257|48139|48251",
 "layer":"","geo":"texas","idwidth":5,
 "hexradius":18,"hexstat":"mean","pointsize":4,
 "latvar":"","lonvar":"",
-"bins":3,"width":980,"height":720
+"bins":3,"width":980,"height":828
 },
 "controls":
 {"filters":[],"sliders":[],"tooltipvars":[{"var":"median_income","label":"Median household income ($)","numeric":1}]},

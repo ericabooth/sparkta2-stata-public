@@ -1,4 +1,4 @@
-*! sparkta2_dashboard v0.5.0  2026-06-26
+*! sparkta2_dashboard v0.7.7  2026-06-26
 *! Compose a scrollable single-page dashboard that embeds a list of
 *! sparkta2 map / chart HTML files via <iframe>. Each section is
 *! self-contained; filters/zoom/etc. work independently per iframe.
@@ -148,7 +148,7 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"</section>"' _n
     }
 
-    file write `fh' `"<footer>Built with sparkta2 v0.7.5 — each section is an independent interactive map / chart.</footer>"' _n
+    file write `fh' `"<footer>Built with sparkta2 v0.7.7 — each section is an independent interactive map / chart.</footer>"' _n
     * Auto-resize listener: every embedded sparkta2 page posts its content
     * height back to the parent; we grow the matching iframe to fit.
     file write `fh' `"<script>"' _n

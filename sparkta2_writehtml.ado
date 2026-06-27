@@ -1,4 +1,4 @@
-*! sparkta2_writehtml v0.2.2  2026-06-26
+*! sparkta2_writehtml v0.7.7  2026-06-26
 *! Assemble the final self-contained HTML for a sparkta2 map.
 *!
 *! v0.2.2: forward projection / rotate / parallels / center option strings
@@ -171,13 +171,21 @@ program define sparkta2_writehtml
     }
     file write `fh' `"</div><div id="tooltip"></div>"' _n
 
-    * --- Auto-resize messaging (same as chart writehtml) -----------------
+    * --- Auto-resize messaging (v0.7.7+: content height only, no echo) -----
+    * Use body.scrollHeight ONLY -- documentElement.offsetHeight returns the
+    * iframe's outer viewport height (= the height the parent already set),
+    * which would echo back and grow the iframe by 12px every resize event
+    * until the page goes to infinity.  Also debounce: only post if the new
+    * height differs from the previously-posted one by more than 4px so
+    * mid-animation tween fluctuations don't trigger a parent resize cascade.
+    * MutationObserver watches childList only (not 'attributes') so D3
+    * transition tweens on transform/opacity don't fire a flood.
     file write `fh' `"<script>"' _n
     file write `fh' `"(function(){if(window.parent===window)return;"' _n
-    file write `fh' `"function r(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight,document.body.offsetHeight,document.documentElement.offsetHeight);try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}"' _n
+    file write `fh' `"var _last=0;"' _n
+    file write `fh' `"function r(){var h=document.body.scrollHeight;if(Math.abs(h-_last)<=4)return;_last=h;try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}"' _n
     file write `fh' `"window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});"' _n
-    file write `fh' `"window.addEventListener('resize',r);"' _n
-    file write `fh' `"if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}"' _n
+    file write `fh' `"if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true});}"' _n
     file write `fh' `"})();"' _n
     file write `fh' `"</script>"' _n
 

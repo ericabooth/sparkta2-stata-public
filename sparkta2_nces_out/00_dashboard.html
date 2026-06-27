@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sparkta2 v0.5.0 -- Texas school district demo gallery</title>
+<title>sparkta2 v0.7.1 -- Texas school district demo gallery</title>
 <style>
 :root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
@@ -21,8 +21,8 @@ nav.toc a:hover{text-decoration:underline}
 footer{color:var(--muted);font-size:.78rem;margin-top:30px}
 </style></head><body>
 <div class="wrap">
-<header><h1>sparkta2 v0.5.0 -- Texas school district demo gallery</h1>
-<p>20 examples using NCES EDGE Texas District Map data (1,018 districts) rendered on simplified district polygons (built from the SY2024-25 NCES EDGE shapefile).</p>
+<header><h1>sparkta2 v0.7.1 -- Texas school district demo gallery</h1>
+<p>20 examples using NCES EDGE Texas District Map data (1,018 districts) on simplified district polygons (SY2024-25 NCES EDGE shapefile). Two v0.7.x chart-type additions (donut over sdtyp; native bar2 of top-15 districts) are written next to this dashboard but not embedded here.</p>
 </header>
 <nav class="toc"><strong>Jump to:</strong>
   <a href="#sec1">1. Bivariate full UI</a>
@@ -48,83 +48,91 @@ footer{color:var(--muted);font-size:.78rem;margin-top:30px}
 </nav>
 <section class="section" id="sec1">
   <h2><span class="num">1.</span>Bivariate full UI<span class="src">01_districts_bivariate.html</span></h2>
-  <iframe src="01_districts_bivariate.html" height="920" loading="lazy"></iframe>
+  <iframe src="01_districts_bivariate.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec2">
   <h2><span class="num">2.</span>Univariate FRPL Blues<span class="src">02_districts_frpl_blues.html</span></h2>
-  <iframe src="02_districts_frpl_blues.html" height="920" loading="lazy"></iframe>
+  <iframe src="02_districts_frpl_blues.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec3">
   <h2><span class="num">3.</span>Student count Viridis<span class="src">03_districts_students_viridis.html</span></h2>
-  <iframe src="03_districts_students_viridis.html" height="920" loading="lazy"></iframe>
+  <iframe src="03_districts_students_viridis.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec4">
   <h2><span class="num">4.</span>Bivariate BuPu (static)<span class="src">04_districts_bivariate_bupu.html</span></h2>
-  <iframe src="04_districts_bivariate_bupu.html" height="920" loading="lazy"></iframe>
+  <iframe src="04_districts_bivariate_bupu.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec5">
   <h2><span class="num">5.</span>Small multiples (3 panels)<span class="src">05_districts_multiples.html</span></h2>
-  <iframe src="05_districts_multiples.html" height="920" loading="lazy"></iframe>
+  <iframe src="05_districts_multiples.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec6">
   <h2><span class="num">6.</span>Small multiples (X and Y)<span class="src">06_districts_multiples_xy.html</span></h2>
-  <iframe src="06_districts_multiples_xy.html" height="920" loading="lazy"></iframe>
+  <iframe src="06_districts_multiples_xy.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec7">
   <h2><span class="num">7.</span>Rank-diff<span class="src">07_districts_rankdiff.html</span></h2>
-  <iframe src="07_districts_rankdiff.html" height="920" loading="lazy"></iframe>
+  <iframe src="07_districts_rankdiff.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec8">
   <h2><span class="num">8.</span>Hexbin (centroids)<span class="src">08_districts_hexbin.html</span></h2>
-  <iframe src="08_districts_hexbin.html" height="920" loading="lazy"></iframe>
+  <iframe src="08_districts_hexbin.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec9">
   <h2><span class="num">9.</span>Hexbin (lat/lon direct)<span class="src">09_districts_hexbin_latlon.html</span></h2>
-  <iframe src="09_districts_hexbin_latlon.html" height="920" loading="lazy"></iframe>
+  <iframe src="09_districts_hexbin_latlon.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec10">
   <h2><span class="num">10.</span>Hexbin -- density count<span class="src">10_districts_hexbin_count.html</span></h2>
-  <iframe src="10_districts_hexbin_count.html" height="920" loading="lazy"></iframe>
+  <iframe src="10_districts_hexbin_count.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec11">
   <h2><span class="num">11.</span>Points -- centroids<span class="src">11_districts_points.html</span></h2>
-  <iframe src="11_districts_points.html" height="920" loading="lazy"></iframe>
+  <iframe src="11_districts_points.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec12">
   <h2><span class="num">12.</span>Big-8 metro ISDs<span class="src">12_districts_big8.html</span></h2>
-  <iframe src="12_districts_big8.html" height="920" loading="lazy"></iframe>
+  <iframe src="12_districts_big8.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec13">
   <h2><span class="num">13.</span>Districts > 5K students<span class="src">13_districts_if_large.html</span></h2>
-  <iframe src="13_districts_if_large.html" height="920" loading="lazy"></iframe>
+  <iframe src="13_districts_if_large.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec14">
   <h2><span class="num">14.</span>Tooltip data table<span class="src">14_districts_tooltip_table.html</span></h2>
-  <iframe src="14_districts_tooltip_table.html" height="920" loading="lazy"></iframe>
+  <iframe src="14_districts_tooltip_table.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec15">
   <h2><span class="num">15.</span>Auto-zoom to DFW<span class="src">15_districts_zoomto_dfw.html</span></h2>
-  <iframe src="15_districts_zoomto_dfw.html" height="920" loading="lazy"></iframe>
+  <iframe src="15_districts_zoomto_dfw.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec16">
   <h2><span class="num">16.</span>Static (no zoom)<span class="src">16_districts_nozoom.html</span></h2>
-  <iframe src="16_districts_nozoom.html" height="920" loading="lazy"></iframe>
+  <iframe src="16_districts_nozoom.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec17">
   <h2><span class="num">17.</span>Search by district name<span class="src">17_districts_search.html</span></h2>
-  <iframe src="17_districts_search.html" height="920" loading="lazy"></iframe>
+  <iframe src="17_districts_search.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec18">
   <h2><span class="num">18.</span>Rolled up to counties<span class="src">18_districts_to_county.html</span></h2>
-  <iframe src="18_districts_to_county.html" height="920" loading="lazy"></iframe>
+  <iframe src="18_districts_to_county.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec19">
   <h2><span class="num">19.</span>Sparkta scatter pass-through<span class="src">19_districts_scatter.html</span></h2>
-  <iframe src="19_districts_scatter.html" height="920" loading="lazy"></iframe>
+  <iframe src="19_districts_scatter.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
 <section class="section" id="sec20">
   <h2><span class="num">20.</span>Sparkta bar pass-through<span class="src">20_districts_bar.html</span></h2>
-  <iframe src="20_districts_bar.html" height="920" loading="lazy"></iframe>
+  <iframe src="20_districts_bar.html" height="920" scrolling="no" loading="lazy"></iframe>
 </section>
-<footer>Built with sparkta2 v0.5.2 — each section is an independent interactive map.</footer>
+<footer>Built with sparkta2 v0.7.7 — each section is an independent interactive map / chart.</footer>
+<script>
+window.addEventListener('message',function(e){
+if(!e.data||e.data.type!=='sparkta2-resize')return;
+var ifrs=document.querySelectorAll('iframe');
+for(var i=0;i<ifrs.length;i++){
+if(ifrs[i].contentWindow===e.source){ifrs[i].style.height=(e.data.height+12)+'px';ifrs[i].setAttribute('scrolling','no');break;}
+}});
+</script>
 </div></body></html>

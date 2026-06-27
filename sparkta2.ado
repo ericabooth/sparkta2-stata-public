@@ -1,4 +1,4 @@
-*! sparkta2 v0.7.1  2026-06-26
+*! sparkta2 v0.7.7  2026-06-26
 *! sparkta + interactive choropleth maps + native D3 charts in one command.
 *!
 *! Dispatcher:
@@ -6,18 +6,27 @@
 *!   type(donut|divbar|barrace|bar2|line2)            -> sparkta2_chart (D3 chart engine)
 *!   everything else (incl. bar, line, scatter, ...)  -> sparkta (Fahad Mirza)
 *!
-*! New in 0.7.1:
-*!   - Backward-compat rename: sparkta2-native bar and line are now exposed
-*!     as type(bar2) and type(line2).  type(bar) and type(line) continue to
-*!     forward to sparkta unchanged, so every pre-0.7.0 do-file using
-*!     sparkta's bar/line syntax (incl. multi-var, stat(), over() with
-*!     stat=mean, fit(), ...) works without edits.  Opt in to the D3-native
-*!     versions (Export menu, animate, datatable, CSV download) by changing
-*!     `type(bar)` to `type(bar2)` (and likewise line -> line2).
+*! New in 0.7.7:
+*!   - Iframe auto-resize protocol: every sparkta2-native HTML output emits a
+*!     postMessage of type "sparkta2-resize" with its rendered content height
+*!     on load / resize / DOM mutation.  Parent pages (sparkta2_dashboard
+*!     and the companion webdoc2 demos) listen for the message and grow
+*!     each iframe to fit its content + set scrolling="no", so embeds never
+*!     get clipped behind a scrollbar.  Iframes marked with the HTML
+*!     attribute  data-skip-resize="1"  are exempted from the auto-resize
+*!     (use for sparkta / Chart.js pass-throughs that don't emit the
+*!     postMessage and should keep their native scrollbar).
 *!
-*! 0.7.0 introduced the chart engine and the new chart types (donut,
-*! divbar Pew-style, barrace).  donut, divbar, barrace are sparkta2-native
-*! only -- there is no name collision with sparkta for those.
+*! Earlier highlights:
+*!   - 0.7.3 chart options: wraplabel(auto|on|off) + gutterwidth(N) (chart).
+*!   - 0.7.1 backward-compat rename: native bar -> bar2, native line -> line2;
+*!           type(bar)/type(line) continue forwarding to sparkta unchanged.
+*!   - 0.7.0 chart engine + native types donut, divbar (Pew-style), barrace.
+*!   - 0.6.1 Texas-tuned Albers projection + projection()/rotate()/parallels()
+*!           /center() overrides on map.
+*!   - 0.6.0 datatable + CSV download, animate (scroll-into-view fade-in),
+*!           Export menu (PNG/SVG/Print/View data), tx2036style brand option,
+*!           downloadpos(side|below|none).
 *!
 *! Engines and helpers (Stata only auto-loads one program per ado file,
 *! so named sub-programs each need their own file):
@@ -37,7 +46,7 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.7.5"
+    local sparkta2_version "0.7.7"
     display as text "  [sparkta2 v`sparkta2_version']"
 
     * Peek at user-supplied type() without consuming any args.

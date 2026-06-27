@@ -3,9 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>16. Static district map (no zoom)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}
-*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}
+*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}
+h1{font-weight:700;letter-spacing:-0.01em;}
+.controls h3{font-weight:600;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px;}
 h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .sub{color:var(--muted);margin:0 0 16px;font-size:.95rem;}
@@ -42,6 +47,32 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 .region.hl{stroke:#0f172a;stroke-width:1.3px;}
 #tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}
 .note{margin-top:14px;color:var(--muted);font-size:.78rem;}
+#chart-footer{display:none;justify-content:flex-end;align-items:center;gap:8px;padding:8px 0 0;border-top:1px solid var(--line);margin-top:8px;}
+#chart-footer.active{display:flex;}
+#chart-footer button{padding:4px 10px;font-size:.8rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;}
+#chart-footer button:hover{background:#eef2f7;}
+#chart-footer .exportmenu{position:relative;}
+#chart-footer .exportlist{left:auto;right:0;min-width:170px;}
+.panels.no-sidebar{grid-template-columns:1fr !important;}
+.controls.empty{display:none;}
+.exportmenu{position:relative;}
+.exportbtn{width:100%;padding:6px 8px;font-size:.85rem;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;text-align:left;}
+.exportbtn:hover{background:#eef2f7;}
+.exportlist{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 12px rgba(15,23,42,.12);z-index:40;display:flex;flex-direction:column;padding:4px;}
+.exportlist button{width:100%;padding:6px 8px;font-size:.85rem;border:none;border-radius:4px;background:none;color:var(--ink);cursor:pointer;text-align:left;}
+.exportlist button:hover{background:#eef2f7;}
+#datatable{display:none;margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fff;}
+#datatable.open{display:block;}
+#datatable .dt-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);background:#f8fafc;border-radius:8px 8px 0 0;font-size:.9rem;}
+#datatable .dt-count{color:var(--muted);font-size:.8rem;font-weight:normal;margin-left:8px;}
+#datatable .dt-close{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--muted);padding:0 4px;}
+#datatable .dt-scroll{max-height:360px;overflow:auto;}
+#datatable table.dt-table{width:100%;border-collapse:collapse;font-size:.8rem;}
+#datatable .dt-table th{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:6px 10px;text-align:left;font-weight:600;color:var(--ink);white-space:nowrap;}
+#datatable .dt-table td{padding:5px 10px;border-bottom:1px solid #f1f5f9;color:#334155;}
+#datatable .dt-table tr:hover td{background:#f8fafc;}
+#datatable .dt-truncated{padding:8px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:.78rem;background:#f8fafc;border-radius:0 0 8px 8px;}
+@media print {.controls{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}
 </style>
 <script>
 // https://d3js.org v7.9.0 Copyright 2010-2023 Mike Bostock
@@ -76,7 +107,9 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
      - In-browser county/ZIP-name search
      - Auto-zoom to a FIPS subset on load
      - Tooltip data table from arbitrary Stata vars
-     - Swap-axes button, full-SVG PNG download
+     - Swap-axes button
+     - Export menu: PNG, SVG, CSV download + view-data table + print-to-PDF
+     - Animate-on-view (IntersectionObserver-gated fade-in)
      - Small-multiples mode
 */
 (function () {
@@ -447,6 +480,68 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       }
     }
 
+    // ---- Projection builder (v0.6.1) ------------------------------------
+    // Resolve meta.projection + auto-defaults + numeric overrides into a
+    // configured d3 projection instance.  fitExtent() is applied by the
+    // caller after this returns.
+    function parseNumList(s) {
+      if (!s) return null;
+      var out = String(s).split("|").map(function (v) { return +v; })
+        .filter(Number.isFinite);
+      return out.length ? out : null;
+    }
+    function buildProjection() {
+      var preset = (meta.projection || "").toLowerCase();
+      if (!preset) {
+        if (layerName === "states" || layerName === "nation" || meta.geo === "us") {
+          preset = "albers_usa";
+        } else if (meta.geo === "texas") {
+          preset = "albers_tx";
+        } else {
+          preset = "albers_usa";
+        }
+      }
+
+      var proj;
+      switch (preset) {
+        case "albers_tx":
+          proj = d3.geoAlbers()
+            .rotate([99, 0])
+            .center([0, 31.5])
+            .parallels([27.5, 35.5]);
+          break;
+        case "albers":
+          proj = d3.geoAlbers();
+          break;
+        case "mercator":
+          proj = d3.geoMercator();
+          break;
+        case "albers_usa":
+        default:
+          proj = d3.geoAlbersUsa();
+          break;
+      }
+
+      // Numeric overrides.  geoAlbersUsa is a composite that doesn't expose
+      // rotate/parallels/center, so these flags are silently no-ops there
+      // (d3 will throw if we try -- guard accordingly).
+      var rot = parseNumList(meta.rotate);
+      var par = parseNumList(meta.parallels);
+      var ctr = parseNumList(meta.center);
+
+      if (rot && typeof proj.rotate === "function") {
+        if (rot.length === 1) proj.rotate([rot[0], 0]);
+        else                  proj.rotate([rot[0], rot[1]]);
+      }
+      if (par && par.length === 2 && typeof proj.parallels === "function") {
+        proj.parallels([par[0], par[1]]);
+      }
+      if (ctr && ctr.length === 2 && typeof proj.center === "function") {
+        proj.center([ctr[0], ctr[1]]);
+      }
+      return proj;
+    }
+
     function makePanel(svg, mode, w, h, legendMargin) {
       var margin = { top: 18, right: legendMargin, bottom: 14, left: 10 };
 
@@ -457,15 +552,20 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       var fitFeatures = features.length ? features : basemapFeatures;
       var fc = { type: "FeatureCollection", features: fitFeatures };
 
-      // geoAlbersUsa for US (Alaska + Hawaii inset); geoMercator for everything
-      // else.  Detect by inspecting feature longitudes — Albers USA only handles
-      // values in the US bounding box.
-      var projection;
-      if (layerName === "states" || layerName === "nation" || meta.geo === "us") {
-        projection = d3.geoAlbersUsa();
-      } else {
-        projection = d3.geoAlbersUsa();
-      }
+      // Projection selection.  Order of precedence:
+      //   1. meta.projection -- explicit preset (albers_usa|albers_tx|albers|mercator)
+      //   2. Auto-default driven by geo / layer:
+      //        layer = states|nation OR geo = us   -> albers_usa (CONUS composite)
+      //        geo   = texas                        -> albers_tx  (Texas-tuned)
+      //        anything else                         -> albers_usa (legacy default)
+      //   3. Numeric overrides (meta.rotate, meta.parallels, meta.center) layer
+      //      on top of the chosen preset.  Pipe-separated lists like "27.5|35.5".
+      //
+      // The Texas-tuned albers_tx preset corrects a ~3-degree downward lean of
+      // the panhandle's top edge that occurs when geoAlbersUsa()'s CONUS-wide
+      // standard parallels (29.5/45.5) and -96 rotation are applied to a
+      // Texas-only viewport.  See v0.6.1 notes in sparkta2_map.ado.
+      var projection = buildProjection();
       projection.fitExtent(
         [[margin.left, margin.top], [w - margin.right, h - margin.bottom]],
         fc
@@ -860,7 +960,11 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
       }
 
       var hasZoom = meta.zoom !== 0;
-      if (hasZoom || meta.download) {
+      var dlpos = (meta.downloadpos || "side").toLowerCase();
+      var hideExport = (dlpos === "none");
+      var exportInFooter = (dlpos === "below");
+
+      if (hasZoom || ((meta.download || meta.datatable) && !hideExport && !exportInFooter)) {
         controlsRoot.append("h3").style("margin-top", "14px").text("View");
         if (hasZoom) {
           controlsRoot.append("button")
@@ -869,15 +973,81 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
             .text("Reset zoom")
             .on("click", resetZoom);
         }
-        if (meta.download) {
-          controlsRoot.append("button")
-            .attr("type", "button")
-            .text("Download PNG")
-            .on("click", downloadPNG);
+        if ((meta.download || meta.datatable) && !hideExport && !exportInFooter) {
+          buildExportMenu(controlsRoot);
         }
       }
 
       controlsRoot.append("div").attr("class", "meta").attr("id", "metabox");
+
+      // Footer placement: when downloadpos=below, build the Export menu
+      // (and Reset zoom button) into the under-chart footer instead.  If
+      // that leaves the side controls panel empty, collapse the layout to
+      // a single column so the page doesn't reserve the 240px sidebar.
+      if (exportInFooter && !hideExport) {
+        var foot = d3.select("#chart-footer").classed("active", true);
+        foot.selectAll("*").remove();
+        if (hasZoom) {
+          foot.append("button").attr("type", "button")
+            .text("Reset zoom").on("click", resetZoom);
+        }
+        if (meta.download || meta.datatable) {
+          buildExportMenu(foot);
+        }
+      }
+      // If the controls panel ended up holding only the metabox, collapse.
+      var ctrlChildren = controlsRoot.node().children;
+      var nonMeta = 0;
+      for (var i = 0; i < ctrlChildren.length; i++) {
+        if (!d3.select(ctrlChildren[i]).classed("meta")) nonMeta++;
+      }
+      if (nonMeta === 0) {
+        controlsRoot.classed("empty", true);
+        d3.select(".panels").classed("no-sidebar", true);
+      }
+    }
+
+    // ---- Export menu (PNG/SVG/CSV/View data/Print to PDF) ----------------
+    function buildExportMenu(root) {
+      var wrap = root.append("div").attr("class", "exportmenu");
+      var btn = wrap.append("button")
+        .attr("type", "button")
+        .attr("class", "exportbtn")
+        .attr("aria-haspopup", "true")
+        .attr("aria-expanded", "false")
+        .html("Export &#9662;");
+      var menu = wrap.append("div").attr("class", "exportlist").style("display", "none");
+
+      function addItem(label, fn) {
+        menu.append("button")
+          .attr("type", "button")
+          .text(label)
+          .on("click", function () {
+            closeMenu();
+            fn();
+          });
+      }
+      function openMenu()  { menu.style("display", "block"); btn.attr("aria-expanded", "true"); }
+      function closeMenu() { menu.style("display", "none");  btn.attr("aria-expanded", "false"); }
+
+      btn.on("click", function (ev) {
+        ev.stopPropagation();
+        if (menu.style("display") === "none") openMenu();
+        else closeMenu();
+      });
+      // Close on outside click
+      d3.select(document).on("click.exportmenu", function () { closeMenu(); });
+      menu.on("click", function (ev) { ev.stopPropagation(); });
+
+      if (meta.download) {
+        addItem("Download PNG", downloadPNG);
+        addItem("Download SVG", downloadSVG);
+        addItem("Print to PDF…", printToPDF);
+      }
+      if (meta.datatable) {
+        addItem("Download CSV", downloadCSV);
+        addItem("View data table", toggleDataTable);
+      }
     }
 
     function resetZoom() {
@@ -932,6 +1102,215 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
     function downloadPNG() {
       if (state.multiples) compositePNG(panels);
       else compositePNG([panels[0]]);
+    }
+
+    // ---- SVG download: serialize the live SVG with inlined CSS -----------
+    function downloadSVG() {
+      var panelList = state.multiples ? panels : [panels[0]];
+      var inlineCSS =
+        ".region{stroke:#fff;stroke-width:.45px}" +
+        ".region.dim{fill:#f1f5f9}" +
+        ".legend text{font:12px sans-serif;fill:#334155}" +
+        "text{font-family:-apple-system,sans-serif}";
+
+      if (panelList.length === 1) {
+        var clone = panelList[0].svg.node().cloneNode(true);
+        clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        clone.setAttribute("width",  panelList[0].w);
+        clone.setAttribute("height", panelList[0].h);
+        var styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+        styleEl.textContent = inlineCSS;
+        clone.insertBefore(styleEl, clone.firstChild);
+        var svgText = new XMLSerializer().serializeToString(clone);
+        var blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+        triggerDownload(blob, "sparkta2_map.svg");
+        return;
+      }
+
+      // Small-multiples: stack panels in a single SVG so the export is one file.
+      var totalW = Math.max.apply(null, panelList.map(function (p) { return p.w; }));
+      var totalH = panelList.reduce(function (s, p) { return s + p.h + 24; }, 0);
+      var outer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      outer.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      outer.setAttribute("width",  totalW);
+      outer.setAttribute("height", totalH);
+      var s2 = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      s2.textContent = inlineCSS;
+      outer.appendChild(s2);
+      var yOff = 0;
+      panelList.forEach(function (p) {
+        var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("transform", "translate(0," + yOff + ")");
+        // Copy all children of the panel SVG into the wrapping <g>.
+        var src = p.svg.node();
+        for (var i = 0; i < src.childNodes.length; i++) {
+          g.appendChild(src.childNodes[i].cloneNode(true));
+        }
+        outer.appendChild(g);
+        yOff += p.h + 24;
+      });
+      var outerText = new XMLSerializer().serializeToString(outer);
+      var blob2 = new Blob([outerText], { type: "image/svg+xml;charset=utf-8" });
+      triggerDownload(blob2, "sparkta2_multiples.svg");
+    }
+
+    // ---- CSV download: serialize the bound data rows --------------------
+    function downloadCSV() {
+      var rows = data;
+      if (!rows || !rows.length) {
+        alert("No data to download.");
+        return;
+      }
+      // Stable, predictable column order: id, name, x, y, lat, lon, then
+      // f__/s__/t__ helper columns last.  Skip helper-prefix names in the
+      // header by mapping them back to their bare variable name.
+      var coreCols = ["id", "name", "x", "y", "lat", "lon"];
+      var keys = Object.keys(rows[0]);
+      var fCols = keys.filter(function (k) { return k.indexOf("f__") === 0; });
+      var sCols = keys.filter(function (k) { return k.indexOf("s__") === 0; });
+      var tCols = keys.filter(function (k) { return k.indexOf("t__") === 0; });
+      var ordered = coreCols.filter(function (k) { return keys.indexOf(k) >= 0; })
+        .concat(fCols).concat(sCols).concat(tCols);
+
+      // Header line uses the variable's real name (strip f__/s__/t__).
+      var displayHead = ordered.map(function (k) {
+        if (k.indexOf("f__") === 0) return k.slice(3);
+        if (k.indexOf("s__") === 0) return k.slice(3);
+        if (k.indexOf("t__") === 0) return k.slice(3);
+        if (k === "x") return meta.xvar || "x";
+        if (k === "y") return meta.yvar || "y";
+        return k;
+      });
+
+      function csvCell(v) {
+        if (v == null) return "";
+        var s = String(v);
+        if (s.indexOf(",") >= 0 || s.indexOf("\"") >= 0 || s.indexOf("\n") >= 0) {
+          return "\"" + s.replace(/"/g, "\"\"") + "\"";
+        }
+        return s;
+      }
+
+      var lines = [ displayHead.map(csvCell).join(",") ];
+      rows.forEach(function (r) {
+        lines.push(ordered.map(function (k) { return csvCell(r[k]); }).join(","));
+      });
+      var csv = lines.join("\n");
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      triggerDownload(blob, "sparkta2_data.csv");
+    }
+
+    // ---- Toggle the collapsible data-view table -------------------------
+    function toggleDataTable() {
+      var host = d3.select("#datatable");
+      if (host.empty()) return;
+      var shown = host.classed("open");
+      if (shown) {
+        host.classed("open", false).style("display", "none").html("");
+        return;
+      }
+      // Build a simple, scrollable HTML table.  Only show rows that pass the
+      // active filters/sliders/search so what the user reads matches what
+      // the map shows.
+      var rows = data.filter(passes);
+      var coreCols = ["id", "name", "x", "y", "lat", "lon"];
+      var keys = rows.length ? Object.keys(rows[0]) : [];
+      var fCols = keys.filter(function (k) { return k.indexOf("f__") === 0; });
+      var sCols = keys.filter(function (k) { return k.indexOf("s__") === 0; });
+      var tCols = keys.filter(function (k) { return k.indexOf("t__") === 0; });
+      var ordered = coreCols.filter(function (k) { return keys.indexOf(k) >= 0; })
+        .concat(fCols).concat(sCols).concat(tCols);
+      function head(k) {
+        if (k.indexOf("f__") === 0) return k.slice(3);
+        if (k.indexOf("s__") === 0) return k.slice(3);
+        if (k.indexOf("t__") === 0) return k.slice(3);
+        if (k === "x") return meta.xvar || "x";
+        if (k === "y") return meta.yvar || "y";
+        return k;
+      }
+      var html = "<div class='dt-header'><strong>Data behind the map</strong> "
+        + "<span class='dt-count'>" + rows.length + " of " + data.length + " rows shown</span>"
+        + "<button type='button' class='dt-close' aria-label='Close'>&times;</button></div>";
+      html += "<div class='dt-scroll'><table class='dt-table'><thead><tr>";
+      ordered.forEach(function (k) { html += "<th>" + esc(head(k)) + "</th>"; });
+      html += "</tr></thead><tbody>";
+      // Cap visible rows to keep the DOM light; CSV download has the full set.
+      var MAX = 500;
+      rows.slice(0, MAX).forEach(function (r) {
+        html += "<tr>";
+        ordered.forEach(function (k) {
+          var v = r[k];
+          html += "<td>" + esc(v == null ? "" : v) + "</td>";
+        });
+        html += "</tr>";
+      });
+      html += "</tbody></table></div>";
+      if (rows.length > MAX) {
+        html += "<div class='dt-truncated'>Showing first " + MAX + " of "
+          + rows.length + " rows — use <em>Download CSV</em> for the full set.</div>";
+      }
+      host.html(html).classed("open", true).style("display", "block");
+      host.select(".dt-close").on("click", toggleDataTable);
+    }
+
+    // ---- Print to PDF: open the browser's print dialog ------------------
+    function printToPDF() {
+      // The browser-native print path is the most reliable way to a PDF
+      // without bundling a 70KB jsPDF lib.  Use a CSS print sheet to hide
+      // the controls and show only the map.  The user picks "Save as PDF"
+      // in the print dialog.
+      window.print();
+    }
+
+    function triggerDownload(blob, filename) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+    }
+
+    // ---- Animate-on-view: fade regions in when chart enters viewport ----
+    function setupAnimateOnView() {
+      if (!meta.animate) return;
+      if (typeof IntersectionObserver === "undefined") {
+        // Older browser: fall back to immediate fade-in.
+        triggerAnimation();
+        return;
+      }
+      var fired = false;
+      var target = document.getElementById("map") || document.getElementById("panels");
+      if (!target) return;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && !fired) {
+            fired = true;
+            io.disconnect();
+            triggerAnimation();
+          }
+        });
+      }, { threshold: 0.2 });
+      io.observe(target);
+    }
+
+    function triggerAnimation() {
+      // Stagger by feature index for a "sweep across the map" effect; keep
+      // total duration short (under 900ms) so it doesn't feel sluggish.
+      panels.forEach(function (panel) {
+        var sel;
+        if (renderType === "hexbin") sel = panel.gHex.selectAll("path.hex");
+        else if (renderType === "points") sel = panel.gPts.selectAll("circle");
+        else sel = panel.gMap.selectAll("path.region");
+        if (!sel || sel.empty()) return;
+        var n = sel.size();
+        sel.style("opacity", 0)
+           .transition()
+           .duration(450)
+           .delay(function (d, i) { return Math.min(450, i * (450 / Math.max(1, n))); })
+           .style("opacity", null);
+      });
     }
 
     function compositePNG(panelList) {
@@ -989,6 +1368,7 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
     buildControls();
     buildPanels();
     repaint();
+    setupAnimateOnView();
 
     if (meta.zoomto) {
       var wantFips = (meta.zoomto || "").split("|").filter(Boolean);
@@ -1008,9 +1388,18 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 <h1>16. Static district map (no zoom)</h1>
 <div class="panels">
   <div class="card controls" id="controls"></div>
-  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div></div>
+  <div class="card mapcard"><svg id="map"></svg><div id="panels"></div><div id="chart-footer"></div></div>
 </div>
+<div id="datatable"></div>
 </div><div id="tooltip"></div>
+<script>
+(function(){if(window.parent===window)return;
+function r(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight,document.body.offsetHeight,document.documentElement.offsetHeight);try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}
+window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});
+window.addEventListener('resize',r);
+if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}
+})();
+</script>
 <script>
 window.__SPARKTA2__ = {
 "meta":{
@@ -1019,11 +1408,14 @@ window.__SPARKTA2__ = {
 "xlabel":"","ylabel":"",
 "mode":"bivariate","modes":"bivariate|x|y|diff|ratio",
 "comparable":0,"swap":0,"download":1,"multiples":0,
+"datatable":0,"animate":0,
+"tx2036style":1,"downloadpos":"side",
+"projection":"","rotate":"","parallels":"","center":"",
 "zoom":0,"search":0,"basemap":0,"zoomto":"",
 "layer":"","geo":"texas_districts","idwidth":7,
 "hexradius":18,"hexstat":"mean","pointsize":4,
 "latvar":"","lonvar":"",
-"bins":3,"width":980,"height":720
+"bins":3,"width":980,"height":828
 },
 "controls":
 {"filters":[],"sliders":[],"tooltipvars":[]},

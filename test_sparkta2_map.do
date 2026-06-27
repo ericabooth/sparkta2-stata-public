@@ -1,7 +1,8 @@
 *! test_sparkta2_map.do
-*! Companion driver for sparkta2 v0.7.1 -- exercises 20 dashboard examples plus
-*! 8 v0.6.x / v0.7.x additions (Export menu, datatable, animate, Texas-tuned
-*! projection, donut, bar2, divbar, barrace).
+*! Companion driver for sparkta2 v0.7.7 -- exercises 20 dashboard examples plus
+*! v0.6.x / v0.7.x additions (Export menu, datatable, animate, Texas-tuned
+*! projection, donut, bar2, line2, divbar, barrace, wraplabel/gutterwidth,
+*! tx2036style, downloadpos, iframe auto-resize protocol).
 *!
 *!  1. Bivariate -- full UI (toggle, filters, sliders, swap, download, zoom, search)
 *!  2. Univariate Blues (1 filter, 1 slider)

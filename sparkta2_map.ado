@@ -1,4 +1,4 @@
-*! sparkta2_map v0.6.1  2026-06-26
+*! sparkta2_map v0.7.7  2026-06-26
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
 *!
 *! v0.6.1 fixes:
@@ -549,7 +549,7 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.5]  `type' map written:"
+    display as text _n "[sparkta2 v0.7.7]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
 

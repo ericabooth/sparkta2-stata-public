@@ -376,10 +376,12 @@ restore
 *        - horizontal bar of % Agree (incl. Strongly agree) per item.
 *          Same v0.6.0 Export menu + animate + datatable.
 *
-*     C. sparkta-forwarded bar (Chart.js)
-*        - same % Agree summary, but rendered by the original sparkta
-*          package (Fahad Mirza).  Demonstrates the side-by-side
-*          difference between D3-native vs Chart.js styling.
+*     C. sparkta2-native bar2 (D3), net favourability
+*        - signed metric: (% Agree + Strongly agree) minus
+*          (% Strongly disagree + Disagree).  Same 9 items, same
+*          row order, but a different positive-vs-negative cut so
+*          viewers can read net direction at a glance.  RdBu
+*          diverging scheme + animate-on-scroll fade-in.
 *
 *   Items are sorted by net favourability (most-positive at top) and the
 *   ordering is reused for all three charts so the eye can track each item
@@ -486,32 +488,36 @@ sparkta2 pct_agree, name(q) type(bar2) horizontal                               
     export("`out'/09i_B_bar2.html")
 restore
 
-* (C) sparkta-forwarded bar (Chart.js) -- % Agree, same items
-capture which sparkta
-if !_rc {
-    preserve
-    gen byte pos = inlist(response, "Agree", "Strongly agree")
-    gen double pct_agree = share * pos
-    sparkta2 pct_agree, over(q) stat(sum) type(bar)                                    ///
-        title("C. sparkta-forwarded bar (Chart.js): % Agree")                         ///
-        subtitle("Same 9 items, same metric; rendered by Fahad Mirza's sparkta")      ///
-        offline export("`out'/09i_C_sparkta_bar.html")
-    restore
-}
+* (C) sparkta2-native bar2 -- net favourability, animate-on-scroll
+*     Signed metric:  (Strongly agree + Agree) - (Strongly disagree + Disagree).
+*     Same 9 items, same item_order as A and B, but RdBu diverging palette so
+*     the viewer can read net direction (positive=blue, negative=red) at a
+*     glance instead of reading 9 numeric labels.  Avoids the angled-label
+*     trap of the prior sparkta-forwarded chart while still adding a
+*     distinct view of the same survey.
+preserve
+gen byte _pos = inlist(response, "Agree", "Strongly agree")
+gen byte _neg = inlist(response, "Strongly disagree", "Disagree")
+gen double _signed_share = share * _pos - share * _neg
+collapse (sum) net_fav_pct = _signed_share, by(q item_order)
+gsort item_order
+sparkta2 net_fav_pct, name(q) type(bar2) horizontal                                   ///
+    scheme(rdbu) tx2036style downloadpos(below) download datatable animate            ///
+    title("C. sparkta2-native bar2 (D3): net favourability")                          ///
+    subtitle("(% Agree + Strongly agree) - (% Disagree + Strongly disagree); fade-in on scroll-into-view") ///
+    xlabel("Net % favourable (positive minus negative)")                              ///
+    width(1100) height(850) offline noopen                                            ///
+    export("`out'/09i_C_bar2_netfav.html")
+restore
 
 * Combine all three on a single HTML page for the viewer.
-local _comp_files "09i_A_divbar.html 09i_B_bar2.html"
-local _comp_titles "A. Pew divbar (full Likert distribution)|B. sparkta2-native bar2 (% Agree)"
-capture confirm file "`out'/09i_C_sparkta_bar.html"
-if !_rc {
-    local _comp_files "`_comp_files' 09i_C_sparkta_bar.html"
-    local _comp_titles "`_comp_titles'|C. sparkta-forwarded bar (Chart.js, % Agree)"
-}
 sparkta2_dashboard,                                                                    ///
-    files("`_comp_files'") titles("`_comp_titles'") heights("900")                    ///
+    files("09i_A_divbar.html 09i_B_bar2.html 09i_C_bar2_netfav.html")                ///
+    titles("A. Pew divbar (full Likert distribution)|B. sparkta2-native bar2 (% Agree)|C. sparkta2-native bar2 (net favourability)") ///
+    heights("900")                                                                    ///
     tx2036style                                                                       ///
     title("Likert survey items, three ways (9-item version)")                         ///
-    subtitle("Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta-forwarded bar (Chart.js) also showing %-agree.  The first shows nuance; the latter two compress to a single positive-share number.  All three share the same item ordering by net favourability so the eye can track each item across approaches.") ///
+    subtitle("Same 9 policy items rendered as (A) Pew-style diverging stacked bar showing the full distribution, (B) sparkta2-native bar2 (D3) summarising to %-agree, and (C) sparkta2-native bar2 showing net favourability ((Agree+Strongly agree) - (Disagree+Strongly disagree)) with an RdBu diverging palette and animate-on-scroll.  The first shows nuance, the second compresses to a single positive number per item, the third reads net direction at a glance.  All three share the same item ordering by net favourability so the eye can track each item across approaches.") ///
     export("`out'/09i_comparison.html") noopen
 
 *-----------------------------------------------------------------------------

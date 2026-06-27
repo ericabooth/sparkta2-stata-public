@@ -16,6 +16,10 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.7.7** (2026-06-26). Iframe auto-resize protocol: every sparkta2-native HTML output now posts its rendered content height to its parent page on load / resize / DOM mutation, and parent pages (sparkta2_dashboard wrappers + the webdoc2 demos) grow each iframe to fit + set `scrolling="no"`, so embeds never get clipped behind a scrollbar. Opt out per-iframe with the `data-skip-resize="1"` HTML attribute (used for sparkta / Chart.js pass-throughs that don't speak the resize protocol).
+
+**v0.7.3** (2026-06-26). Chart label policy: `wraplabel(auto | on | off)` (synonyms `wrap`, `truncate`) + `gutterwidth(N)` left-margin override. `auto` keeps long labels on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines don't fit. Useful for divbar/bar2/line2 with long category names.
+
 **v0.7.2** (2026-06-26). `tx2036style` option (Texas 2036 brand + Montserrat font from Google Fonts) and `downloadpos(side|below|none)` option to move the Export menu under the chart (collapses the 240px side panel when no other controls live there).
 
 **v0.7.1** (2026-06-26). Backward-compat rename: native bar / line are now `type(bar2)` / `type(line2)`, so sparkta's `type(bar)` / `type(line)` continue to forward unchanged. Existing do-files that called sparkta for bars or lines keep working without edits.
@@ -27,11 +31,21 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 <img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
 
 
+### What's new in v0.7.7 (2026-06-26)
+
+- **Iframe auto-resize protocol.** Each sparkta2-native HTML page now embeds a tiny inline `<script>` that calls `window.parent.postMessage({type:'sparkta2-resize', height: H}, '*')` whenever the rendered content height changes (load, window resize, ResizeObserver, MutationObserver). Both `sparkta2_dashboard` wrappers and the webdoc2 demos ship a parent-side listener that grows each iframe to fit and sets `scrolling="no"`, so embedded outputs never get clipped behind a scrollbar.
+- **`data-skip-resize="1"` escape hatch.** Mark a single `<iframe>` with that HTML attribute and the parent listener will leave its height + scrolling untouched. Use this for sparkta / Chart.js pass-throughs whose pages do not emit the `sparkta2-resize` message — without the escape hatch, those iframes would be silently clipped at the wrapper's declared height; with it, they get a native scrollbar.
+- **Comprehensive single-page demo do-file:** [`examples/test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) now builds a 12-section webdoc2 page covering every sparkta2-native type (5 maps + 5 charts + 1 label-wrap demo) plus 2 sparkta (Chart.js) pass-throughs. Section 11 deliberately keeps its scrollbar (via `data-skip-resize`) to demonstrate the escape hatch.
+
+### What's new in v0.7.3 (2026-06-26)
+
+- **Chart label policy.** New `wraplabel(auto | on | off)` option (synonyms `wrap` and `truncate`) plus `gutterwidth(N)` to override the left-margin gutter width. `auto` keeps long category names on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines still overflow. Targets divbar / bar2 / line2 with long item text where the default gutter was clipping labels.
+
 ### What's new in v0.7.2 (2026-06-26)
 
 - **`tx2036style` option.** Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography to a Texas 2036 brand look — heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
 - **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
-- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 7 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined onto a single dashboard page via `sparkta2_dashboard`.
+- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined onto a single dashboard page via `sparkta2_dashboard`.
 
 ### What's new in v0.7.1 (2026-06-26)
 
@@ -132,7 +146,7 @@ Four drivers in [`examples/`](examples/) exercise every option:
 - [`test_sparkta2_map.do`](examples/test_sparkta2_map.do) — 20 county-level examples + dashboard (Texas data + 2 US-state bonus)
 - [`test_sparkta2_nces.do`](examples/test_sparkta2_nces.do) — 20 NCES EDGE Texas school-district examples + dashboard (loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare; renders on the bundled `texas_districts.geojson` polygons)
 - [`test_helpfile_examples.do`](examples/test_helpfile_examples.do) — the 10 examples that appear in `help sparkta2`, verbatim, runnable as a smoke test
-- [`test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) — embeds 3 sparkta2 maps inside a webdoc2 report via `wdiframe`
+- [`test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) — comprehensive 12-section webdoc2 demo: 5 maps + 5 sparkta2-native charts (donut, bar2, line2, divbar, barrace) + 1 label-wrap demo + 2 sparkta (Chart.js) pass-throughs. Exercises the v0.7.7 iframe auto-resize protocol + the `data-skip-resize` escape hatch.
 
 ## Browser interactions — how each control maps back to Stata options
 
@@ -346,28 +360,32 @@ sparkta2 poverty_rate uninsured_rate, type(bar) over(region_n) stat(mean)
 ```
 sparkta2/
 ├── ado/
-│   ├── sparkta2.ado            # dispatcher (forwards non-map types to sparkta)
-│   ├── sparkta2_map.ado        # map command
-│   ├── sparkta2_findfile.ado   # locate engine + map assets
-│   ├── sparkta2_writehtml.ado  # HTML assembler
-│   ├── sparkta2_embedjs.ado    # <script>…</script> wrapper
-│   ├── sparkta2_appendfile.ado # shell-based file embedder
-│   ├── sparkta2_streamfile.ado # line-by-line file stream
-│   ├── sparkta2_open.ado       # cross-platform browser open
-│   ├── sparkta2_dashboard.ado  # combine maps -> one scrollable page
-│   ├── sparkta2_engine.js      # D3 engine
-│   ├── sparkta2.sthlp          # Stata help
-│   ├── sparkta2.pkg            # net install manifest
+│   ├── sparkta2.ado                  # dispatcher (forwards non-map/non-chart types to sparkta)
+│   ├── sparkta2_map.ado              # map command
+│   ├── sparkta2_chart.ado            # native chart command (donut, bar2, line2, divbar, barrace)
+│   ├── sparkta2_dashboard.ado        # combine maps + charts -> one scrollable page
+│   ├── sparkta2_findfile.ado         # locate engine + map assets
+│   ├── sparkta2_writehtml.ado        # map HTML assembler (emits sparkta2-resize postMessage)
+│   ├── sparkta2_chart_writehtml.ado  # chart HTML assembler (emits sparkta2-resize postMessage)
+│   ├── sparkta2_embedjs.ado          # <script>…</script> wrapper
+│   ├── sparkta2_appendfile.ado       # shell-based file embedder
+│   ├── sparkta2_streamfile.ado       # line-by-line file stream
+│   ├── sparkta2_open.ado             # cross-platform browser open
+│   ├── sparkta2_engine.js            # D3 map engine
+│   ├── sparkta2_chart_engine.js      # D3 chart engine
+│   ├── sparkta2.sthlp                # Stata help
+│   ├── sparkta2.pkg                  # net install manifest
 │   ├── stata.toc
 │   ├── d3.min.js
 │   ├── topojson-client.min.js
 │   ├── d3-hexbin.min.js
-│   ├── texas_counties.topojson    # 254 TX counties + 56 US states + nation
-│   └── texas_districts.geojson    # 1,018 NCES EDGE SY24-25 school districts
+│   ├── texas_counties.topojson       # 254 TX counties + 56 US states + nation
+│   └── texas_districts.geojson       # 1,018 NCES EDGE SY24-25 school districts
 ├── examples/
-│   ├── test_sparkta2_map.do       # 20 county-level + 2 US-state bonus examples
-│   ├── test_sparkta2_nces.do      # 20 NCES school-district examples
-│   ├── test_helpfile_examples.do  # mirrors `help sparkta2` examples 1:1
+│   ├── test_sparkta2_map.do          # 20 county-level + 2 US-state bonus examples
+│   ├── test_sparkta2_nces.do         # 20 NCES school-district examples
+│   ├── test_helpfile_examples.do     # mirrors `help sparkta2` examples 1:1
+│   ├── test_sparkta2_in_webdoc2.do   # 12-section webdoc2 demo (maps + charts + sparkta forwards)
 │   └── texas_county_demo.csv
 └── README.md
 ```

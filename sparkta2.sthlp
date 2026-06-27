@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.2  20jun2026}{...}
+{* *! version 0.7.7  26jun2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.1):
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.7):
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -590,9 +590,11 @@ because Pew's house style omits it from in-bar labels.{p_end}
 
 {phang}{bf:Pattern:}  the same 9 Likert items rendered three different ways
 on a single dashboard page so the viewer can scan trade-offs at a glance --
-(A) divbar full distribution, (B) sparkta2-native bar2 % Agree summary, (C)
-sparkta-forwarded bar % Agree.  All three iframes embed via
-{help sparkta2_dashboard}.{p_end}
+(A) divbar full distribution, (B) sparkta2-native bar2 % Agree summary,
+(C) sparkta2-native bar2 net favourability with an RdBu diverging palette
+and animate-on-scroll.  All three iframes embed via
+{help sparkta2_dashboard}.  Each panel deliberately uses horizontal labels
+so the eye doesn't have to read angled text.{p_end}
 
 {phang}{bf:Sort discipline:}  compute net favourability per item
 ({it:%Agree + %Strongly agree minus %Strongly disagree - %Disagree}) and pin
@@ -634,19 +636,25 @@ item down the page.{p_end}
 {phang}{cmd}    export("09i_B_bar2.html"){p_end}
 {phang}{cmd}restore{p_end}
 
-{phang}{cmd}* (C) sparkta-forwarded bar (Chart.js) -- % Agree{p_end}
+{phang}{cmd}* (C) sparkta2-native bar2 -- net favourability with animate-on-scroll{p_end}
 {phang}{cmd}preserve{p_end}
-{phang}{cmd}gen byte pos = inlist(response, "Agree", "Strongly agree"){p_end}
-{phang}{cmd}gen double pct_agree = share * pos{p_end}
-{phang}{cmd}sparkta2 pct_agree, over(q) stat(sum) type(bar)                            ///{p_end}
-{phang}{cmd}    title("C. sparkta-forwarded bar (Chart.js): % Agree")                  ///{p_end}
-{phang}{cmd}    offline export("09i_C_sparkta_bar.html"){p_end}
+{phang}{cmd}gen byte _pos = inlist(response, "Agree", "Strongly agree"){p_end}
+{phang}{cmd}gen byte _neg = inlist(response, "Strongly disagree", "Disagree"){p_end}
+{phang}{cmd}gen double _signed = share * _pos - share * _neg{p_end}
+{phang}{cmd}collapse (sum) net_fav_pct = _signed, by(q item_order){p_end}
+{phang}{cmd}gsort item_order{p_end}
+{phang}{cmd}sparkta2 net_fav_pct, name(q) type(bar2) horizontal                        ///{p_end}
+{phang}{cmd}    scheme(rdbu) tx2036style downloadpos(below) download datatable animate ///{p_end}
+{phang}{cmd}    title("C. sparkta2-native bar2 (D3): net favourability")               ///{p_end}
+{phang}{cmd}    xlabel("Net % favourable (positive minus negative)")                   ///{p_end}
+{phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
+{phang}{cmd}    export("09i_C_bar2_netfav.html"){p_end}
 {phang}{cmd}restore{p_end}
 
 {phang}{cmd}* Combine all three on a single HTML page for the viewer:{p_end}
 {phang}{cmd}sparkta2_dashboard,                                                        ///{p_end}
-{phang}{cmd}    files("09i_A_divbar.html 09i_B_bar2.html 09i_C_sparkta_bar.html")     ///{p_end}
-{phang}{cmd}    titles("A. Pew divbar|B. bar2 (% Agree)|C. sparkta bar (% Agree)")     ///{p_end}
+{phang}{cmd}    files("09i_A_divbar.html 09i_B_bar2.html 09i_C_bar2_netfav.html")     ///{p_end}
+{phang}{cmd}    titles("A. Pew divbar|B. bar2 (% Agree)|C. bar2 (net favourability)") ///{p_end}
 {phang}{cmd}    heights("900") tx2036style                                            ///{p_end}
 {phang}{cmd}    title("Likert survey items, three ways (9-item version)")              ///{p_end}
 {phang}{cmd}    export("09i_comparison.html"){p_end}
@@ -743,11 +751,11 @@ Mirza, F. {bf:sparkta} — interactive HTML charts from Stata.
 {browse "https://github.com/fahad-mirza/sparkta_stata":github.com/fahad-mirza/sparkta_stata}.
 
 
-{title:Embedding in webdoc2}
+{title:Embedding in webdoc2 and the iframe auto-resize protocol (v0.7.7)}
 
 {pstd}
-sparkta2 maps embed in webdoc2 reports via {cmd:wdiframe}, the same way
-sparkta dashboards do. Write the map .html into the same folder as the
+sparkta2 maps and charts embed in webdoc2 reports via {cmd:wdiframe}, the same way
+sparkta dashboards do. Write the map / chart .html into the same folder as the
 parent report (file:// enforces same-origin per directory), then:
 
 {phang}{cmd}sparkta2 ..., offline noopen export("mymap.html"){p_end}
@@ -757,7 +765,26 @@ parent report (file:// enforces same-origin per directory), then:
 The do-file must be invoked via {cmd:webdoc do mydoc.do, replace} (not
 plain {cmd:do}) for {cmd:wdinit}/{cmd:webdoc put}/{cmd:wdiframe} to
 register. A runnable proof-of-concept lives at
-{bf:examples/test_sparkta2_in_webdoc2.do}.
+{bf:examples/test_sparkta2_in_webdoc2.do} (12-section comprehensive demo).
+
+{pstd}
+{bf:Auto-resize protocol (v0.7.7).}  Every sparkta2-native HTML page embeds
+a small inline {cmd:<script>} that calls
+{cmd}window.parent.postMessage({type:'sparkta2-resize', height: H}, '*'){txt}
+on load / window resize / DOM mutation, where H is the rendered content
+height in pixels.  Parent pages ({cmd:sparkta2_dashboard} wrappers and the
+companion webdoc2 demo) ship a listener that grows each iframe to fit its
+content and sets {cmd:scrolling="no"}, so embedded outputs never get
+clipped behind a scrollbar.
+
+{pstd}
+{bf:Per-iframe escape hatch.}  Mark a single {cmd:<iframe>} with HTML
+attribute {cmd:data-skip-resize="1"} and the parent listener will leave
+its height and scrolling untouched.  Use this for sparkta / Chart.js
+pass-throughs (which don't emit the {cmd:sparkta2-resize} postMessage):
+without the escape hatch, those iframes get silently clipped at the
+declared height; with it, they get a native scrollbar.  Section 11 of
+{bf:test_sparkta2_in_webdoc2.do} is the canonical example.
 
 
 {title:See also}

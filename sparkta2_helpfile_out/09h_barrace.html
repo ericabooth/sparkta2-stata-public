@@ -1356,6 +1356,14 @@ h1{font-size:1.5rem;margin:0 0 4px;color:var(--ink);}
 <div id="datatable"></div>
 </div><div id="tooltip"></div>
 <script>
+(function(){if(window.parent===window)return;
+var _last=0;
+function r(){var h=document.body.scrollHeight;if(Math.abs(h-_last)<=4)return;_last=h;try{window.parent.postMessage({type:'sparkta2-resize',height:h},'*');}catch(e){}}
+window.addEventListener('load',function(){r();setTimeout(r,400);setTimeout(r,1200);setTimeout(r,2500);});
+if(typeof MutationObserver!=='undefined'){new MutationObserver(r).observe(document.body,{childList:true,subtree:true});}
+})();
+</script>
+<script>
 window.__SPARKTA2_CHART__ = {
 "meta":{
 "type":"barrace","scheme":"tx2036",
