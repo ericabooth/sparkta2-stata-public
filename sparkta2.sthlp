@@ -893,8 +893,8 @@ declared height; with it, they get a native scrollbar.  Section 11 of
 {title:Author}
 
 {pstd}
-Eric Booth, Texas 2036.{break}
-eric.booth@texas2036.org
+Eric A. Booth, Sr Researcher, Texas2036.org (eric.a.booth@gmail.com).{break}
+eric.a.booth@gmail.com
 
 {pstd}
 Map renderer, dispatcher, dashboard helper, and all sparkta2-specific

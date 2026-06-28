@@ -88,25 +88,13 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 ## Install
 
-### From GitHub (recommended)
-
 ```stata
-net install sparkta2, from("https://raw.githubusercontent.com/ericbooth/sparkta2-stata/main/ado/") replace force
+net install sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata/master/ado/") replace force
+which sparkta2
+help sparkta2
 ```
-
-That's the whole install — same pattern as my other Stata packages on [github.com/ericbooth](https://github.com/ericbooth).
 
 Note that Stata's `net install` only copies `.ado`, `.sthlp`, and `.jar` files; the bundled D3 / TopoJSON / d3-hexbin assets need to land next to the ado files for `findfile` to pick them up.  The package handles this automatically: on first map call, `sparkta2_findfile` checks `adopath` for the assets and, if any are missing, downloads them from the same GitHub mirror into `sysdir PLUS/s/sparkta2/`.  Subsequent calls reuse the cached copies. Override the source with `global sparkta2_remote_base "<your URL>"` before the first call.
-
-### From a local clone (for development)
-
-```stata
-local sparkta2_home "/path/to/your/sparkta2/ado"
-net install sparkta2, from("`sparkta2_home'") replace force
-adopath ++ "`sparkta2_home'"
-```
-
-The `adopath ++ "…"` line skips the auto-bootstrap step entirely — `findfile` discovers the assets directly in your clone.
 
 ### For chart pass-through, also install `sparkta`
 
@@ -114,14 +102,14 @@ The `adopath ++ "…"` line skips the auto-bootstrap step entirely — `findfile
 net install sparkta, from("https://raw.githubusercontent.com/fahad-mirza/sparkta_stata/master/ado") replace
 ```
 
-Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command.
+Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
 
 ### Verify
 
 ```stata
 which sparkta2
 help sparkta2
-do https://raw.githubusercontent.com/ericbooth/sparkta2-stata/main/examples/test_helpfile_examples.do
+do https://raw.githubusercontent.com/ericabooth/sparkta2-stata/main/examples/test_helpfile_examples.do
 ```
 
 The third command runs all 10 examples that appear in `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in your cwd.
@@ -477,6 +465,6 @@ MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo
 
 ## Author
 
-Eric Booth, Texas 2036 · `eric.booth@texas2036.org`
+Eric A. Booth, Sr Researcher, Texas2036.org (eric.a.booth@gmail.com).
 
 Mapping renderer, dispatcher, dashboard helper, and all sparkta2-specific plumbing. When called with a non-map `type()`, `sparkta2` forwards to `sparkta` — credit for those chart types belongs entirely to Fahad Mirza.
