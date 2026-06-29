@@ -3,6 +3,7 @@
 **Interactive D3 maps + native non-map chart types from Stata, with chart pass-through to `sparkta` for anything else.**
 
 `sparkta2` is a thin Stata dispatcher around three engines:
+Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
 - A bundled **D3 v7 map engine** for `type(bivariate | choropleth | hexbin | points)`.
 - A bundled **D3 v7 chart engine** (new in v0.7.0) for `type(donut | bar2 | line2 | divbar | barrace)`.
@@ -40,7 +41,7 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 - **Iframe auto-resize protocol.** Each sparkta2-native HTML page now embeds a tiny inline `<script>` that calls `window.parent.postMessage({type:'sparkta2-resize', height: H}, '*')` whenever the rendered content height changes (load, window resize, ResizeObserver, MutationObserver). Both `sparkta2_dashboard` wrappers and the webdoc2 demos ship a parent-side listener that grows each iframe to fit and sets `scrolling="no"`, so embedded outputs never get clipped behind a scrollbar.
 - **`data-skip-resize="1"` escape hatch.** Mark a single `<iframe>` with that HTML attribute and the parent listener will leave its height + scrolling untouched. Use this for sparkta / Chart.js pass-throughs whose pages do not emit the `sparkta2-resize` message — without the escape hatch, those iframes would be silently clipped at the wrapper's declared height; with it, they get a native scrollbar.
-- **Comprehensive single-page demo do-file:** [`examples/test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) now builds a 12-section webdoc2 page covering every sparkta2-native type (5 maps + 5 charts + 1 label-wrap demo) plus 2 sparkta (Chart.js) pass-throughs. Section 11 deliberately keeps its scrollbar (via `data-skip-resize`) to demonstrate the escape hatch.
+ 
 
 - **Chart label policy.** New `wraplabel(auto | on | off)` option (synonyms `wrap` and `truncate`) plus `gutterwidth(N)` to override the left-margin gutter width. `auto` keeps long category names on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines still overflow. Targets divbar / bar2 / line2 with long item text where the default gutter was clipping labels.
 
@@ -133,14 +134,7 @@ sparkta2 poverty_rate uninsured_rate,                       ///
     title("Texas counties: poverty vs uninsured")           ///
     export("texas_bivariate.html")
 ```
-
-Four drivers in [`examples/`](examples/) exercise every option:
-
-- [`test_sparkta2_map.do`](examples/test_sparkta2_map.do) — 20 county-level examples + dashboard (Texas data + 2 US-state bonus)
-- [`test_sparkta2_nces.do`](examples/test_sparkta2_nces.do) — 20 NCES EDGE Texas school-district examples + dashboard (loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare; renders on the bundled `texas_districts.geojson` polygons)
-- [`test_helpfile_examples.do`](examples/test_helpfile_examples.do) — the 10 examples that appear in `help sparkta2`, verbatim, runnable as a smoke test
-- [`test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) — comprehensive 12-section webdoc2 demo: 5 maps + 5 sparkta2-native charts (donut, bar2, line2, divbar, barrace) + 1 label-wrap demo + 2 sparkta (Chart.js) pass-throughs. Exercises the v0.7.7 iframe auto-resize protocol + the `data-skip-resize` escape hatch.
-
+ 
 ## Browser interactions — how each control maps back to Stata options
 
 | In the browser | Stata option that produced it | What happens |
@@ -297,10 +291,7 @@ If your panhandle top is not flat, or is tilted differently from what's shown he
 3. **Explicit `projection() / rotate() / parallels() / center()`** you've passed. These take precedence over the preset defaults.
 4. **Installed version.** v0.5.x and earlier used `albers_usa` for every map; v0.6.1 introduced `albers_tx` with a ~1.3° residual lean; v0.7.8 retunes `albers_tx` to zero lean. Every sparkta2 map call prints a dispatcher banner like `[sparkta2 v0.7.8]` in the Stata Results window — that's the running version.
 
-## Worked examples
-
-These all live in [`examples/test_helpfile_examples.do`](examples/test_helpfile_examples.do) and are tested in CI-style smoke tests before each release.
-
+ 
 ### County bivariate, full UI
 
 ```stata
@@ -458,6 +449,10 @@ MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo
 
 
 <img width="1077" height="744" alt="Screenshot 2026-06-20 at 11 29 46 AM" src="https://github.com/user-attachments/assets/c73828e6-4053-424b-acf6-dd94cdec75e4" />
+
+
+Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
+
 
 ## See also
 
