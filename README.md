@@ -3,6 +3,7 @@
 **Interactive D3 maps + native non-map chart types from Stata, with chart pass-through to `sparkta` for anything else.**
 
 `sparkta2` is a thin Stata dispatcher around three engines:
+Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
 - A bundled **D3 v7 map engine** for `type(bivariate | choropleth | hexbin | points)`.
 - A bundled **D3 v7 chart engine** (new in v0.7.0) for `type(donut | bar2 | line2 | divbar | barrace)`.
@@ -11,6 +12,9 @@
 > **Why `bar2` / `line2` and not `bar` / `line`?** sparkta already implements `type(bar)` and `type(line)` via Chart.js with its own multi-variable / `stat()` / `fit()` syntax. v0.7.1 keeps `bar` and `line` forwarding to sparkta so every pre-existing do-file works unchanged. The new D3-native versions are exposed as `bar2` and `line2`, which inherit the v0.6.0 Export menu, `datatable`, and `animate` but take simpler input (one numeric var with `name()`, optional `over()` for grouping/stacking).
 
 Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choropleth](https://observablehq.com/@d3/bivariate-choropleth), [mbostock/methods-of-comparison-compared](https://observablehq.com/@mbostock/methods-of-comparison-compared), [d3/zoom-to-bounding-box](https://observablehq.com/@d3/zoom-to-bounding-box)) and the D3 Graph Gallery ([hexbin map](https://d3-graph-gallery.com/graph/hexbinmap_geo_label.html), [background map](https://d3-graph-gallery.com/graph/backgroundmap_country.html)). `d3-hexbin` v0.2.2 is bundled (MIT, © Mike Bostock).
+
+<img width="720" height="405" alt="Slide3" src="https://github.com/user-attachments/assets/7cd5e631-4103-42f7-8b16-0589932902a8" />
+
 
 ## Status
 
@@ -37,9 +41,7 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 - **Iframe auto-resize protocol.** Each sparkta2-native HTML page now embeds a tiny inline `<script>` that calls `window.parent.postMessage({type:'sparkta2-resize', height: H}, '*')` whenever the rendered content height changes (load, window resize, ResizeObserver, MutationObserver). Both `sparkta2_dashboard` wrappers and the webdoc2 demos ship a parent-side listener that grows each iframe to fit and sets `scrolling="no"`, so embedded outputs never get clipped behind a scrollbar.
 - **`data-skip-resize="1"` escape hatch.** Mark a single `<iframe>` with that HTML attribute and the parent listener will leave its height + scrolling untouched. Use this for sparkta / Chart.js pass-throughs whose pages do not emit the `sparkta2-resize` message — without the escape hatch, those iframes would be silently clipped at the wrapper's declared height; with it, they get a native scrollbar.
-- **Comprehensive single-page demo do-file:** [`examples/test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) now builds a 12-section webdoc2 page covering every sparkta2-native type (5 maps + 5 charts + 1 label-wrap demo) plus 2 sparkta (Chart.js) pass-throughs. Section 11 deliberately keeps its scrollbar (via `data-skip-resize`) to demonstrate the escape hatch.
-
-### What's new in v0.7.3 (2026-06-26)
+ 
 
 - **Chart label policy.** New `wraplabel(auto | on | off)` option (synonyms `wrap` and `truncate`) plus `gutterwidth(N)` to override the left-margin gutter width. `auto` keeps long category names on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines still overflow. Targets divbar / bar2 / line2 with long item text where the default gutter was clipping labels.
 
@@ -47,10 +49,8 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 - **`tx2036style` option.** Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography to a Texas 2036 brand look — heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
 - **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
-- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined onto a single dashboard page via `sparkta2_dashboard`.
-
-### What's new in v0.7.1 (2026-06-26)
-
+- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined.
+  
 - **Backward-compat rename.** sparkta2-native bar / line are now exposed as `type(bar2)` and `type(line2)`. `type(bar)` and `type(line)` continue to forward to `sparkta` unchanged so every pre-0.7.0 do-file using sparkta's bar/line syntax (multi-var, `stat()`, `fit()`, `over()` with stat=mean, ...) still works without edits.
 - Opt in to the D3-native versions (Export menu, `animate`, `datatable`, CSV download) by changing `type(bar)` to `type(bar2)` (and likewise `line` → `line2`). The native versions take simpler input — one numeric var with `name()`, optional `over()` for grouping/stacking.
 - `donut`, `divbar`, `barrace` keep their original names — there's no name collision with sparkta for those.
@@ -84,7 +84,11 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 - **Basemap projection fix.** Previously the projection was fit to the basemap layer (all 50 US states), so Texas-only maps appeared tiny in the corner and "reset zoom" exposed the whole US. The projection now always fits the focused layer; the basemap is drawn beneath at whatever extent.
 - **GeoJSON FeatureCollection support.** Engine accepts either a TopoJSON (with `objects`) or a GeoJSON `FeatureCollection` (with `features`). Drop a `<geo>.geojson` next to the ado and pass `geo(<name>)`.
 - **`texas_districts.geojson` bundled.** 1,018 Texas school district polygons built from the NCES EDGE SY2024-25 shapefile, simplified via Douglas-Peucker to 1.4 MB. Use `geo(texas_districts) idwidth(7)` with 7-digit LEAID ids.
-- **NCES districts demo do-file.** New [`examples/test_sparkta2_nces.do`](examples/test_sparkta2_nces.do) loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare and exercises sparkta2 on real district-level data (replaces the v0.4.0 ZIP demo, which couldn't use polygon boundaries because no ZCTA boundaries were in the _datashare).
+- **NCES districts demo do-file.**  loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare and exercises sparkta2 on real district-level data (replaces the v0.4.0 ZIP demo, which couldn't use polygon boundaries because no ZCTA boundaries were in the _datashare).
+
+
+
+<img width="720" height="405" alt="Slide4" src="https://github.com/user-attachments/assets/0a32c58a-2400-4da7-a4da-61dd7ab16110" />
 
 ## Install
 
@@ -130,14 +134,7 @@ sparkta2 poverty_rate uninsured_rate,                       ///
     title("Texas counties: poverty vs uninsured")           ///
     export("texas_bivariate.html")
 ```
-
-Four drivers in [`examples/`](examples/) exercise every option:
-
-- [`test_sparkta2_map.do`](examples/test_sparkta2_map.do) — 20 county-level examples + dashboard (Texas data + 2 US-state bonus)
-- [`test_sparkta2_nces.do`](examples/test_sparkta2_nces.do) — 20 NCES EDGE Texas school-district examples + dashboard (loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare; renders on the bundled `texas_districts.geojson` polygons)
-- [`test_helpfile_examples.do`](examples/test_helpfile_examples.do) — the 10 examples that appear in `help sparkta2`, verbatim, runnable as a smoke test
-- [`test_sparkta2_in_webdoc2.do`](examples/test_sparkta2_in_webdoc2.do) — comprehensive 12-section webdoc2 demo: 5 maps + 5 sparkta2-native charts (donut, bar2, line2, divbar, barrace) + 1 label-wrap demo + 2 sparkta (Chart.js) pass-throughs. Exercises the v0.7.7 iframe auto-resize protocol + the `data-skip-resize` escape hatch.
-
+ 
 ## Browser interactions — how each control maps back to Stata options
 
 | In the browser | Stata option that produced it | What happens |
@@ -294,10 +291,7 @@ If your panhandle top is not flat, or is tilted differently from what's shown he
 3. **Explicit `projection() / rotate() / parallels() / center()`** you've passed. These take precedence over the preset defaults.
 4. **Installed version.** v0.5.x and earlier used `albers_usa` for every map; v0.6.1 introduced `albers_tx` with a ~1.3° residual lean; v0.7.8 retunes `albers_tx` to zero lean. Every sparkta2 map call prints a dispatcher banner like `[sparkta2 v0.7.8]` in the Stata Results window — that's the running version.
 
-## Worked examples
-
-These all live in [`examples/test_helpfile_examples.do`](examples/test_helpfile_examples.do) and are tested in CI-style smoke tests before each release.
-
+ 
 ### County bivariate, full UI
 
 ```stata
@@ -455,6 +449,10 @@ MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo
 
 
 <img width="1077" height="744" alt="Screenshot 2026-06-20 at 11 29 46 AM" src="https://github.com/user-attachments/assets/c73828e6-4053-424b-acf6-dd94cdec75e4" />
+
+
+Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
+
 
 ## See also
 
