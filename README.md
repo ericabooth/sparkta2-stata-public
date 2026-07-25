@@ -92,18 +92,29 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 ## Install
 
+`sparkta2` is distributed as a GitHub repository, not as a Stata `net install` package. Clone the repository so Stata can find the command files, the JavaScript engines, and the bundled geography files in one directory.
+
+```sh
+git clone https://github.com/texas-2036/sparkta2-stata-public.git
+```
+
+In Stata, point `adopath` to the directory you cloned:
+
 ```stata
-net install sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata/master/ado/") replace force
+local sparkta2_home "/path/to/sparkta2-stata-public"
+adopath ++ "`sparkta2_home'"
 which sparkta2
 help sparkta2
 ```
 
-Note that Stata's `net install` only copies `.ado`, `.sthlp`, and `.jar` files; the bundled D3 / TopoJSON / d3-hexbin assets need to land next to the ado files for `findfile` to pick them up.  The package handles this automatically: on first map call, `sparkta2_findfile` checks `adopath` for the assets and, if any are missing, downloads them from the same GitHub mirror into `sysdir PLUS/s/sparkta2/`.  Subsequent calls reuse the cached copies. Override the source with `global sparkta2_remote_base "<your URL>"` before the first call.
+Run the `adopath` command in each new Stata session, or add it to your `profile.do` file. Keep the bundled files together. `sparkta2` uses `findfile` to locate its D3 engines and geography files beside the `.ado` files.
+
+To update an existing clone, run `git pull --ff-only` from the repository directory, then restart Stata or run `discard` before calling `sparkta2` again.
 
 ### For chart pass-through, also install `sparkta`
 
 ```stata
-net install sparkta, from("https://raw.githubusercontent.com/fahad-mirza/sparkta_stata/master/ado") replace
+ssc install sparkta
 ```
 
 Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
@@ -113,15 +124,15 @@ Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `poi
 ```stata
 which sparkta2
 help sparkta2
-do https://raw.githubusercontent.com/ericabooth/sparkta2-stata/main/examples/test_helpfile_examples.do
+do "`sparkta2_home'/test_helpfile_examples.do"
 ```
 
-The third command runs all 10 examples that appear in `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in your cwd.
+The third command runs the examples from `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in the current working directory. It requires `sparkta` for the pass-through example.
 
 ## Quick start
 
 ```stata
-import delimited using "examples/texas_county_demo.csv", varnames(1) clear stringcols(2)
+import delimited using "`sparkta2_home'/texas_county_demo.csv", varnames(1) clear stringcols(2)
 destring fips poverty_rate uninsured_rate, replace force
 
 * Bivariate choropleth with the full UI
