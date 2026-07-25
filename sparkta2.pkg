@@ -1,0 +1,32 @@
+v 3
+d sparkta2: interactive D3 maps and charts from Stata
+d
+d sparkta2 creates interactive D3 maps and native charts from Stata, and
+d forwards other chart types to sparkta when it is installed.
+d
+d Requires: Stata 17.0 or newer
+d
+d Author: Eric A. Booth, Senior Research Analyst, Texas 2036
+d Distribution-Date: 20260725
+d
+f sparkta2.ado
+f sparkta2.sthlp
+f sparkta2_appendfile.ado
+f sparkta2_chart.ado
+f sparkta2_chart_engine.js
+f sparkta2_chart_writehtml.ado
+f sparkta2_dashboard.ado
+f sparkta2_embedjs.ado
+f sparkta2_engine.js
+f sparkta2_findfile.ado
+f sparkta2_map.ado
+f sparkta2_open.ado
+f sparkta2_streamfile.ado
+f sparkta2_writehtml.ado
+f d3-hexbin.min.js
+f d3.min.js
+f topojson-client.min.js
+f texas_counties.topojson
+f texas_districts.geojson
+f texas_county_demo.csv
+f test_helpfile_examples.do

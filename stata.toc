@@ -1,0 +1,3 @@
+v 3
+d sparkta2: interactive D3 maps and charts from Stata
+p sparkta2

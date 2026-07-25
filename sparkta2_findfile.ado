@@ -63,7 +63,7 @@ program define sparkta2_findfile, rclass
     * Default points at the GitHub mirror; only fetches files that local lookup missed.
     local remote_base "`sparkta2_remote_base'"
     if "`remote_base'" == "" {
-        local remote_base "https://raw.githubusercontent.com/ericbooth/sparkta2-stata/main/ado/"
+        local remote_base "https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/"
     }
     if "`topopath'" == "" | "`engpath'" == "" | "`d3path'" == "" | "`tcpath'" == "" | "`hxpath'" == "" {
         local plus : sysdir PLUS
@@ -100,9 +100,9 @@ program define sparkta2_findfile, rclass
     if "`topopath'" == "" | "`engpath'" == "" | "`d3path'" == "" | "`tcpath'" == "" {
         display as error "sparkta2: required support files not found locally and could not be downloaded."
         display as error "  Either:"
-        display as error `"    (a) net install sparkta2, from("https://raw.githubusercontent.com/ericbooth/sparkta2-stata/main/ado/") replace force"'
+        display as error `"    (a) net install sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/") replace force"'
         display as error `"        (sparkta2_findfile will auto-download the JS / TopoJSON on first use)"'
-        display as error `"    (b) clone https://github.com/ericbooth/sparkta2-stata locally and adopath ++ ".../ado/""'
+        display as error `"    (b) clone https://github.com/texas-2036/sparkta2-stata-public locally and adopath ++ ".../sparkta2-stata-public""'
         if "`topopath'" == "" display as error "    - missing: `topofile'"
         if "`engpath'"  == "" display as error "    - missing: `engfile'"
         if "`d3path'"   == "" display as error "    - missing: `d3file'"
