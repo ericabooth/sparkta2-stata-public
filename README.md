@@ -93,7 +93,8 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 ## Install
 
 ```stata
-net install sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata/master/ado/") replace force
+net install sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/") replace force
+discard
 which sparkta2
 help sparkta2
 ```
@@ -103,7 +104,7 @@ Note that Stata's `net install` only copies `.ado`, `.sthlp`, and `.jar` files; 
 ### For chart pass-through, also install `sparkta`
 
 ```stata
-net install sparkta, from("https://raw.githubusercontent.com/fahad-mirza/sparkta_stata/master/ado") replace
+ssc install sparkta
 ```
 
 Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
