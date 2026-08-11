@@ -11,13 +11,34 @@
      divbar   : Pew-style diverging stacked bar for Likert / survey items
      barrace  : animated bar chart over time()
 
+   directlabels on bar charts: value labels render on every bar variant
+   (single, grouped, stacked; horizontal and vertical).  Stacked segments
+   get a centered contrast-aware label when the segment is wide enough,
+   matching the divbar behaviour; single and grouped bars get the value at
+   the bar end.  Before this, the directlabels flag reached the engine for
+   bars but only donut and divbar acted on it.
+
    Shared infrastructure (mirrors sparkta2_engine.js):
      Tooltip div, Export menu (PNG / SVG / CSV / Print to PDF / View data),
      data-table panel, animate-on-view (IntersectionObserver), per-row
      tooltipvars table.
+
+   v0.8.0: render() is re-entrant for dashtab() tab switching -- each call
+     first stops the previous render's barrace playback timer and
+     disconnects any still-pending animate-on-view IntersectionObserver
+     before rebuilding the chart, so the tab bootstrap can invoke
+     sparkta2RenderChart(cfg) repeatedly on the same page.
 */
 (function () {
   "use strict";
+
+  // ---- Cross-render guards (v0.8.0) ------------------------------------
+  // The dashtab bootstrap calls render() once per tab switch, so anything a
+  // render leaves running (the barrace setTimeout chain, an unfired
+  // IntersectionObserver) must be stopped at the top of the next call --
+  // otherwise the old race keeps stepping detached DOM nodes forever.
+  var _raceTimer = null;   // barrace playback handle: { stop: function() }
+  var _animIO = null;      // pending animate-on-view IntersectionObserver
 
   // ---- Shared helpers --------------------------------------------------
   function esc(s) {
@@ -78,6 +99,17 @@
 
   // ---- Main render -----------------------------------------------------
   function render(cfg) {
+    // Re-entrancy: kill whatever the previous render left running before
+    // touching the DOM (see the module-level guard declarations above).
+    if (_raceTimer) {
+      try { _raceTimer.stop(); } catch (e) {}
+      _raceTimer = null;
+    }
+    if (_animIO) {
+      try { _animIO.disconnect(); } catch (e) {}
+      _animIO = null;
+    }
+
     var meta = cfg.meta || {};
     var data = cfg.data || [];
     var tipvars = cfg.tooltipvars || [];
@@ -362,10 +394,12 @@
         entries.forEach(function (e) {
           if (e.isIntersecting && !fired) {
             fired = true; io.disconnect();
+            if (_animIO === io) _animIO = null;
             runEntryAnim(animTargets);
           }
         });
       }, { threshold: 0.2 });
+      _animIO = io;  // v0.8.0: let the next render() disconnect an unfired observer
       io.observe(target);
     }
     function runEntryAnim(targets) {
@@ -412,6 +446,10 @@
         }
         if (t.finalAttr) {
           Object.keys(t.finalAttr).forEach(function (k) {
+            // fromAttr keys already restore-tween to their captured values;
+            // overwriting them here would clobber per-element geometry
+            // (e.g. divbar segment widths) with a shared final value.
+            if (t.fromAttr && (k in t.fromAttr)) return;
             tr.attr(k, t.finalAttr[k]);
           });
         }
@@ -606,6 +644,15 @@
             .attr("width",  function (d) { return scaleVal(+d.x); })
             .attr("height", yScale.bandwidth())
             .attr("fill", color);
+          if (meta.directlabels) {
+            g.selectAll("text.dlab").data(data).enter().append("text")
+              .attr("class", "label")
+              .attr("x", function (d) { return scaleVal(+d.x) + 5; })
+              .attr("y", function (d) { return yScale(d.name) + yScale.bandwidth() / 2; })
+              .attr("dominant-baseline", "middle")
+              .style("pointer-events", "none")
+              .text(function (d) { return fmt(+d.x); });
+          }
         } else {
           var xScale = d3.scaleBand().domain(cats).range([0, iw]).padding(0.18);
           scaleVal.range([ih, 0]);
@@ -622,6 +669,15 @@
             .attr("width",  xScale.bandwidth())
             .attr("height", function (d) { return ih - scaleVal(+d.x); })
             .attr("fill", color);
+          if (meta.directlabels) {
+            g.selectAll("text.dlab").data(data).enter().append("text")
+              .attr("class", "label")
+              .attr("x", function (d) { return xScale(d.name) + xScale.bandwidth() / 2; })
+              .attr("y", function (d) { return scaleVal(+d.x) - 5; })
+              .attr("text-anchor", "middle")
+              .style("pointer-events", "none")
+              .text(function (d) { return fmt(+d.x); });
+          }
         }
         entered.on("mousemove", function (ev, d) {
           var lines = ["<strong>" + esc(d.name) + "</strong>",
@@ -674,6 +730,20 @@
                 .attr("height", yScale2.bandwidth())
                 .attr("x", function (d) { return xScale2(d[0]); })
                 .attr("width", function (d) { return xScale2(d[1]) - xScale2(d[0]); });
+            if (meta.directlabels) {
+              series.forEach(function (s) {
+                s.forEach(function (v) {
+                  if (xScale2(v[1]) - xScale2(v[0]) < 30) return;
+                  g.append("text").attr("class", "label")
+                    .attr("x", (xScale2(v[0]) + xScale2(v[1])) / 2)
+                    .attr("y", yScale2(v.data.name) + yScale2.bandwidth() / 2)
+                    .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+                    .style("fill", labelFill(color(s.key)))
+                    .style("pointer-events", "none")
+                    .text(normalize ? d3.format(".0f")(v.data[s.key]) + "%" : fmt(v.data[s.key]));
+                });
+              });
+            }
             entered.on("mousemove", function (ev, d) {
               var lines = ["<strong>" + esc(d.data.name) + "</strong>",
                            esc(d.key) + ": " + (normalize ? fmtPct(d.data[d.key]) : fmt(d.data[d.key]))];
@@ -695,6 +765,20 @@
                 .attr("width", xScale3.bandwidth())
                 .attr("y", function (d) { return yScale3(d[1]); })
                 .attr("height", function (d) { return yScale3(d[0]) - yScale3(d[1]); });
+            if (meta.directlabels) {
+              series.forEach(function (s) {
+                s.forEach(function (v) {
+                  if (yScale3(v[0]) - yScale3(v[1]) < 16) return;
+                  g.append("text").attr("class", "label")
+                    .attr("x", xScale3(v.data.name) + xScale3.bandwidth() / 2)
+                    .attr("y", (yScale3(v[0]) + yScale3(v[1])) / 2)
+                    .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+                    .style("fill", labelFill(color(s.key)))
+                    .style("pointer-events", "none")
+                    .text(normalize ? d3.format(".0f")(v.data[s.key]) + "%" : fmt(v.data[s.key]));
+                });
+              });
+            }
             entered.on("mousemove", function (ev, d) {
               var lines = ["<strong>" + esc(d.data.name) + "</strong>",
                            esc(d.key) + ": " + (normalize ? fmtPct(d.data[d.key]) : fmt(d.data[d.key]))];
@@ -719,6 +803,15 @@
               .attr("height", y1.bandwidth())
               .attr("width", function (d) { return x1(+d.x); })
               .attr("fill", function (d) { return color(d.g); });
+            if (meta.directlabels) {
+              g.selectAll("text.dlab").data(data).enter().append("text")
+                .attr("class", "label")
+                .attr("x", function (d) { return x1(+d.x) + 5; })
+                .attr("y", function (d) { return y0(d.name) + y1(d.g) + y1.bandwidth() / 2; })
+                .attr("dominant-baseline", "middle")
+                .style("pointer-events", "none")
+                .text(function (d) { return fmt(+d.x); });
+            }
           } else {
             var x0 = d3.scaleBand().domain(cats).range([0, iw]).padding(0.18);
             var xg = d3.scaleBand().domain(groups).range([0, x0.bandwidth()]).padding(0.05);
@@ -734,6 +827,15 @@
               .attr("width", xg.bandwidth())
               .attr("height", function (d) { return ih - yg(+d.x); })
               .attr("fill", function (d) { return color(d.g); });
+            if (meta.directlabels) {
+              g.selectAll("text.dlab").data(data).enter().append("text")
+                .attr("class", "label")
+                .attr("x", function (d) { return x0(d.name) + xg(d.g) + xg.bandwidth() / 2; })
+                .attr("y", function (d) { return yg(+d.x) - 4; })
+                .attr("text-anchor", "middle")
+                .style("pointer-events", "none")
+                .text(function (d) { return fmt(+d.x); });
+            }
           }
           entered.on("mousemove", function (ev, d) {
             var lines = ["<strong>" + esc(d.name) + "</strong>",
@@ -742,13 +844,17 @@
             showTip(lines.join("<br/>"), ev);
           }).on("mouseleave", hideTip);
         }
-        // Legend
+        // Legend (measured spacing, so long series names never overlap)
         var lg2 = svg.append("g").attr("class", "legend")
           .attr("transform", "translate(" + (margin.left) + "," + 6 + ")");
-        groups.forEach(function (gN, i) {
-          var row = lg2.append("g").attr("transform", "translate(" + (i * 110) + ",0)");
+        var legX2 = 0;
+        groups.forEach(function (gN) {
+          var row = lg2.append("g").attr("transform", "translate(" + legX2 + ",0)");
           row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(gN)).attr("rx", 2);
-          row.append("text").attr("x", 18).attr("y", 10).text(esc(gN));
+          var t = row.append("text").attr("x", 18).attr("y", 10).text(esc(gN));
+          var bbox;
+          try { bbox = t.node().getBBox(); } catch (e) { bbox = { width: String(gN).length * 6 }; }
+          legX2 += 18 + bbox.width + 18;
         });
       }
 
@@ -1231,6 +1337,13 @@
 
       // Playhead controls: play/pause + replay button in the View panel.
       var playState = { idx: 0, playing: true, timer: null };
+      // v0.8.0: register a stop handle so the NEXT render() call can halt
+      // this race.  playState.timer is reassigned on every frame (chained
+      // setTimeout), so the handle clears whichever timeout is pending at
+      // stop time and flips playing=false so step() cannot reschedule.
+      _raceTimer = {
+        stop: function () { playState.playing = false; clearTimeout(playState.timer); }
+      };
       var fps = Math.max(1, +meta.fps || 12);
       var totalDuration = Math.max(1, +meta.duration || 25) * 1000;
       var perFrame = totalDuration / Math.max(1, frames.length - 1);

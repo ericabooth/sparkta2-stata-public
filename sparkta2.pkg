@@ -7,10 +7,18 @@ d memory.  Choropleth, bivariate (two-variable) cuts, small multiples,
 d rank-difference, hexbin, point, and basemap-backed maps, plus donut, bar,
 d divergent-bar, line, and bar-race charts.  Two Texas geographies ship with
 d the package: 254 counties (with US states and nation as backdrop layers) and
-d 1,018 NCES EDGE SY2024-25 school districts; the engine also accepts any
+d 1,016 NCES EDGE SY2024-25 school districts; the engine also accepts any
 d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
 d The tx2036style option applies Texas 2036 brand colors and Montserrat.
+d
+d New in v0.8.0: dashtab() renders one full figure per level of a variable
+d behind a tab bar (per-tab geographies via dashtabgeo(), so one file can
+d switch counties/districts/regions); overlays() adds checkbox-toggleable
+d boundary layers including a client-side dissolve of the focused features
+d by any data variable; maplabels prints toggleable feature name labels;
+d rasterimage() embeds a georeferenced image layer, still fully offline.
+d sparkta2_dashboard gains a tabs layout.
 d
 d NOTE ON ASSETS: Stata's net install copies only recognised extensions
 d (.ado, .sthlp, ...), so the bundled D3 / TopoJSON / d3-hexbin assets are

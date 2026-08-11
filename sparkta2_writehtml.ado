@@ -45,12 +45,20 @@ program define sparkta2_writehtml
     if "`tabstyle'"    == "" local tabstyle "tabs"
 
     * ---- Unpack the per-tab pipe lists into indexed locals ----------------
+    * (labels are user text: macval() so $ / backtick content survives)
     _s2wh_splitpipe, name(_trow)   value(`"`tabrowjsons'"')
     _s2wh_splitpipe, name(_tmeta)  value(`"`tabmetajsons'"')
     _s2wh_splitpipe, name(_ttopo)  value(`"`tabtopopaths'"')
     _s2wh_splitpipe, name(_tgeo)   value(`"`tabgeos'"')
     _s2wh_splitpipe, name(_tlayer) value(`"`tablayers'"')
-    _s2wh_splitpipe, name(_tlab)   value(`"`tablabels'"')
+    _s2wh_splitpipe, name(_tlab)   value(`"`macval(tablabels)'"')
+
+    * Free-text meta strings are written inside JS double-quoted literals —
+    * escape backslashes FIRST, then double quotes (same order as labels).
+    foreach _m in xlabel ylabel mode modes {
+        local `_m' : subinstr local `_m' `"\"' `"\\"', all
+        local `_m' : subinstr local `_m' `"""' `"\""', all
+    }
     forvalues _t = 1/`ntabs' {
         local _tidw`_t' = word("`tabidwidths'", `_t')
         if "`_tidw`_t''" == "" local _tidw`_t' = word("`tabidwidths'", 1)
@@ -262,11 +270,11 @@ program define sparkta2_writehtml
     file write `fh' `"window.__SPARKTA2_TABS__ = ["' _n
     forvalues _t = 1/`ntabs' {
         if `_t' > 1 file write `fh' `","' _n
-        local _lab `"`_tlab`_t''"'
-        if `"`_lab'"' == "" local _lab "Tab `_t'"
+        local _lab `"`macval(_tlab`_t')'"'
+        if `"`macval(_lab)'"' == "" local _lab "Tab `_t'"
         local _lab : subinstr local _lab `"\"' `"\\"', all
         local _lab : subinstr local _lab `"""' `"\""', all
-        file write `fh' `"{"label":"`_lab'","topokey":"`_tkey`_t''","cfg":{"' _n
+        file write `fh' `"{"label":"`macval(_lab)'","topokey":"`_tkey`_t''","cfg":{"' _n
         file write `fh' `""meta":{"' _n
         file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
         file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
@@ -304,7 +312,7 @@ program define sparkta2_writehtml
     file write `fh' `"var bar=document.getElementById('dashtabs');"' _n
     file write `fh' `"function show(i){"' _n
     file write `fh' `"if(bar){var bs=bar.getElementsByTagName('button');for(var j=0;j<bs.length;j++){bs[j].className=(j===i?'active':'');}}"' _n
-    file write `fh' `"var dt=document.getElementById('datatable');if(dt){dt.className='';dt.innerHTML='';}"' _n
+    file write `fh' `"var dt=document.getElementById('datatable');if(dt){dt.className='';dt.innerHTML='';dt.style.display='';}"' _n
     file write `fh' `"var tt=document.getElementById('tooltip');if(tt){tt.style.opacity=0;}"' _n
     file write `fh' `"var cf=document.getElementById('chart-footer');if(cf){cf.className='';cf.innerHTML='';}"' _n
     file write `fh' `"var ctl=document.getElementById('controls');if(ctl){ctl.className='card controls';}"' _n
@@ -323,21 +331,27 @@ end
 
 * Split a pipe-separated string into caller locals `name'1..`name'N and
 * set `name'_n to N.  Empty segments are preserved (they signal "use the
-* default" to the caller).
+* default" to the caller).  NOTE: c_local copies its argument verbatim —
+* wrapping the value in compound quotes would store the quote characters
+* themselves — so the piece is expanded inline, macval()-guarded against
+* re-expansion of any ` or $ inside the stored text.
 program define _s2wh_splitpipe
     version 17.0
-    syntax , NAME(name) [VALue(string asis)]
+    * value(string) — NOT `asis': asis would keep the caller's outer quote
+    * characters inside the value, and they would end up inside the split
+    * pieces (unbalanced, one per piece).
+    syntax , NAME(name) [VALue(string)]
     local str `"`value'"'
     local k 0
     local _pp = strpos(`"`str'"', "|")
     while `_pp' > 0 {
         local ++k
         local piece = substr(`"`str'"', 1, `_pp' - 1)
-        c_local `name'`k' `"`piece'"'
+        c_local `name'`k' `macval(piece)'
         local str = substr(`"`str'"', `_pp' + 1, .)
         local _pp = strpos(`"`str'"', "|")
     }
     local ++k
-    c_local `name'`k' `"`str'"'
+    c_local `name'`k' `macval(str)'
     c_local `name'_n `k'
 end

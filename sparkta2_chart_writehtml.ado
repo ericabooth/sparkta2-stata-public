@@ -1,6 +1,15 @@
-*! sparkta2_chart_writehtml v0.7.8  2026-06-26
+*! sparkta2_chart_writehtml v0.8.0  2026-08-11
 *! Assemble the self-contained HTML for a sparkta2 native chart
 *! (donut | bar | line | divbar | barrace).
+*!
+*! v0.8.0: unified tab payload, mirroring sparkta2_writehtml.ado.  The page
+*!   always carries window.__SPARKTA2_CHART_TABS__ (one {label, cfg} per
+*!   tab) plus a bootstrap that renders the active tab via
+*!   sparkta2RenderChart(cfg).  A plain single chart is simply ntabs==1
+*!   with no tab bar — same code path as dashtab(), so both are exercised
+*!   by every run.  Also new: dashtab bar CSS (tabs | buttons styles).
+*!   tooltipvars is variable metadata only, so one shared tipjson file is
+*!   re-appended into every tab's cfg.
 *!
 *! Mirrors the page structure of sparkta2_writehtml.ado (Texas 2036 brand
 *! tokens, Export menu CSS, datatable CSS, print stylesheet) but omits the
@@ -10,7 +19,8 @@
 program define sparkta2_chart_writehtml
     version 17.0
     syntax , ENGPATH(string) D3PATH(string)                              ///
-        ROWJSON(string) TIPJSON(string)                                  ///
+        NTABS(integer)                                                   ///
+        TABROWJSONS(string) TIPJSON(string)                              ///
         EXPORT(string) ISOFFline(integer)                                ///
         TYPE(string) SCHEME(string) TITLE(string)                        ///
         XVAR(string)                                                     ///
@@ -22,7 +32,8 @@ program define sparkta2_chart_writehtml
         ISDOWNload(integer) ISDATAtable(integer) ISANImate(integer)      ///
         ISTX2036Style(integer) DOWNLOADPos(string)                       ///
         WIDTH(integer) HEIGHT(integer)                                   ///
-        [ SUBtitle(string) NOTE(string)                                  ///
+        [ TABLABELS(string) TABSTYle(string)                             ///
+          SUBtitle(string) NOTE(string)                                  ///
           XLAbel(string) YLAbel(string)                                  ///
           YVAR(string) NAME(string) OVER(string)                         ///
           LEVel(string) TIME(string)                                     ///
@@ -30,6 +41,31 @@ program define sparkta2_chart_writehtml
           SORTEDstr(string)                                              ///
           WRAPlabel(string) GUTTERwidth(integer 0) ]
     if "`downloadpos'" == "" local downloadpos "side"
+    if "`tabstyle'"    == "" local tabstyle "tabs"
+
+    * ---- Unpack the per-tab pipe lists into indexed locals ----------------
+    _s2wc_splitpipe, name(_trow) value(`"`tabrowjsons'"')
+    _s2wc_splitpipe, name(_tlab) value(`"`macval(tablabels)'"')
+
+    * Free-text meta strings are written inside JS double-quoted literals —
+    * escape backslashes FIRST, then double quotes (same order as labels).
+    foreach _m in xlabel ylabel levelorder centerlevel sortedstr {
+        local `_m' : subinstr local `_m' `"\"' `"\\"', all
+        local `_m' : subinstr local `_m' `"""' `"\""', all
+    }
+
+    * JSON-safe numeric literals (v0.8.0): Stata renders fractional reals
+    * without a leading zero (0.55 -> ".55").  A bare .55 is a legal JS
+    * number literal but NOT legal JSON, so restore the leading zero for
+    * the two real-typed meta fields before they hit the payload.
+    foreach _m in innerradius duration {
+        if substr("``_m''", 1, 1) == "." {
+            local `_m' "0``_m''"
+        }
+        else if substr("``_m''", 1, 2) == "-." {
+            local `_m' = "-0" + substr("``_m''", 2, .)
+        }
+    }
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
@@ -90,6 +126,15 @@ program define sparkta2_chart_writehtml
     file write `fh' `".chartcard .race-time{font:30px sans-serif;font-weight:700;fill:#94a3b8;text-anchor:end;}"' _n
     file write `fh' `"#tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}"' _n
     file write `fh' `".note{margin-top:14px;color:var(--muted);font-size:.78rem;}"' _n
+    * v0.8.0 dashtab bar.  Default "tabs" style: underline tab strip riding
+    * the card row; "buttons" style: pill button group.
+    file write `fh' `".dashtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;border-bottom:2px solid var(--line);}"' _n
+    file write `fh' `".dashtabs button{appearance:none;background:none;border:none;border-bottom:3px solid transparent;padding:8px 14px;font-size:.92rem;font-weight:600;color:var(--muted);cursor:pointer;margin-bottom:-2px;font-family:inherit;}"' _n
+    file write `fh' `".dashtabs button:hover{color:var(--ink);}"' _n
+    file write `fh' `".dashtabs button.active{color:var(--accent);border-bottom-color:var(--accent);}"' _n
+    file write `fh' `".dashtabs.buttons{border-bottom:none;gap:8px;}"' _n
+    file write `fh' `".dashtabs.buttons button{border:1px solid var(--line);border-radius:999px;padding:7px 16px;margin-bottom:0;background:#fff;}"' _n
+    file write `fh' `".dashtabs.buttons button.active{background:var(--ink);color:#fff;border-color:var(--ink);}"' _n
     * Under-chart export footer (downloadpos=below).
     file write `fh' `"#chart-footer{display:none;justify-content:flex-end;align-items:center;gap:8px;padding:8px 0 0;border-top:1px solid var(--line);margin-top:8px;}"' _n
     file write `fh' `"#chart-footer.active{display:flex;}"' _n
@@ -119,7 +164,7 @@ program define sparkta2_chart_writehtml
     file write `fh' `"#datatable .dt-table tr:hover td{background:#f8fafc;}"' _n
     file write `fh' `"#datatable .dt-truncated{padding:8px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:.78rem;background:#f8fafc;border-radius:0 0 8px 8px;}"' _n
     * Print stylesheet
-    file write `fh' `"@media print {.controls{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}"' _n
+    file write `fh' `"@media print {.controls{display:none !important;}.dashtabs{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}"' _n
     file write `fh' `"</style>"' _n
 
     if `isoffline' {
@@ -137,6 +182,16 @@ program define sparkta2_chart_writehtml
     if "`subtitle'" != "" {
         local esc_sub : subinstr local subtitle `"&"' `"&amp;"', all
         file write `fh' `"<p class="sub">`esc_sub'</p>"' _n
+    }
+    * Dashtab bar (only when there is more than one tab).  Buttons are
+    * populated by the bootstrap script from window.__SPARKTA2_CHART_TABS__.
+    if `ntabs' > 1 {
+        if "`tabstyle'" == "buttons" {
+            file write `fh' `"<div class="dashtabs buttons" id="dashtabs"></div>"' _n
+        }
+        else {
+            file write `fh' `"<div class="dashtabs" id="dashtabs"></div>"' _n
+        }
     }
     file write `fh' `"<div class="panels">"' _n
     file write `fh' `"  <div class="card controls" id="controls"></div>"' _n
@@ -172,33 +227,97 @@ program define sparkta2_chart_writehtml
     file write `fh' `"})();"' _n
     file write `fh' `"</script>"' _n
 
-    * --- The JSON payload ------------------------------------------------
+    * --- The payload: one config per tab (v0.8.0) -------------------------
+    * The meta block is identical across tabs today (dashtab splits rows,
+    * not chart settings); tooltipvars is variable metadata only, so the
+    * same tipjson file is appended into every tab's cfg.
     file write `fh' `"<script>"' _n
-    file write `fh' `"window.__SPARKTA2_CHART__ = {"' _n
-    file write `fh' `""meta":{"' _n
-    file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
-    file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
-    file write `fh' `""xlabel":"`xlabel'","ylabel":"`ylabel'","' _n
-    file write `fh' `""name":"`name'","over":"`over'","' _n
-    file write `fh' `""level":"`level'","time":"`time'","' _n
-    file write `fh' `""levelorder":"`levelorder'","centerlevel":"`centerlevel'","' _n
-    file write `fh' `""horizontal":`horizontal',"stacked":`stacked',"normalize":`normalize',"' _n
-    file write `fh' `""suppressaxis":`suppressaxis',"directlabels":`directlabels',"' _n
-    file write `fh' `""innerradius":`innerradius',"top":`top',"fps":`fps',"duration":`duration',"' _n
-    file write `fh' `""sorted":"`sortedstr'","' _n
-    file write `fh' `""download":`isdownload',"datatable":`isdatatable',"animate":`isanimate',"' _n
-    file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
-    file write `fh' `""labelwrap":"`wraplabel'","labelwidth":`gutterwidth',"' _n
-    file write `fh' `""width":`width',"height":`height'"' _n
-    file write `fh' `"},"' _n
-    file write `fh' `""tooltipvars":"' _n
-    sparkta2_appendfile, fh(`fh') path("`tipjson'") outpath(`"`export'"')
-    file write `fh' `","' _n
-    file write `fh' `""data":["' _n
-    sparkta2_appendfile, fh(`fh') path("`rowjson'") outpath(`"`export'"')
-    file write `fh' `"]"' _n
-    file write `fh' `"};"' _n
-    file write `fh' `"sparkta2RenderChart(window.__SPARKTA2_CHART__);"' _n
+    file write `fh' `"window.__SPARKTA2_CHART_TABS__ = ["' _n
+    forvalues _t = 1/`ntabs' {
+        if `_t' > 1 file write `fh' `","' _n
+        local _lab `"`macval(_tlab`_t')'"'
+        if `"`macval(_lab)'"' == "" local _lab "Tab `_t'"
+        local _lab : subinstr local _lab `"\"' `"\\"', all
+        local _lab : subinstr local _lab `"""' `"\""', all
+        file write `fh' `"{"label":"`macval(_lab)'","cfg":{"' _n
+        file write `fh' `""meta":{"' _n
+        file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
+        file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
+        file write `fh' `""xlabel":"`xlabel'","ylabel":"`ylabel'","' _n
+        file write `fh' `""name":"`name'","over":"`over'","' _n
+        file write `fh' `""level":"`level'","time":"`time'","' _n
+        file write `fh' `""levelorder":"`levelorder'","centerlevel":"`centerlevel'","' _n
+        file write `fh' `""horizontal":`horizontal',"stacked":`stacked',"normalize":`normalize',"' _n
+        file write `fh' `""suppressaxis":`suppressaxis',"directlabels":`directlabels',"' _n
+        file write `fh' `""innerradius":`innerradius',"top":`top',"fps":`fps',"duration":`duration',"' _n
+        file write `fh' `""sorted":"`sortedstr'","' _n
+        file write `fh' `""download":`isdownload',"datatable":`isdatatable',"animate":`isanimate',"' _n
+        file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
+        file write `fh' `""labelwrap":"`wraplabel'","labelwidth":`gutterwidth',"' _n
+        file write `fh' `""width":`width',"height":`height'"' _n
+        file write `fh' `"},"' _n
+        file write `fh' `""tooltipvars":"' _n
+        sparkta2_appendfile, fh(`fh') path("`tipjson'") outpath(`"`export'"')
+        file write `fh' `","' _n
+        file write `fh' `""data":["' _n
+        sparkta2_appendfile, fh(`fh') path("`_trow`_t''") outpath(`"`export'"')
+        file write `fh' `"]}}"' _n
+    }
+    file write `fh' _n `"];"' _n
+
+    * Bootstrap: build the tab bar (if any), then render the active tab by
+    * re-invoking sparkta2RenderChart with that tab's config.  The engine
+    * rebuilds #controls / #chart from scratch on every call, so a tab
+    * switch is a clean re-render; transient chrome (data table, tooltip,
+    * footer, sidebar-collapse classes) is reset here first.
+    file write `fh' `"(function(){"' _n
+    file write `fh' `"var tabs=window.__SPARKTA2_CHART_TABS__||[];"' _n
+    file write `fh' `"if(!tabs.length)return;"' _n
+    file write `fh' `"var bar=document.getElementById('dashtabs');"' _n
+    file write `fh' `"function show(i){"' _n
+    file write `fh' `"if(bar){var bs=bar.getElementsByTagName('button');for(var j=0;j<bs.length;j++){bs[j].className=(j===i?'active':'');}}"' _n
+    file write `fh' `"var dt=document.getElementById('datatable');if(dt){dt.className='';dt.innerHTML='';dt.style.display='';}"' _n
+    file write `fh' `"var tt=document.getElementById('tooltip');if(tt){tt.style.opacity=0;}"' _n
+    file write `fh' `"var cf=document.getElementById('chart-footer');if(cf){cf.className='';cf.innerHTML='';}"' _n
+    file write `fh' `"var ctl=document.getElementById('controls');if(ctl){ctl.className='card controls';}"' _n
+    file write `fh' `"var pn=document.querySelector('.panels');if(pn){pn.className='panels';}"' _n
+    file write `fh' `"sparkta2RenderChart(tabs[i].cfg);"' _n
+    file write `fh' `"}"' _n
+    file write `fh' `"if(bar&&tabs.length>1){tabs.forEach(function(t,i){"' _n
+    file write `fh' `"var b=document.createElement('button');b.type='button';b.textContent=t.label;"' _n
+    file write `fh' `"b.addEventListener('click',function(){show(i);});bar.appendChild(b);});}"' _n
+    file write `fh' `"show(0);"' _n
+    file write `fh' `"})();"' _n
     file write `fh' `"</script></body></html>"' _n
     file close `fh'
+end
+
+* Split a pipe-separated string into caller locals `name'1..`name'N and
+* set `name'_n to N.  Empty segments are preserved (they signal "use the
+* default" to the caller).  NOTE: c_local copies its argument verbatim —
+* wrapping the value in compound quotes would store the quote characters
+* themselves — so the piece is expanded inline, macval()-guarded against
+* re-expansion of any ` or $ inside the stored text.
+* Named _s2wc_splitpipe (chart) — NOT _s2wh_splitpipe, which lives in
+* sparkta2_writehtml.ado: a duplicate program name across ado files makes
+* Stata error on redefinition when both files load in one session.
+program define _s2wc_splitpipe
+    version 17.0
+    * value(string) — NOT `asis': asis would keep the caller's outer quote
+    * characters inside the value, and they would end up inside the split
+    * pieces (unbalanced, one per piece).
+    syntax , NAME(name) [VALue(string)]
+    local str `"`value'"'
+    local k 0
+    local _pp = strpos(`"`str'"', "|")
+    while `_pp' > 0 {
+        local ++k
+        local piece = substr(`"`str'"', 1, `_pp' - 1)
+        c_local `name'`k' `macval(piece)'
+        local str = substr(`"`str'"', `_pp' + 1, .)
+        local _pp = strpos(`"`str'"', "|")
+    }
+    local ++k
+    c_local `name'`k' `macval(str)'
+    c_local `name'_n `k'
 end

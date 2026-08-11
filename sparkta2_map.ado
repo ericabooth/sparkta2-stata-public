@@ -297,26 +297,18 @@ program define sparkta2_map, rclass
         local _cty_keep_sp = strtrim("`_cty_keep_sp'")
         local _cty_keep_set 1
     }
+    * zoomto() tokens are passed RAW (pipe-joined): the engine zero-pads each
+    * one with the ACTIVE tab's idwidth before matching feature ids, so one
+    * list works across dashtab() tabs with different id widths.  (Padding
+    * here with the global idwidth broke matching on any tab whose
+    * dashtabidwidth() differed.)
     local _zoomto_list ""
     if "`zoomto'" != "" {
         local _ztmp = subinstr("`zoomto'", "|", " ", .)
         local _ztmp = itrim("`_ztmp'")
         foreach _fc of local _ztmp {
-            * Same padding rule as the counties() and row-loop paths.
-            local _fc_p = "`_fc'"
-            if strlen("`_fc_p'") < `idwidth' {
-                capture local _rn = real("`_fc_p'")
-                if !_rc & "`_fc_p'" != "." & !missing(`_rn') {
-                    local _padlen = `idwidth' - strlen("`_fc_p'")
-                    local _zeros = ""
-                    forvalues _z = 1/`_padlen' {
-                        local _zeros = "0`_zeros'"
-                    }
-                    local _fc_p = "`_zeros'`_fc_p'"
-                }
-            }
-            if "`_zoomto_list'" == "" local _zoomto_list "`_fc_p'"
-            else                       local _zoomto_list "`_zoomto_list'|`_fc_p'"
+            if "`_zoomto_list'" == "" local _zoomto_list "`_fc'"
+            else                       local _zoomto_list "`_zoomto_list'|`_fc'"
         }
     }
 
@@ -364,6 +356,13 @@ program define sparkta2_map, rclass
             * "|" is the tab-list separator downstream — swap it out of labels
             local _dtlab_`_k' : subinstr local _dtlab_`_k' "|" "/", all
         }
+    }
+
+    * The per-tab modifiers only mean something with dashtab(); silently
+    * applying dashtabgeo() etc. to a single-tab map would mask user error.
+    if "`dashtab'" == "" & "`dashtabgeo'`dashtablayer'`dashtabidwidth'" != "" {
+        display as error "sparkta2: dashtabgeo()/dashtablayer()/dashtabidwidth() require dashtab()"
+        exit 198
     }
 
     * Per-tab geo / layer / idwidth: pipe (geo, layer) or space (idwidth)
@@ -436,7 +435,10 @@ program define sparkta2_map, rclass
     if "`overlays'" != "" {
         foreach _ov of local overlays {
             local ++_n_ov
-            capture confirm variable `_ov'
+            * exact: without it, varabbrev reclassifies an intended topo
+            * object token (states, nation) as a dissolve variable whenever
+            * some variable in memory abbreviates to it (e.g. nationalrank).
+            capture confirm variable `_ov', exact
             if !_rc {
                 local _ovkind_`_n_ov' "groupvar"
                 local _ovkey_`_n_ov' "`_ov'"
@@ -494,20 +496,25 @@ program define sparkta2_map, rclass
         if `"`rasterlabel'"' == "" {
             local rasterlabel = substr(`"`rasterimage'"', strrpos(`"`rasterimage'"', "/") + 1, .)
         }
-        tempfile rasterb64
-        python:
-import base64, os
-from sfi import Macro
-_p = Macro.getLocal("rasterimage")
-_o = Macro.getLocal("rasterb64")
-_ext = os.path.splitext(_p)[1].lower().lstrip(".")
-_mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-         "gif": "image/gif", "webp": "image/webp"}.get(_ext, "image/png")
-with open(_p, "rb") as _f:
-    _b64 = base64.b64encode(_f.read()).decode("ascii")
-with open(_o, "w") as _f:
-    _f.write("data:" + _mime + ";base64," + _b64)
-end
+        * Base64-encode via a generated python script.  A `python:' block
+        * cannot live inside a program body (its `end' terminates the ado
+        * loader's program parse), and a module-level block would drag
+        * Python in at load time for everyone — `python script' keeps the
+        * dependency lazy: only rasterimage() callers ever touch Python.
+        tempfile rasterb64 _pybase
+        local pyscript "`_pybase'.py"
+        tempname pyf
+        file open `pyf' using "`pyscript'", write text replace
+        file write `pyf' "import base64, os, sys" _n
+        file write `pyf' "src, dst = sys.argv[1], sys.argv[2]" _n
+        file write `pyf' `"ext = os.path.splitext(src)[1].lower().lstrip(".")"' _n
+        file write `pyf' `"mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg","' _n
+        file write `pyf' `"        "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")"' _n
+        file write `pyf' `"b64 = base64.b64encode(open(src, "rb").read()).decode("ascii")"' _n
+        file write `pyf' `"open(dst, "w").write("data:" + mime + ";base64," + b64)"' _n
+        file close `pyf'
+        python script "`pyscript'", args(`"`rasterimage'"' `"`rasterb64'"')
+        capture erase "`pyscript'"
         local _has_raster 1
     }
     local is_maplabels = cond("`maplabels'" != "", 1, 0)
@@ -563,6 +570,11 @@ end
                 if `_id_is_string' {
                     local _idraw = `id'[`_i']
                     local _fid = "`_idraw'"
+                    * Empty / "." string ids mirror the numeric-missing skip
+                    * below: they can never join a feature, and once the
+                    * engine zero-pads them they collapse into duplicate
+                    * "00000" keys that crash d3.index().
+                    if trim("`_fid'") == "" | "`_fid'" == "." continue
                     * Pad with leading zeros only if shorter than idwidth -- and
                     * only when the raw value is numeric-looking (FIPS-style).
                     * Already-padded or long string ids are written verbatim.
@@ -624,7 +636,7 @@ end
 
                 file write `rfh' "        {"
                 file write `rfh' `""id":"`_fid'""'
-                file write `rfh' `","name":"`_nm'""'
+                file write `rfh' `","name":"`macval(_nm)'""'
 
                 if missing(`_xv') file write `rfh' `","x":null"'
                 else              file write `rfh' `","x":"' (`_xv')
@@ -666,7 +678,7 @@ end
                     }
                     local _val : subinstr local _val `"\"' `"\\"', all
                     local _val : subinstr local _val `"""' `"\""', all
-                    file write `rfh' `","f__`_fv'":"`_val'""'
+                    file write `rfh' `","f__`_fv'":"`macval(_val)'""'
                 }
                 foreach _sv of local slid_vars {
                     local _snum = `_sv'[`_i']
@@ -696,7 +708,7 @@ end
                     }
                     local _val : subinstr local _val `"\"' `"\\"', all
                     local _val : subinstr local _val `"""' `"\""', all
-                    file write `rfh' `","o__`_gv'":"`_val'""'
+                    file write `rfh' `","o__`_gv'":"`macval(_val)'""'
                 }
                 foreach _tv of local tip_vars {
                     capture confirm string variable `_tv'
@@ -705,7 +717,7 @@ end
                         local _tval = `_tv'[`_i']
                         local _tval : subinstr local _tval `"\"' `"\\"', all
                         local _tval : subinstr local _tval `"""' `"\""', all
-                        file write `rfh' `","t__`_tv'":"`_tval'""'
+                        file write `rfh' `","t__`_tv'":"`macval(_tval)'""'
                     }
                     else {
                         local _tnum = `_tv'[`_i']
@@ -714,7 +726,7 @@ end
                             local _tdsp : label `_tlab' `_tnum'
                             local _tdsp : subinstr local _tdsp `"\"' `"\\"', all
                             local _tdsp : subinstr local _tdsp `"""' `"\""', all
-                            file write `rfh' `","t__`_tv'":"`_tdsp'""'
+                            file write `rfh' `","t__`_tv'":"`macval(_tdsp)'""'
                         }
                         else if missing(`_tnum') {
                             file write `rfh' `","t__`_tv'":null"'
@@ -760,8 +772,9 @@ end
             local ++_fcount
             local _lbl : variable label `_fv'
             if "`_lbl'" == "" local _lbl "`_fv'"
+            local _lbl : subinstr local _lbl `"\"' `"\\"', all
             local _lbl : subinstr local _lbl `"""' `"\""', all
-            file write `rfh' `"{"var":"`_fv'","label":"`_lbl'","values":["'
+            file write `rfh' `"{"var":"`_fv'","label":"`macval(_lbl)'","values":["'
             * Drop the `clean' option: it strips the compound quotes that
             * levelsof wraps multi-word string values in, so values like
             * "Middle / Jr. High" survive as a single token through foreach.
@@ -781,7 +794,7 @@ end
                 else local _disp `"`_lv'"'
                 local _disp : subinstr local _disp `"\"' `"\\"', all
                 local _disp : subinstr local _disp `"""' `"\""', all
-                file write `rfh' `""`_disp'""'
+                file write `rfh' `""`macval(_disp)'""'
             }
             file write `rfh' "]}"
         }
@@ -802,8 +815,9 @@ end
             local ++_scount
             local _lbl : variable label `_sv'
             if "`_lbl'" == "" local _lbl "`_sv'"
+            local _lbl : subinstr local _lbl `"\"' `"\\"', all
             local _lbl : subinstr local _lbl `"""' `"\""', all
-            file write `rfh' `"{"var":"`_sv'","label":"`_lbl'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
+            file write `rfh' `"{"var":"`_sv'","label":"`macval(_lbl)'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
         }
         file write `rfh' `"],"tooltipvars":["'
         local _tcount = 0
@@ -812,12 +826,13 @@ end
             local ++_tcount
             local _lbl : variable label `_tv'
             if "`_lbl'" == "" local _lbl "`_tv'"
+            local _lbl : subinstr local _lbl `"\"' `"\\"', all
             local _lbl : subinstr local _lbl `"""' `"\""', all
             capture confirm numeric variable `_tv'
             local _isnum = (_rc == 0)
             local _tlabname : value label `_tv'
             local _numfmt = cond(`_isnum' & "`_tlabname'" == "", 1, 0)
-            file write `rfh' `"{"var":"`_tv'","label":"`_lbl'","numeric":`_numfmt'}"'
+            file write `rfh' `"{"var":"`_tv'","label":"`macval(_lbl)'","numeric":`_numfmt'}"'
         }
         file write `rfh' `"]"'
         * v0.8.0 overlay specs: [{kind, key, label}, ...]
@@ -827,7 +842,7 @@ end
             local _olb `"`_ovlab_`_o''"'
             local _olb : subinstr local _olb `"\"' `"\\"', all
             local _olb : subinstr local _olb `"""' `"\""', all
-            file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`_olb'"}"'
+            file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`macval(_olb)'"}"'
         }
         file write `rfh' `"]"'
         * v0.8.0 raster layer: bounds + opacity + base64 data URI.
@@ -835,7 +850,7 @@ end
             local _rlb `"`rasterlabel'"'
             local _rlb : subinstr local _rlb `"\"' `"\\"', all
             local _rlb : subinstr local _rlb `"""' `"\""', all
-            file write `rfh' `","raster":{"bounds":[`_rb_w',`_rb_s',`_rb_e',`_rb_n'],"opacity":`rasteropacity',"label":"`_rlb'","href":""'
+            file write `rfh' `","raster":{"bounds":[`_rb_w',`_rb_s',`_rb_e',`_rb_n'],"opacity":`rasteropacity',"label":"`macval(_rlb)'","href":""'
             sparkta2_appendfile, fh(`rfh') path("`rasterb64'") outpath("`metajson_`_t''")
             file write `rfh' `""}"'
         }
@@ -850,7 +865,7 @@ end
             local _tabgeos      "`_tgeo_`_t''"
             local _tablayers    "`_tlayer_`_t''"
             local _tabidwidths  "`_tidw_`_t''"
-            local _tablabels    `"`_dtlab_`_t''"'
+            local _tablabels    `"`macval(_dtlab_`_t')'"'
         }
         else {
             local _tabrowjsons  "`_tabrowjsons'|`rowjson_`_t''"
@@ -859,7 +874,7 @@ end
             local _tabgeos      "`_tabgeos'|`_tgeo_`_t''"
             local _tablayers    "`_tablayers'|`_tlayer_`_t''"
             local _tabidwidths  "`_tabidwidths' `_tidw_`_t''"
-            local _tablabels    `"`_tablabels'|`_dtlab_`_t''"'
+            local _tablabels    `"`macval(_tablabels)'|`macval(_dtlab_`_t')'"'
         }
     }
 
@@ -873,7 +888,7 @@ end
         tabtopopaths("`_tabtopopaths'")                     ///
         tabgeos("`_tabgeos'") tablayers("`_tablayers'")     ///
         tabidwidths("`_tabidwidths'")                       ///
-        tablabels(`"`_tablabels'"')                         ///
+        tablabels(`"`macval(_tablabels)'"')                 ///
         tabstyle("`dashtabstyle'")                          ///
         islabels(`is_maplabels') labelsize(`labelsize')     ///
         export(`"`export'"') isoffline(`is_offline')        ///
@@ -901,7 +916,7 @@ end
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_total'  Geo: `_tabgeos'  Scheme: `scheme'  Mode: `mode'"
     if `_ntabs' > 1 {
-        display as text "  Tabs: `_ntabs' (`dashtab') — `_tablabels'"
+        display as text `"  Tabs: `_ntabs' (`dashtab') — `macval(_tablabels)'"'
     }
 
     return local export "`export'"

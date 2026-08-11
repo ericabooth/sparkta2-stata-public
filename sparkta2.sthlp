@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.7.9  11aug2026}{...}
+{* *! version 0.8.0  11aug2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.7.8):
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.0):
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -43,6 +43,18 @@ The new D3-native versions are exposed as {cmd:type(bar2)} and
 optional {cmd:over()} for grouping/stacking).
 
 {pstd}
+{bf:New in v0.8.0.}  Native map and chart types gain {cmd:dashtab()} --
+higher-order tabs that render one full output per level of a variable,
+switched by a tab bar above the chart.  Native map types also gain
+overlay layers ({cmd:overlays()}, {cmd:maplabels}, {cmd:rasterimage()})
+drawn above or below the data layer, each toggleable from a new "Layers"
+controls section.  {cmd:sparkta2_dashboard} gains a {cmd:tabs} option for
+a tabbed page layout -- the composition path for sparkta pass-through
+charts, which cannot use native {cmd:dashtab()}.  See
+{it:Higher-order tabs, overlays, and raster underlays (v0.8.0)} and
+examples 9k-9m below.
+
+{pstd}
 Map design borrows from Mike Bostock's Observable notebooks
 ({browse "https://observablehq.com/@d3/bivariate-choropleth":bivariate-choropleth},
 {browse "https://observablehq.com/@mbostock/methods-of-comparison-compared":methods-of-comparison-compared},
@@ -60,7 +72,7 @@ and from the D3 Graph Gallery
 Maps (handled by sparkta2 directly):
 {p_end}
 {p 8 16 2}
-{cmd:sparkta2} {it:yvar} [{it:xvar}] {ifin} {cmd:,} {cmd:id(}{it:idvar}{cmd:)}
+{cmd:sparkta2} {it:xvar} [{it:yvar}] {ifin} {cmd:,} {cmd:id(}{it:idvar}{cmd:)}
 {cmd:type(}{it:maptype}{cmd:)} [{it:map_options}]
 {p_end}
 
@@ -86,7 +98,7 @@ Combined dashboard:
 {p_end}
 {p 8 16 2}
 {cmd:sparkta2_dashboard,} {cmd:files(}{it:list}{cmd:)} {cmd:export(}{it:path}{cmd:)}
-[{cmd:titles(}{it:pipelist}{cmd:)} {it:other}]
+[{cmd:titles(}{it:pipelist}{cmd:)} {cmd:tabs} {it:other}]
 {p_end}
 
 {phang}
@@ -149,6 +161,22 @@ Map {cmd:type()} values:
 {synopt :{cmd:parallels(}{it:p1 p2}{cmd:)}}override Albers standard parallels in degrees{p_end}
 {synopt :{cmd:center(}{it:lon lat}{cmd:)}}override projection center in degrees{p_end}
 
+{syntab :Higher-order tabs (v0.8.0)}
+{synopt :{cmd:dashtab(}{it:varname}{cmd:)}}one full map per level of {it:varname}, with a tab bar above the output; string or labeled-numeric, 2-10 levels ({cmd:levelsof} order); native types only{p_end}
+{synopt :{cmd:dashtabgeo(}{it:a}{c |}{it:b}{c |}{it:...}{cmd:)}}per-tab {cmd:geo()}, pipe-separated in {cmd:levelsof} order; empty entries fall back to {cmd:geo()}{p_end}
+{synopt :{cmd:dashtablayer(}{it:a}{c |}{it:b}{c |}{it:...}{cmd:)}}per-tab {cmd:layer()}, pipe-separated{p_end}
+{synopt :{cmd:dashtabidwidth(}{it:# #...}{cmd:)}}per-tab {cmd:idwidth()}, space-separated{p_end}
+{synopt :{cmd:dashtabstyle(}tabs{c |}buttons{cmd:)}}underline tab strip (default) or pill buttons ("dashbuttons"){p_end}
+
+{syntab :Overlays and raster underlays (v0.8.0)}
+{synopt :{cmd:overlays(}{it:tokens}{cmd:)}}checkbox-toggleable layers on top of the data layer: each token is a variable (client-side dissolve into labelled group boundaries) or a TopoJSON object name (boundary mesh){p_end}
+{synopt :{cmd:maplabels}}feature name labels at centroids, with a "Name labels" checkbox; regions-based types only (choropleth/bivariate){p_end}
+{synopt :{cmd:labelsize(}{it:#}{cmd:)}}label font size in SVG px; default 9{p_end}
+{synopt :{cmd:rasterimage(}{it:file}{cmd:)}}georeferenced raster image under the data layer, base64-embedded (PNG/JPG/GIF/WebP); requires {cmd:rasterbounds()} and Stata's Python integration{p_end}
+{synopt :{cmd:rasterbounds(}{it:west south east north}{cmd:)}}raster extent in decimal degrees{p_end}
+{synopt :{cmd:rasteropacity(}{it:#}{cmd:)}}raster opacity, 0-1; default 0.75{p_end}
+{synopt :{cmd:rasterlabel(}{it:str}{cmd:)}}checkbox label for the raster layer; default = image filename{p_end}
+
 {syntab :Output}
 {synopt :{cmd:title(}{it:string}{cmd:)}}{p_end}
 {synopt :{cmd:subtitle(}{it:string}{cmd:)}}{p_end}
@@ -159,7 +187,7 @@ Map {cmd:type()} values:
 {synopt :{cmd:offline}}embed D3 + topojson-client + d3-hexbin inline (no CDN at runtime){p_end}
 {synopt :{cmd:noopen}}do not auto-open the result in the default browser{p_end}
 {synopt :{cmd:width(}{it:#}{cmd:)}}svg viewBox width; default 980{p_end}
-{synopt :{cmd:height(}{it:#}{cmd:)}}svg viewBox height; default 720{p_end}
+{synopt :{cmd:height(}{it:#}{cmd:)}}svg viewBox height; default 828{p_end}
 {synoptline}
 
 {phang}
@@ -185,7 +213,7 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:counties(fips_list)}}Counties not in the list are not embedded at all — they don't render, even as grey.{p_end}
 {synopt :{cmd:[if] [in]}}Same effect as {cmd:counties()} but expressed as a Stata logical condition. Excluded rows don't ship.{p_end}
 {synopt :{cmd:zoomto(fips_list)}}On page load, the projection is auto-zoomed to the bounding box of the listed features.{p_end}
-{synopt :{i:default (no} {cmd:nozoom}{i:)}}Mouse wheel zooms in/out. Drag pans. {bf:Clicking a feature} zooms the map to that feature's bounding box. {bf:Double-clicking} the map resets to the initial view. A {bf:Reset zoom} button appears in the controls panel.{p_end}
+{synopt :{it:default (no} {cmd:nozoom}{it:)}}Mouse wheel zooms in/out. Drag pans. {bf:Clicking a feature} zooms the map to that feature's bounding box. {bf:Double-clicking} the map resets to the initial view. A {bf:Reset zoom} button appears in the controls panel.{p_end}
 {synopt :{cmd:nozoom}}All of the above are disabled — the map renders statically. Use for slide exports.{p_end}
 {synopt :{cmd:swapbutton}}A "Swap axes (X ⇄ Y)" button appears. Clicking flips the variable assignment for bivariate/diff/ratio.{p_end}
 {synopt :{cmd:download}}An "Export {c -(}" dropdown appears with {bf:Download PNG} (full SVG rasterised, all panels at 2x), {bf:Download SVG} (live SVG with inlined CSS), and {bf:Print to PDF{c 133}} (opens the browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).{p_end}
@@ -201,6 +229,8 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:basemap}}A faded {bf:states} (or {bf:nation}) outline is drawn behind the focused features and remains visible at every zoom level.{p_end}
 {synopt :{cmd:hexradius() hexstat()}}Active only for {cmd:type(hexbin)}. Hovering a hex shows its aggregate value and a sample of the points it contains.{p_end}
 {synopt :{cmd:pointsize()}}Active only for {cmd:type(points)}. Hovering a circle shows the underlying ZIP/feature record.{p_end}
+{synopt :{cmd:dashtab()}}A tab strip renders above the output -- one tab per level of the variable, labelled by the string value / value label.  Clicking a tab swaps in that level's full map or chart.  {cmd:dashtabstyle(buttons)} restyles the underline strip as pill buttons.{p_end}
+{synopt :{cmd:overlays() maplabels rasterimage()}}A new {bf:Layers} section appears in the controls panel: one checkbox per overlay (labelled by the variable label or object name), a {bf:Name labels} checkbox for {cmd:maplabels}, and a checkbox for the raster underlay (named by {cmd:rasterlabel()}).  {cmd:maplabels} text counter-scales against pan/zoom so its on-screen size stays constant.{p_end}
 {synopt :Mode toggle (auto)}If two or more modes are allowed, a button row appears.  Click a button to switch the active mode.  Disabled when {cmd:multiples} is on.{p_end}
 {synoptline}
 
@@ -244,10 +274,11 @@ aggregator; default {bf:mean}.
 {phang}
 {bf:Categorical filters and labelled numerics}{break}
 {cmd:filters(varlist)} understands two shapes: a string variable, or a
-numeric variable with a value label.  Pass {cmd:label define} + {cmd:label
-values} on your numeric region/category codes BEFORE calling sparkta2 —
-the dropdown shows the value label, not the raw number.  Without a value
-label, numeric codes are displayed as raw numbers.  Multi-word string
+numeric variable with a value label.  Pass {cmd:label define} +
+{cmd:label values} on your numeric region/category codes BEFORE calling
+sparkta2 — the dropdown shows the value label, not the raw number.
+Without a value label, numeric codes are displayed as raw numbers.
+Multi-word string
 values like {bf:"Middle / Jr. High"} are preserved as single dropdown
 entries (no whitespace tokenization).
 
@@ -286,9 +317,9 @@ geography-agnostic.  Two paths to map something other than Texas counties:
 {cmd:texas_counties.topojson} actually contains three layers: {bf:counties}
 (254 TX, 5-digit FIPS), {bf:states} (56 US states + DC + territories,
 2-digit FIPS), and {bf:nation} (one US outline). To draw an all-US state
-choropleth, supply 2-digit state FIPS in {cmd:id()} and pass {cmd:layer(states)
-idwidth(2)}. The same data drives {cmd:type(hexbin)} for a state-level
-hexbin variant.
+choropleth, supply 2-digit state FIPS in {cmd:id()} and pass
+{cmd:layer(states) idwidth(2)}. The same data drives {cmd:type(hexbin)}
+for a state-level hexbin variant.
 
 {phang}
 {bf:Add a new geography.}{break}
@@ -415,6 +446,90 @@ albers_usa for everything; v0.6.1 introduced albers_tx with a ~1.3 deg
 residual lean; v0.7.8 retunes albers_tx to zero lean.  Run any sparkta2
 map call and the dispatcher banner at the top of the Stata Results window
 prints the running version.{p_end}
+
+
+{title:Higher-order tabs, overlays, and raster underlays (v0.8.0)}
+
+{pstd}
+{bf:Higher-order tabs.}  Where {cmd:over()} breaks out subgroups within a
+chart and {cmd:by()} makes small multiples, {cmd:dashtab(}{it:varname}{cmd:)}
+renders one {bf:full map} per level of {it:varname}, with a tab bar above
+the output.  {it:varname} is a string or labeled-numeric variable with
+2-10 levels; tabs appear in {cmd:levelsof} order and take their labels
+from the string value / value label.  Rows with a missing {cmd:dashtab()}
+value appear on no tab.  {cmd:dashtab()} cannot be combined with
+{cmd:counties()}, and is not available for sparkta pass-through types --
+the dispatcher errors and points at {cmd:sparkta2_dashboard}'s new
+{cmd:tabs} option instead (see example 9m).
+
+{pstd}
+{bf:Per-tab geometry.}  {cmd:dashtabgeo()} and {cmd:dashtablayer()} take
+pipe-separated values in {cmd:levelsof} order; empty entries fall back to
+{cmd:geo()} / {cmd:layer()}.  {cmd:dashtabidwidth()} takes space-separated
+widths.  This is what lets one HTML hold counties {bf:and} school
+districts: {cmd:dashtab(level) dashtabgeo(texas|texas_districts) dashtabidwidth(5 7)}.
+{cmd:dashtabstyle(buttons)} swaps the underline tab strip (the default,
+{cmd:dashtabstyle(tabs)}) for pill buttons ("dashbuttons").
+
+{pstd}
+The native chart types ({cmd:donut}, {cmd:bar2}, {cmd:line2},
+{cmd:divbar}, {cmd:barrace}) also accept {cmd:dashtab()} and
+{cmd:dashtabstyle()} with the same semantics; the per-tab geo variants
+apply to maps only.
+
+{pstd}
+{bf:Overlays.}  {cmd:overlays(}{it:tokens}{cmd:)} draws
+checkbox-toggleable layers on {bf:top} of the data layer, each with its
+own checkbox in a new "Layers" controls section.  Each space-separated
+token is either:
+
+{phang2}o  a {bf:variable} in the data: the focused features are dissolved
+client-side by that variable's value ({cmd:topojson.merge} in the browser
+-- no extra shapefile needed) and drawn as labelled group boundaries.
+For example, {cmd:overlays(region)} draws Comptroller-region outlines
+with region names on top of a county choropleth.  The checkbox label is
+the variable label.{p_end}
+
+{phang2}o  the {bf:name of another object} in the TopoJSON ({cmd:states},
+{cmd:nation}, ...), drawn as a boundary mesh.{p_end}
+
+{pstd}
+Overlays require a TopoJSON input (arcs); GeoJSON FeatureCollection
+drop-ins (like {bf:texas_districts.geojson}) render no overlays.
+
+{pstd}
+{bf:Name labels.}  {cmd:maplabels} adds feature name labels at centroids
+(uses {cmd:name()}, falls back to the padded id), with a "Name labels"
+checkbox in the Layers section.  Regions-based types only (choropleth /
+bivariate; ignored for hexbin / points).  Labels counter-scale against
+pan and zoom, so their on-screen size stays constant.  Practical up to a
+few hundred features -- for 1,000+ districts, toggle off or subset first.
+{cmd:labelsize(}{it:#}{cmd:)} sets the label font size in SVG px
+(default 9).
+
+{pstd}
+{bf:Raster underlays.}  {cmd:rasterimage(}{it:file}{cmd:)} draws a
+georeferenced raster image {bf:under} the data layer, base64-embedded
+into the HTML so the output stays fully offline (the file grows by ~4/3
+of the image size; >20 MB errors, >2 MB prints a note).  PNG / JPG /
+GIF / WebP.  Requires {cmd:rasterbounds(}{it:west south east north}{cmd:)}
+in decimal degrees, plus Stata's Python integration -- only raster
+callers need Python.  Positioning projects the NW / SE corners and
+stretches the image between them: exact under {cmd:projection(mercator)};
+under the (default) Albers projections the graticule bends while the
+pixels stay straight, so expect drift toward the edges of large extents
+-- fine for regional insets, use mercator for precise alignment.  The
+raster is toggleable via its Layers checkbox;
+{cmd:rasteropacity(}{it:#}{cmd:)} sets the opacity 0-1 (default 0.75) and
+{cmd:rasterlabel(}{it:str}{cmd:)} sets the checkbox label (default = the
+image filename).
+
+{pstd}
+{bf:Tabbed dashboards.}  {cmd:sparkta2_dashboard} gains a {cmd:tabs}
+option: a tabbed layout (one tab per file) instead of the long scroll.
+This is the composition path for switching across sparkta pass-through
+charts at different aggregation levels, which cannot use native
+{cmd:dashtab()}.
 
 
 {title:Examples}
@@ -813,6 +928,32 @@ very long labels you want cleanly truncated for grid embeds
 {phang}{cmd}    export("09j_d_narrow.html"){p_end}
 
 
+{dlgtab:9k. Higher-order tabs — counties vs districts (v0.8.0)}
+
+{phang}{it:One HTML, one full map per level of}{cmd: level}{it:, switched by a tab bar.  Per-tab}{cmd: geo()} {it:and}{cmd: idwidth()} {it:let the county tab and the school-district tab use different geographies.}{p_end}
+
+{phang}{cmd}sparkta2 pov, id(geoid) dashtab(level)                          ///{p_end}
+{phang}{cmd}    dashtabgeo(texas|texas_districts) dashtabidwidth(5 7)      ///{p_end}
+{phang}{cmd}    type(choropleth) export(tabs.html) offline{p_end}
+
+
+{dlgtab:9l. Region overlays + name labels (v0.8.0)}
+
+{phang}{it:Comptroller-region outlines dissolved client-side from the}{cmd: region} {it:variable, a}{cmd: states} {it:boundary mesh, and county name labels -- each toggleable from its own checkbox in the Layers section.}{p_end}
+
+{phang}{cmd}sparkta2 poverty_rate, id(fips) type(choropleth)               ///{p_end}
+{phang}{cmd}    overlays(region states) maplabels labelsize(7)             ///{p_end}
+{phang}{cmd}    export(overlay.html) offline{p_end}
+
+
+{dlgtab:9m. Tabbed dashboard for pass-through charts (v0.8.0)}
+
+{phang}{it:Native}{cmd: dashtab()} {it:is not available for sparkta pass-through types.  Compose instead: export each chart to its own file, then combine with}{cmd: sparkta2_dashboard, tabs} {it:-- one tab per file.}{p_end}
+
+{phang}{cmd}sparkta2_dashboard, files("d1.html d2.html")                    ///{p_end}
+{phang}{cmd}    titles("Districts|Regions") tabs export(dash.html){p_end}
+
+
 {dlgtab:10. Chart pass-through to sparkta}
 
 {phang}{cmd}sparkta2 poverty_rate uninsured_rate,                          ///{p_end}
@@ -828,7 +969,8 @@ very long labels you want cleanly truncated for grid embeds
 {phang}{bf:r(export)} - path of the written HTML.{p_end}
 {phang}{bf:r(type)}   - resolved map type.{p_end}
 {phang}{bf:r(geo)}    - {cmd:geo()} as resolved.{p_end}
-{phang}{bf:r(n_rows)} - number of data rows actually written.{p_end}
+{phang}{bf:r(n_rows)} - number of data rows actually written (v0.8.0: totals across all tabs when {cmd:dashtab()} is set).{p_end}
+{phang}{bf:r(n_tabs)} - number of tabs rendered; 1 when {cmd:dashtab()} is not set (v0.8.0).{p_end}
 
 
 {title:References}
@@ -866,7 +1008,7 @@ register. A runnable proof-of-concept lives at
 {pstd}
 {bf:Auto-resize protocol (v0.7.7).}  Every sparkta2-native HTML page embeds
 a small inline {cmd:<script>} that calls
-{cmd}window.parent.postMessage({type:'sparkta2-resize', height: H}, '*'){txt}
+{cmd}window.parent.postMessage({c -(}type:'sparkta2-resize', height: H{c )-}, '*'){txt}
 on load / window resize / DOM mutation, where H is the rendered content
 height in pixels.  Parent pages ({cmd:sparkta2_dashboard} wrappers and the
 companion webdoc2 demo) ship a listener that grows each iframe to fit its

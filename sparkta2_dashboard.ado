@@ -1,7 +1,14 @@
-*! sparkta2_dashboard v0.7.8  2026-06-26
+*! sparkta2_dashboard v0.8.0  2026-08-11
 *! Compose a scrollable single-page dashboard that embeds a list of
 *! sparkta2 map / chart HTML files via <iframe>. Each section is
 *! self-contained; filters/zoom/etc. work independently per iframe.
+*!
+*! v0.8.0: tabs option -- replace the anchor-link TOC with a dashtab-style
+*!         tab bar (same underline look as sparkta2_writehtml's .dashtabs);
+*!         one section visible at a time, others get a hide class. This is
+*!         the composition path for dashtab-like switching across sparkta
+*!         pass-through charts (which cannot use the native dashtab()
+*!         option). Default (no tabs) layout unchanged: long scroll + TOC.
 *!
 *! v0.4.0: tx2036style option (Texas 2036 brand + Montserrat for the
 *!         wrapper page); default iframe height bumped 920 -> 1060
@@ -27,9 +34,10 @@ program define sparkta2_dashboard, rclass
     version 17.0
 
     syntax , FILES(string) EXPORT(string) [TITLE(string) SUBtitle(string) ///
-        TITLES(string) HEIGHTS(string) NOOPEN TX2036STyle]
+        TITLES(string) HEIGHTS(string) NOOPEN TX2036STyle TABS]
 
     local is_tx2036st = cond("`tx2036style'" != "", 1, 0)
+    local is_tabs = cond("`tabs'" != "", 1, 0)
 
     if "`title'" == "" local title "sparkta2 dashboard"
 
@@ -106,6 +114,16 @@ program define sparkta2_dashboard, rclass
     file write `fh' `"nav.toc strong{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;margin-bottom:4px}"' _n
     file write `fh' `"nav.toc a{color:var(--link);text-decoration:none;margin-right:14px;display:inline-block;margin-bottom:2px}"' _n
     file write `fh' `"nav.toc a:hover{text-decoration:underline}"' _n
+    * tabs layout: button styles copied from sparkta2_writehtml's .dashtabs
+    * (underline-tab look, --accent active) so the two look identical; the
+    * bar itself is sticky like nav.toc above. .hide hides inactive sections.
+    if `is_tabs' {
+        file write `fh' `".dashtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px;border-bottom:2px solid var(--line);position:sticky;top:8px;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:saturate(120%) blur(6px);border-radius:10px 10px 0 0;padding:4px 8px 0;}"' _n
+        file write `fh' `".dashtabs button{appearance:none;background:none;border:none;border-bottom:3px solid transparent;padding:8px 14px;font-size:.92rem;font-weight:600;color:var(--muted);cursor:pointer;margin-bottom:-2px;font-family:inherit;}"' _n
+        file write `fh' `".dashtabs button:hover{color:var(--ink);}"' _n
+        file write `fh' `".dashtabs button.active{color:var(--accent);border-bottom-color:var(--accent);}"' _n
+        file write `fh' `".hide{display:none!important}"' _n
+    }
     file write `fh' `"footer{color:var(--muted);font-size:.78rem;margin-top:30px}"' _n
     file write `fh' `"</style></head><body>"' _n
     file write `fh' `"<div class="wrap">"' _n
@@ -116,18 +134,35 @@ program define sparkta2_dashboard, rclass
     }
     file write `fh' `"</header>"' _n
 
-    * Table of contents
-    file write `fh' `"<nav class="toc"><strong>Jump to:</strong>"' _n
-    forvalues _i = 1/`_nfiles' {
-        local _fpath = word("`_flist'", `_i')
-        local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
-        if `_i' <= `_ntitles' & "`_title`_i''" != "" {
-            local _tname "`_title`_i''"
+    * Navigation: tab bar (tabs) or anchor-link table of contents (default)
+    if `is_tabs' {
+        file write `fh' `"<div class="dashtabs" id="dashtabs">"' _n
+        forvalues _i = 1/`_nfiles' {
+            local _fpath = word("`_flist'", `_i')
+            local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
+            if `_i' <= `_ntitles' & "`_title`_i''" != "" {
+                local _tname "`_title`_i''"
+            }
+            else local _tname "`_basename'"
+            if `_i' == 1 local _act `" class="active""'
+            else local _act ""
+            file write `fh' `"  <button type="button" data-target="sec`_i'"`_act'>`_tname'</button>"' _n
         }
-        else local _tname "`_basename'"
-        file write `fh' `"  <a href="#sec`_i'">`_i'. `_tname'</a>"' _n
+        file write `fh' `"</div>"' _n
     }
-    file write `fh' `"</nav>"' _n
+    else {
+        file write `fh' `"<nav class="toc"><strong>Jump to:</strong>"' _n
+        forvalues _i = 1/`_nfiles' {
+            local _fpath = word("`_flist'", `_i')
+            local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
+            if `_i' <= `_ntitles' & "`_title`_i''" != "" {
+                local _tname "`_title`_i''"
+            }
+            else local _tname "`_basename'"
+            file write `fh' `"  <a href="#sec`_i'">`_i'. `_tname'</a>"' _n
+        }
+        file write `fh' `"</nav>"' _n
+    }
 
     * Sections
     forvalues _i = 1/`_nfiles' {
@@ -140,7 +175,10 @@ program define sparkta2_dashboard, rclass
         if `_nhts' == 1 local _height = word("`_hlist'", 1)
         else if `_nhts' >= `_i' local _height = word("`_hlist'", `_i')
         else local _height = word("`_hlist'", `_nhts')
-        file write `fh' `"<section class="section" id="sec`_i'">"' _n
+        * tabs: only the first section visible on load; the rest start hidden
+        local _hide ""
+        if `is_tabs' & `_i' > 1 local _hide " hide"
+        file write `fh' `"<section class="section`_hide'" id="sec`_i'">"' _n
         file write `fh' `"  <h2><span class="num">`_i'.</span>`_tname'<span class="src">`_basename'</span></h2>"' _n
         * scrolling="no" + auto-resize listener below means the iframe grows
         * to fit its content; the height attr is just an initial guess.
@@ -148,7 +186,7 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"</section>"' _n
     }
 
-    file write `fh' `"<footer>Built with sparkta2 v0.7.8 — each section is an independent interactive map / chart.</footer>"' _n
+    file write `fh' `"<footer>Built with sparkta2 v0.8.0 — each section is an independent interactive map / chart.</footer>"' _n
     * Auto-resize listener: every embedded sparkta2 page posts its content
     * height back to the parent; we grow the matching iframe to fit.
     file write `fh' `"<script>"' _n
@@ -159,6 +197,26 @@ program define sparkta2_dashboard, rclass
     file write `fh' `"if(ifrs[i].contentWindow===e.source){ifrs[i].style.height=(e.data.height+12)+'px';ifrs[i].setAttribute('scrolling','no');break;}"' _n
     file write `fh' `"}});"' _n
     file write `fh' `"</script>"' _n
+    * Tab switching: show the clicked button's target section, hide the rest.
+    * Hidden iframes are loading="lazy", so they fetch on first reveal; the
+    * resize listener above needs no change (it matches on e.source).
+    if `is_tabs' {
+        file write `fh' `"<script>"' _n
+        file write `fh' `"(function(){"' _n
+        file write `fh' `"var bar=document.getElementById('dashtabs');"' _n
+        file write `fh' `"if(!bar)return;"' _n
+        file write `fh' `"var btns=bar.querySelectorAll('button');"' _n
+        file write `fh' `"function show(tgt,btn){"' _n
+        file write `fh' `"var secs=document.querySelectorAll('section.section');"' _n
+        file write `fh' `"for(var j=0;j<secs.length;j++){secs[j].classList.toggle('hide',secs[j].id!==tgt);}"' _n
+        file write `fh' `"for(var k=0;k<btns.length;k++){btns[k].classList.toggle('active',btns[k]===btn);}"' _n
+        file write `fh' `"}"' _n
+        file write `fh' `"for(var i=0;i<btns.length;i++){"' _n
+        file write `fh' `"btns[i].addEventListener('click',function(){show(this.getAttribute('data-target'),this);});"' _n
+        file write `fh' `"}"' _n
+        file write `fh' `"})();"' _n
+        file write `fh' `"</script>"' _n
+    }
     file write `fh' `"</div></body></html>"' _n
     file close `fh'
 
@@ -166,6 +224,8 @@ program define sparkta2_dashboard, rclass
     display as text `"  {browse "`export'":`export'}"'
 
     return local export "`export'"
+    if `is_tabs' return local layout "tabs"
+    else return local layout "scroll"
     return scalar n_files = `_nfiles'
 
     if "`noopen'" == "" {

@@ -20,6 +20,15 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.0** (2026-08-11). Four headline additions — see [What's new in v0.8.0](#whats-new-in-v080-2026-08-11) for the details and the raster design notes:
+
+- **`dashtab(varname)` — higher-order tabs.** Where `over()` breaks out subgroups *within* a chart and `by()` makes small multiples, `dashtab()` renders one **full figure per level** of a variable and puts a tab bar above the output. Each tab can carry its own geography (`dashtabgeo() dashtablayer() dashtabidwidth()`), so a single self-contained HTML file can switch between county, school-district, and region views. Works on all native map types and native chart types (`donut bar2 line2 divbar barrace`); `dashtabstyle(tabs|buttons)` picks underline tabs or pill buttons.
+- **`overlays()` — checkbox layer toggles.** Overlay boundary layers on top of the data layer, each with an on/off checkbox in a new *Layers* controls section. A token naming another TopoJSON object (`states`, `nation`) draws its boundary mesh; a token naming a **variable in your data dissolves the focused features by that variable client-side** (`topojson.merge` in the browser) into labelled group outlines — Comptroller regions on top of counties with no extra shapefile.
+- **`maplabels` — feature name labels** at polygon centroids, toggleable, zoom-stable (`labelsize()` sets the base size).
+- **`rasterimage()` — offline georeferenced image layer** under the data layer (`rasterbounds(west south east north)`, `rasteropacity()`), base64-embedded so the HTML stays a single self-contained file.
+
+Also in v0.8.0: `sparkta2_dashboard, tabs` (tabbed instead of long-scroll composition — the route for tabbing across *sparkta pass-through* charts), and the v0.7.9 fresh-install/chart-asset fixes below are now actually in the shipped code (`sparkta2_findfile` v0.5.0 with the `charts` mode and a working `global sparkta2_remote_base`).
+
 **v0.7.9** (2026-08-11). Fresh-install fix for the chart types: `sparkta2_chart` now resolves `sparkta2_chart_engine.js` and `d3.min.js` through `sparkta2_findfile` (new `charts` option), so `bar2` / `line2` / `donut` / `divbar` / `barrace` get the same three-pass asset lookup as the maps — adopath (including the working directory, for `net get` users), the `sysdir PLUS/s/sparkta2/` cache, then auto-download. Previously the first chart after a plain `net install` failed with `r(601)` ("not on adopath"), because `net install` cannot place `.js` ancillaries. Also fixed: the documented `global sparkta2_remote_base` mirror override was read from the wrong macro and never applied; it now works, and accepts a local path (handy for air-gapped installs and tests).
 
 **v0.7.8** (2026-06-26). Texas-tuned Albers retuned to make the panhandle top edge perfectly horizontal: central meridian moved from `–99°` to `–101.5°` (the panhandle's longitudinal midpoint) and upper standard parallel from `35.5°` to `36.5°` (the panhandle's latitude). The v0.6.1 fix had reduced the original `albers_usa` ~3.3° lean to ~1.3°; v0.7.8 takes it to 0.0°. See [Projection: Texas-tuned Albers and how to override it](#projection-texas-tuned-albers-and-how-to-override-it) below for the geometry, trade-offs, and escape hatches.
@@ -34,10 +43,56 @@ Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Si
 
 **v0.7.0** (2026-06-26). Native D3 chart types beyond maps: donut, bar2, line2, diverging stacked bar (Pew-style for Likert/survey items), and bar chart race. All inherit the v0.6.0 Export menu, animate-on-view, and CSV data download.
 
-Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,018 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
+Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,016 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
 
 <img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
 
+
+### What's new in v0.8.0 (2026-08-11)
+
+#### `dashtab()` — tabs as a first-class Stata option
+
+```stata
+* One HTML file: a Counties tab and a School-districts tab, each its own geography
+sparkta2 poverty_rate, id(geoid) name(name) type(choropleth)      ///
+    dashtab(level) dashtabgeo(texas|texas_districts) dashtabidwidth(5 7) ///
+    export(county_vs_district.html) offline
+```
+
+Stack your aggregation levels long (one `level` variable, one id column), and `dashtab(level)` splits them into tabs — the *whole figure* re-renders per tab: its own data, its own geography, its own legend quantiles, its own filters. Think of the hierarchy as: `over()` = subgroups inside one chart, `by()` = small multiples, **`dashtab()` = entirely different figures behind tabs**. Details: string or labeled-numeric variable, 2–10 levels in `levelsof` order, tab labels from the value labels. `dashtabstyle(buttons)` restyles the bar as pill "dashbuttons". For **sparkta pass-through** types the data never passes through sparkta2's renderer, so `dashtab()` errors there — instead render one file per level and compose with the new tabbed dashboard: `sparkta2_dashboard, files(...) titles(...) tabs export(...)`.
+
+Under the hood every sparkta2 map now emits a `window.__SPARKTA2_TABS__` payload (a plain map is simply one tab with no bar) and a tab switch is a clean full re-render — distinct geographies are embedded once each and shared across tabs that reuse them.
+
+#### `overlays()` — layer checkboxes, including client-side dissolve
+
+```stata
+* Comptroller-region outlines + state lines on top of a county choropleth
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) ///
+    overlays(region states) maplabels export(overlay.html) offline
+```
+
+Each token becomes a checkbox in a new **Layers** section of the controls panel. A token naming a TopoJSON *object* (`states`, `nation`, or any object in a custom file) draws that object's boundary mesh above the data layer. A token naming a *variable in your data* triggers a **client-side dissolve**: the focused features are merged by the variable's value with `topojson.merge` in the browser, and the merged group outlines are drawn with the group name at each centroid — a QGIS-style dissolve with no extra shapefile, no GIS toolchain, driven entirely by a column in your dataset. Checkbox labels come from the `variable label`. Constraint: dissolve and mesh overlays need a TopoJSON input (they operate on shared arcs), so GeoJSON drop-ins like `texas_districts.geojson` render without overlays.
+
+#### `maplabels` — feature name labels
+
+`maplabels` prints each feature's `name()` at its centroid with a white halo, toggleable from the Layers section, and the labels **counter-scale against zoom** so they hold a constant on-screen size while the geometry scales — the familiar web-map behavior. `labelsize(#)` sets the base size (default 9). Practical up to a few hundred features; for the 1,016-district layer leave it off or subset first.
+
+#### `rasterimage()` — raster layers, and what they can and cannot be
+
+What shipped: a **georeferenced image layer**. Give it any PNG/JPG/GIF/WebP plus `rasterbounds(west south east north)` in decimal degrees, and the image is base64-embedded into the HTML (still one self-contained offline file), drawn beneath the data layer at `rasteropacity()` (default 0.75), with its own Layers checkbox. This covers the satellite-composite / scanned-map / model-surface use cases — e.g. a Google Earth Engine export for the county window you're mapping.
+
+Design notes and honest limitations (the "raster complications report"):
+
+1. **Projection.** The image is stretched between its projected NW/SE corners. Under `projection(mercator)` that is exact (web imagery is Web-Mercator). Under the default Texas-tuned Albers the vector graticule bends while the raster pixels stay straight, so alignment drifts toward the edges of large extents — a few km at Texas scale. Use `projection(mercator)` when raster alignment matters; treat Albers + raster as decorative. True client-side raster *reprojection* means per-pixel resampling (canvas/WebGL) — deliberately out of scope for a package whose output is one dependency-free file.
+2. **Tile basemaps (the leaflet look) are a different feature.** Slippy tiles require a tile CDN at *view time* (breaks the offline guarantee), Web-Mercator lock-in, zoom-level tile math (d3-tile), and attribution requirements. Feasible as an opt-in `basemap(tiles)` online-only mode — on the roadmap below, not in v0.8.0.
+3. **File size.** Base64 inflates the image by ~4/3. sparkta2 warns above 2 MB and refuses above 20 MB; downscale first (a 1200-px-wide JPEG at quality 70 is typically 150–400 KB and looks fine underneath a choropleth).
+4. **Stata plumbing.** Encoding uses Stata's built-in Python (stdlib `base64` only, no pip) — and only for `rasterimage()` callers; everything else remains Python-free.
+
+#### Other v0.8.0 changes
+
+- `sparkta2_dashboard, tabs` — tab bar + one visible section instead of the long scroll; iframes stay lazy-loaded and keep their state across switches.
+- The v0.7.9 notes below (chart engine via `sparkta2_findfile, charts`, working `global sparkta2_remote_base`, local-path mirrors) are now in the shipped code.
+- Fixed in `sparkta2.sthlp`: SMCL directives that were split across line breaks rendered as literal `{cmd:...}` text in the help viewer.
 
 ### What's new in v0.7.7 (2026-06-26)
 
@@ -85,7 +140,7 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 - **Hexbin renderer fix.** v0.4.0's hexbin produced zero bins — d3-hexbin defaults to array-indexing the input but the engine pushes object points. Engine now sets explicit x/y accessors. All hexbin examples now render.
 - **Basemap projection fix.** Previously the projection was fit to the basemap layer (all 50 US states), so Texas-only maps appeared tiny in the corner and "reset zoom" exposed the whole US. The projection now always fits the focused layer; the basemap is drawn beneath at whatever extent.
 - **GeoJSON FeatureCollection support.** Engine accepts either a TopoJSON (with `objects`) or a GeoJSON `FeatureCollection` (with `features`). Drop a `<geo>.geojson` next to the ado and pass `geo(<name>)`.
-- **`texas_districts.geojson` bundled.** 1,018 Texas school district polygons built from the NCES EDGE SY2024-25 shapefile, simplified via Douglas-Peucker to 1.4 MB. Use `geo(texas_districts) idwidth(7)` with 7-digit LEAID ids.
+- **`texas_districts.geojson` bundled.** 1,016 Texas school district polygons built from the NCES EDGE SY2024-25 shapefile, simplified via Douglas-Peucker to 1.4 MB. Use `geo(texas_districts) idwidth(7)` with 7-digit LEAID ids.
 - **NCES districts demo do-file.**  loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare and exercises sparkta2 on real district-level data (replaces the v0.4.0 ZIP demo, which couldn't use polygon boundaries because no ZCTA boundaries were in the _datashare).
 
 
@@ -115,7 +170,7 @@ net get sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-st
 net install sparkta, from("https://raw.githubusercontent.com/fahad-mirza/sparkta_stata/master/ado") replace
 ```
 
-Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
+Without `sparkta`, the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) and the sparkta2-native chart types (`donut`, `bar2`, `line2`, `divbar`, `barrace`) all work out of the box; only pass-through types (`bar`, `line`, `scatter`, ...) raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
 
 ### Verify
 
@@ -164,6 +219,10 @@ sparkta2 poverty_rate uninsured_rate,                       ///
 | Faded states/nation outline behind the focused features | `basemap` | Drawn underneath and stays visible at every zoom level. |
 | Hex polygons over the map | `type(hexbin) hexradius() hexstat()` | Aggregates feature centroids or lat/lon points into hexagons; hover shows the bin's contents. |
 | Circle marks at lat/lon | `type(points) lat() lon() pointsize()` | Each row becomes one circle. Used for ZIP centroids, addresses, or any point-level data. |
+| Tab strip (or pill buttons) above the whole figure | `dashtab(varname)` + `dashtabstyle()` | One full figure per level of the variable; clicking a tab re-renders the entire map/chart with that tab's data — and, with `dashtabgeo()`, its own geography. |
+| "Layers" checkbox section | `overlays()` / `maplabels` / `rasterimage()` | Each overlay, the name labels, and the raster image get an independent on/off checkbox. |
+| Labelled group outlines on top of the choropleth | `overlays(varname)` | The focused features are dissolved by the variable's value in the browser (topojson.merge) and drawn as named boundaries. |
+| Image under the choropleth | `rasterimage() rasterbounds() rasteropacity()` | Georeferenced raster stretched between its projected corner coordinates; base64-embedded, offline-safe. |
 
 ## Data prep — getting your data into the right shape
 
@@ -435,7 +494,7 @@ sparkta2/
 │   ├── topojson-client.min.js
 │   ├── d3-hexbin.min.js
 │   ├── texas_counties.topojson       # 254 TX counties + 56 US states + nation
-│   └── texas_districts.geojson       # 1,018 NCES EDGE SY24-25 school districts
+│   └── texas_districts.geojson       # 1,016 NCES EDGE SY24-25 school districts
 ├── examples/
 │   ├── test_sparkta2_map.do          # 20 county-level + 2 US-state bonus examples
 │   ├── test_sparkta2_nces.do         # 20 NCES school-district examples
@@ -444,6 +503,19 @@ sparkta2/
 │   └── texas_county_demo.csv
 └── README.md
 ```
+
+## Roadmap — where sparkta2 goes next vs leaflet / QGIS-style web mapping
+
+sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML file** that works offline, emailed, or dropped on GitHub Pages. Leaflet is a JS library you program; QGIS is a GIS you operate; sparkta2 is a *figure command*. The features below would close the most-noticed gaps without leaving that lane, roughly ordered by value-for-effort:
+
+1. **Choropleth classification options** — `classes(quantile|jenks|equal|std)` + `breaks(numlist)`. Quantile-only binning is the current silent default; analysts coming from GIS expect Jenks natural breaks and hand-set cutpoints. Small engine change, big credibility win. *(the next obvious "win")*
+2. **Scale bar + north arrow** — `scalebar` `northarrow`: classic map furniture, trivially cheap in d3, instantly makes exports look like "real" maps.
+3. **Opt-in tile basemap mode** — `basemap(tiles)`: d3-tile + a Carto/OSM tile URL, forcing `projection(mercator)`, online-only by definition, with attribution baked in. The leaflet look for the cases where offline doesn't matter. (See the v0.8.0 raster notes for why this is separate from `rasterimage()`.)
+4. **GeoJSON export button** — an Export-menu item that downloads the focused layer *with the joined data values* as GeoJSON, so a sparkta2 map round-trips into QGIS/geopandas for print cartography.
+5. **Linked small multiples** — shared hover/zoom across `multiples` panels (d3 event bus; the panels already share state).
+6. **Fullscreen button** — the `requestFullscreen` one-liner every embedded map wants.
+7. **Vector simplification at build time** — optional Douglas-Peucker via topojson-simplify when a custom TopoJSON is oversized, keeping single-file outputs light.
+8. **PMTiles/vector-tile reading is the anti-goal** — that road leads to servers and toolchains; if a project needs it, it needs leaflet, and that's fine.
 
 ## Returned values
 

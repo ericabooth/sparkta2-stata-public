@@ -92,12 +92,25 @@
     return m;
   }
 
+  // A pending animate-on-view observer from a previous render (dashtab
+  // switch before the map scrolled into view) must be disconnected before
+  // the next render arms its own.
+  var _animIO = null;
+
   // ---- Main render -------------------------------------------------------
   function render(cfg) {
+    if (_animIO) { try { _animIO.disconnect(); } catch (e) {} _animIO = null; }
+
     var meta = cfg.meta || {};
     var data = cfg.data || [];
     var ctrl = cfg.controls || { filters: [], sliders: [], tooltipvars: [] };
     var topo = cfg.topo;
+
+    // Rows without a usable id can never join a feature; once zero-padded
+    // they'd collapse into duplicate keys and crash d3.index below.
+    data = data.filter(function (d) {
+      return d.id != null && String(d.id) !== "" && String(d.id) !== ".";
+    });
 
     if (!ctrl.tooltipvars) ctrl.tooltipvars = [];
 
@@ -408,6 +421,11 @@
             });
           panel.zoom = zoom;
           panel.svg.call(zoom);
+          // Reset any stale node-level __zoom left by a previous render on
+          // the same singleton svg (mode switches, dashtab switches) — the
+          // fresh gWrap has no transform, so a leftover __zoom would make
+          // the first wheel/drag jump to the old view.
+          panel.svg.call(zoom.transform, d3.zoomIdentity);
           panel.svg.on("dblclick.zoom", null);
           panel.svg.on("dblclick", function () {
             panel.svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
@@ -630,9 +648,14 @@
     function paintOverlays(panel) {
       panel.gOver.selectAll("*").remove();
       if (!overlays.length) return;
+      // Repaints can arrive mid-zoom (filters, search, layer checkboxes):
+      // read the live zoom scale so strokes/labels keep their counter-scaled
+      // on-screen size instead of snapping back to the base values.
+      var k = 1;
+      try { k = d3.zoomTransform(panel.svg.node()).k || 1; } catch (e) {}
       panel.gOver
-        .attr("stroke-width", OVERLAY_STROKE)
-        .attr("font-size", OVERLAY_FONT + "px");
+        .attr("stroke-width", OVERLAY_STROKE / k)
+        .attr("font-size", (OVERLAY_FONT / k) + "px");
       overlays.forEach(function (ov) {
         if (state.layersOn["ov_" + ov.key] === false) return;
         var feats = overlayFeatures(ov);
@@ -661,8 +684,10 @@
       panel.gLbl.selectAll("*").remove();
       if (!showLabels || state.layersOn.labels === false) return;
       if (renderType === "hexbin" || renderType === "points") return;
+      var k = 1;
+      try { k = d3.zoomTransform(panel.svg.node()).k || 1; } catch (e) {}
       panel.gLbl
-        .attr("font-size", labelSize + "px")
+        .attr("font-size", (labelSize / k) + "px")
         .attr("pointer-events", "none");
       features.forEach(function (f) {
         var row = index.get(padId(f.id, idwidth));
@@ -1371,11 +1396,13 @@
           if (entry.isIntersecting && !fired) {
             fired = true;
             io.disconnect();
+            if (_animIO === io) _animIO = null;
             triggerAnimation();
           }
         });
       }, { threshold: 0.2 });
       io.observe(target);
+      _animIO = io;
     }
 
     function triggerAnimation() {
@@ -1454,7 +1481,10 @@
     setupAnimateOnView();
 
     if (meta.zoomto) {
-      var wantFips = (meta.zoomto || "").split("|").filter(Boolean);
+      // Tokens arrive RAW from Stata; pad with the ACTIVE tab's idwidth so
+      // one zoomto() list matches across dashtab tabs with different widths.
+      var wantFips = (meta.zoomto || "").split("|").filter(Boolean)
+        .map(function (w) { return padId(w, idwidth); });
       if (wantFips.length) {
         var toZoom = features.filter(function (f) { return wantFips.indexOf(padId(f.id, idwidth)) >= 0; });
         panels.forEach(function (p) { zoomToFeatures(p, toZoom); });

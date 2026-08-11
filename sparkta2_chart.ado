@@ -1,5 +1,15 @@
-*! sparkta2_chart v0.7.9  2026-08-11
+*! sparkta2_chart v0.8.0  2026-08-11
 *! D3-native non-map chart types for sparkta2.
+*!
+*! v0.8.0: dashtab(varname) — higher-order tabs, mirroring the map side.
+*!   Where over() splits within a chart and by() makes small multiples,
+*!   dashtab() renders one FULL chart per level of the variable and puts a
+*!   tab bar above the output (dashtabstyle(tabs|buttons)).  Levels come
+*!   from levelsof on the active sample (2–10 required); tab labels come
+*!   from the string value / value label / number, with "|" swapped to "/".
+*!   Rows with a missing dashtab value belong to no tab.  A plain call is
+*!   simply ntabs==1 with no tab bar — same row/JSON/render pipeline, so
+*!   both paths are exercised by every run.  New return scalar n_tabs.
 *!
 *! v0.7.9: asset discovery now goes through sparkta2_findfile (new charts
 *!   option), so the chart engine and d3.min.js resolve from the adopath,
@@ -70,6 +80,8 @@ program define sparkta2_chart, rclass
         WIDTH(integer 980) HEIGHT(integer 644)                       ///
         EXPORT(string) OFFLINE NOOPEN                                ///
         TOOLTIPvars(varlist)                                         ///
+        DASHtab(varname)                                             ///  higher-order tabs: one full chart per level of this var
+        DASHTABStyle(string)                                         ///  tabs (default) | buttons
     ]
 
     marksample touse, novarlist
@@ -189,6 +201,48 @@ program define sparkta2_chart, rclass
         local export "`c(pwd)'/sparkta2_`type'.html"
     }
 
+    * ---- dashtab: build tab specs (v0.8.0) --------------------------------
+    * A plain call is one tab with no filter; dashtab(varname) makes one tab
+    * per level.  Both run the identical row/JSON/render pipeline below.
+    if "`dashtabstyle'" == "" local dashtabstyle "tabs"
+    local dashtabstyle = lower("`dashtabstyle'")
+    if !inlist("`dashtabstyle'", "tabs", "buttons") {
+        display as error "sparkta2_chart: dashtabstyle(`dashtabstyle') not recognised (tabs | buttons)"
+        exit 198
+    }
+    local _ntabs 1
+    local _dt_is_str 0
+    if "`dashtab'" != "" {
+        capture confirm string variable `dashtab'
+        local _dt_is_str = (_rc == 0)
+        local _dt_vallab ""
+        if !`_dt_is_str' local _dt_vallab : value label `dashtab'
+        quietly levelsof `dashtab' if `touse', local(_dtlevels)
+        local _ntabs : word count `_dtlevels'
+        if `_ntabs' < 2 {
+            display as error "sparkta2_chart: dashtab(`dashtab') has only `_ntabs' level on the active sample — need at least 2 tabs"
+            exit 198
+        }
+        if `_ntabs' > 10 {
+            display as error "sparkta2_chart: dashtab(`dashtab') has `_ntabs' levels — more than 10 tabs is unusable.  Recode the variable."
+            exit 198
+        }
+        local _k 0
+        foreach _lv of local _dtlevels {
+            local ++_k
+            local _dtval_`_k' `"`_lv'"'
+            if `_dt_is_str' local _dtlab_`_k' `"`_lv'"'
+            else {
+                if "`_dt_vallab'" != "" {
+                    local _dtlab_`_k' : label `_dt_vallab' `_lv'
+                }
+                else local _dtlab_`_k' "`_lv'"
+            }
+            * "|" is the tab-list separator downstream — swap it out of labels
+            local _dtlab_`_k' : subinstr local _dtlab_`_k' "|" "/", all
+        }
+    }
+
     * --- Discover the engine paths (chart engine + d3) ---------------------
     * Route through sparkta2_findfile so charts get the same three-pass
     * lookup maps use (adopath incl. cwd, the PLUS/s/sparkta2/ cache, then
@@ -199,18 +253,40 @@ program define sparkta2_chart, rclass
     local engpath "`r(chartpath)'"
     local d3path  "`r(d3path)'"
 
-    * --- Build the row JSON ----------------------------------------------
-    tempfile rowjson
+    * --- Build the row JSON (v0.8.0: one pass per dashtab level; a plain
+    * --- call is a single pass with no tab filter) -------------------------
     tempname rfh
-    file open `rfh' using "`rowjson'", write text replace
 
     local tip_vars `"`tooltipvars'"'
+
+    local _tabrowjsons ""
+    local _tablabels ""
+    local _rows_total 0
+
+    forvalues _t = 1/`_ntabs' {
+
+    tempfile rowjson_`_t'
+    file open `rfh' using "`rowjson_`_t''", write text replace
 
     local _first 1
     local _rows_written = 0
     quietly {
         forvalues _i = 1/`=_N' {
             if !`touse'[`_i'] continue
+
+            * dashtab filter: this pass keeps only the rows on this tab.
+            * Rows with a missing dashtab value belong to no tab (a missing
+            * value never equals a levelsof level, so they are skipped on
+            * every pass).
+            if `_ntabs' > 1 {
+                if `_dt_is_str' {
+                    local _dtv = `dashtab'[`_i']
+                    if `"`_dtv'"' != `"`_dtval_`_t''"' continue
+                }
+                else {
+                    if `dashtab'[`_i'] != `_dtval_`_t'' continue
+                }
+            }
 
             local _xv = `xvar'[`_i']
             local _yv .
@@ -296,7 +372,7 @@ program define sparkta2_chart, rclass
             file write `rfh' "        {"
             file write `rfh' `""x":"' (`_xv')
             if "`yvar'" != "" file write `rfh' `","y":"' (`_yv')
-            if "`name'"  != "" file write `rfh' `","name":"`_nm'""'
+            if "`name'"  != "" file write `rfh' `","name":"`macval(_nm)'""'
             if "`over'"  != "" file write `rfh' `","g":"`_ov'""'
             if "`level'" != "" file write `rfh' `","lev":"`_lv'""'
             if "`time'"  != "" file write `rfh' `","t":"' (`_tm')
@@ -309,7 +385,7 @@ program define sparkta2_chart, rclass
                     local _val = `_tv'[`_i']
                     local _val : subinstr local _val `"\"' `"\\"', all
                     local _val : subinstr local _val `"""' `"\""', all
-                    file write `rfh' `","t__`_tv'":"`_val'""'
+                    file write `rfh' `","t__`_tv'":"`macval(_val)'""'
                 }
                 else {
                     local _tlab : value label `_tv'
@@ -318,7 +394,7 @@ program define sparkta2_chart, rclass
                         local _tldisp : label `_tlab' `_tnum'
                         local _tldisp : subinstr local _tldisp `"\"' `"\\"', all
                         local _tldisp : subinstr local _tldisp `"""' `"\""', all
-                        file write `rfh' `","t__`_tv'":"`_tldisp'""'
+                        file write `rfh' `","t__`_tv'":"`macval(_tldisp)'""'
                     }
                     else if missing(`_tnum') {
                         file write `rfh' `","t__`_tv'":null"'
@@ -336,11 +412,32 @@ program define sparkta2_chart, rclass
     file close `rfh'
 
     if `_rows_written' == 0 {
-        display as error "sparkta2_chart: no rows to plot (check [if]/[in], missing values, or required varname options)"
+        if `_ntabs' > 1 {
+            display as error `"sparkta2_chart: no rows to plot on dashtab() tab `_t' ("`_dtlab_`_t''") — check [if]/[in], missing values, and `dashtab'"'
+        }
+        else {
+            display as error "sparkta2_chart: no rows to plot (check [if]/[in], missing values, or required varname options)"
+        }
         exit 459
     }
+    local _rows_total = `_rows_total' + `_rows_written'
+
+    * Accumulate the per-tab pipe lists for the HTML writer.
+    if `_t' == 1 {
+        local _tabrowjsons "`rowjson_`_t''"
+        local _tablabels   `"`macval(_dtlab_`_t')'"'
+    }
+    else {
+        local _tabrowjsons "`_tabrowjsons'|`rowjson_`_t''"
+        local _tablabels   `"`macval(_tablabels)'|`macval(_dtlab_`_t')'"'
+    }
+
+    }   // end of per-tab row-JSON pass
 
     * --- Build the meta JSON for tooltipvars -----------------------------
+    * Variable metadata only (label + numeric-format flag) — nothing here
+    * depends on which rows ship, so ONE shared file is re-referenced by
+    * every tab in the payload loop.
     tempfile tipjson
     file open `rfh' using "`tipjson'", write text replace
     file write `rfh' `"["'
@@ -350,12 +447,13 @@ program define sparkta2_chart, rclass
         local ++_tcount
         local _lbl : variable label `_tv'
         if "`_lbl'" == "" local _lbl "`_tv'"
+        local _lbl : subinstr local _lbl `"\"' `"\\"', all
         local _lbl : subinstr local _lbl `"""' `"\""', all
         capture confirm numeric variable `_tv'
         local _isnum = (_rc == 0)
         local _tlabname : value label `_tv'
         local _numfmt = cond(`_isnum' & "`_tlabname'" == "", 1, 0)
-        file write `rfh' `"{"var":"`_tv'","label":"`_lbl'","numeric":`_numfmt'}"'
+        file write `rfh' `"{"var":"`_tv'","label":"`macval(_lbl)'","numeric":`_numfmt'}"'
     }
     file write `rfh' "]"
     file close `rfh'
@@ -365,7 +463,11 @@ program define sparkta2_chart, rclass
     * engine's renderType switch stays clean.
     sparkta2_chart_writehtml,                                       ///
         engpath("`engpath'") d3path("`d3path'")                     ///
-        rowjson("`rowjson'") tipjson("`tipjson'")                   ///
+        ntabs(`_ntabs')                                             ///
+        tabrowjsons("`_tabrowjsons'")                               ///
+        tablabels(`"`macval(_tablabels)'"')                                 ///
+        tabstyle("`dashtabstyle'")                                  ///
+        tipjson("`tipjson'")                                        ///
         export(`"`export'"') isoffline(`is_offline')                ///
         type("`engine_type'") scheme("`scheme'")                    ///
         title(`"`title'"') subtitle(`"`subtitle'"') note(`"`note'"') ///
@@ -384,13 +486,17 @@ program define sparkta2_chart, rclass
         wraplabel("`wraplabel'") gutterwidth(`gutterwidth')          ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.8]  `type' chart written:"
+    display as text _n "[sparkta2 v0.8.0]  `type' chart written:"
     display as text `"  {browse "`export'":`export'}"'
-    display as text "  Rows: `_rows_written'  Scheme: `scheme'"
+    display as text "  Rows: `_rows_total'  Scheme: `scheme'"
+    if `_ntabs' > 1 {
+        display as text `"  Tabs: `_ntabs' (`dashtab') — `macval(_tablabels)'"'
+    }
 
     return local export "`export'"
     return local type   "`type'"
-    return scalar n_rows = `_rows_written'
+    return scalar n_rows = `_rows_total'
+    return scalar n_tabs = `_ntabs'
 
     if "`noopen'" == "" {
         sparkta2_open, file(`"`export'"')
