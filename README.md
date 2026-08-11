@@ -20,6 +20,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.7.9** (2026-08-11). Fresh-install fix for the chart types: `sparkta2_chart` now resolves `sparkta2_chart_engine.js` and `d3.min.js` through `sparkta2_findfile` (new `charts` option), so `bar2` / `line2` / `donut` / `divbar` / `barrace` get the same three-pass asset lookup as the maps — adopath (including the working directory, for `net get` users), the `sysdir PLUS/s/sparkta2/` cache, then auto-download. Previously the first chart after a plain `net install` failed with `r(601)` ("not on adopath"), because `net install` cannot place `.js` ancillaries. Also fixed: the documented `global sparkta2_remote_base` mirror override was read from the wrong macro and never applied; it now works, and accepts a local path (handy for air-gapped installs and tests).
+
 **v0.7.8** (2026-06-26). Texas-tuned Albers retuned to make the panhandle top edge perfectly horizontal: central meridian moved from `–99°` to `–101.5°` (the panhandle's longitudinal midpoint) and upper standard parallel from `35.5°` to `36.5°` (the panhandle's latitude). The v0.6.1 fix had reduced the original `albers_usa` ~3.3° lean to ~1.3°; v0.7.8 takes it to 0.0°. See [Projection: Texas-tuned Albers and how to override it](#projection-texas-tuned-albers-and-how-to-override-it) below for the geometry, trade-offs, and escape hatches.
 
 **v0.7.7** (2026-06-26). Iframe auto-resize protocol: every sparkta2-native HTML output now posts its rendered content height to its parent page on load / resize / DOM mutation, and parent pages (sparkta2_dashboard wrappers + the webdoc2 demos) grow each iframe to fit + set `scrolling="no"`, so embeds never get clipped behind a scrollbar. Opt out per-iframe with the `data-skip-resize="1"` HTML attribute (used for sparkta / Chart.js pass-throughs that don't speak the resize protocol).
@@ -94,16 +96,23 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 ```stata
 net install sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/") replace force
+discard
 which sparkta2
 help sparkta2
 ```
 
-The installation copies the `.ado` commands, JavaScript engines, and bundled geography files into Stata's PLUS directory. Re-run the command with `replace force` to update an existing installation.
+Note that Stata's `net install` only copies recognised extensions (`.ado`, `.sthlp`, and friends); the bundled D3 / TopoJSON / d3-hexbin assets need to land next to the ado files for `findfile` to pick them up.  The package handles this automatically: on the first map **or chart** call, `sparkta2_findfile` checks `adopath` for the assets and, if any are missing, downloads them from this repository into `sysdir PLUS/s/sparkta2/`.  Subsequent calls reuse the cached copies. Override the source with `global sparkta2_remote_base "<your URL or local path, with trailing slash>"` before the first call (honored as of v0.7.9; earlier versions read the override from the wrong macro and ignored it).
+
+To place the assets yourself instead of waiting for the first-call download — on an air-gapped machine, say, or to pre-seed a shared install — `net get` them into the current directory:
+
+```stata
+net get sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/")
+```
 
 ### For chart pass-through, also install `sparkta`
 
 ```stata
-ssc install sparkta
+net install sparkta, from("https://raw.githubusercontent.com/fahad-mirza/sparkta_stata/master/ado") replace
 ```
 
 Without `sparkta`, only the map types (`bivariate`, `choropleth`, `hexbin`, `points`, `map`) work; non-map types raise an informative error pointing to the install command. Credit: `sparkta` is by [Fahad Mirza](https://github.com/fahad-mirza/sparkta_stata) — `sparkta2` extends and builds on it.
@@ -116,12 +125,12 @@ help sparkta2
 do https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/test_helpfile_examples.do
 ```
 
-The third command runs the examples from `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in the current working directory. It requires `sparkta` for the pass-through example.
+The third command runs all 10 examples that appear in `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in your cwd.
 
 ## Quick start
 
 ```stata
-import delimited using "https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/texas_county_demo.csv", varnames(1) clear stringcols(2)
+import delimited using "examples/texas_county_demo.csv", varnames(1) clear stringcols(2)
 destring fips poverty_rate uninsured_rate, replace force
 
 * Bivariate choropleth with the full UI
@@ -463,6 +472,6 @@ Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Si
 
 ## Author
 
-Eric A. Booth, Sr Researcher, Texas2036.org (eric.a.booth@gmail.com).
+Eric A. Booth, Sr Researcher, Texas 2036 (eric.a.booth@gmail.com).
 
 Mapping renderer, dispatcher, dashboard helper, and all sparkta2-specific plumbing. When called with a non-map `type()`, `sparkta2` forwards to `sparkta` — credit for those chart types belongs entirely to Fahad Mirza.

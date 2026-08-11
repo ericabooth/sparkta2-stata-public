@@ -1,32 +1,50 @@
 v 3
-d sparkta2: interactive D3 maps and charts from Stata
+d sparkta2: interactive D3 maps and charts from Stata, as one self-contained HTML file
 d
-d sparkta2 creates interactive D3 maps and native charts from Stata, and
-d forwards other chart types to sparkta when it is installed.
+d sparkta2 writes a standalone .html file - no server, no internet needed to
+d view it - holding an interactive D3 map or chart built from the data in
+d memory.  Choropleth, bivariate (two-variable) cuts, small multiples,
+d rank-difference, hexbin, point, and basemap-backed maps, plus donut, bar,
+d divergent-bar, line, and bar-race charts.  Two Texas geographies ship with
+d the package: 254 counties (with US states and nation as backdrop layers) and
+d 1,018 NCES EDGE SY2024-25 school districts; the engine also accepts any
+d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
+d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
+d The tx2036style option applies Texas 2036 brand colors and Montserrat.
+d
+d NOTE ON ASSETS: Stata's net install copies only recognised extensions
+d (.ado, .sthlp, ...), so the bundled D3 / TopoJSON / d3-hexbin assets are
+d ancillary files.  You do not need to fetch them by hand: on the first map
+d or chart call sparkta2_findfile looks for them on the adopath and, if any
+d are missing, downloads them from this repository into sysdir
+d PLUS/s/sparkta2/ and reuses the cached copies afterwards.  Override the
+d source by setting global sparkta2_remote_base before the first call.  To
+d place them yourself instead, run: net get sparkta2, from(<this URL>)
 d
 d Requires: Stata 17.0 or newer
 d
-d Author: Eric A. Booth, Senior Research Analyst, Texas 2036
-d Distribution-Date: 20260725
+d Author: Eric A. Booth, Sr Researcher, Texas 2036
+d Support: eric.a.booth@gmail.com
+d
+d Distribution-Date: 20260811
 d
 f sparkta2.ado
-f sparkta2.sthlp
 f sparkta2_appendfile.ado
 f sparkta2_chart.ado
-f sparkta2_chart_engine.js
 f sparkta2_chart_writehtml.ado
 f sparkta2_dashboard.ado
 f sparkta2_embedjs.ado
-f sparkta2_engine.js
 f sparkta2_findfile.ado
 f sparkta2_map.ado
 f sparkta2_open.ado
 f sparkta2_streamfile.ado
 f sparkta2_writehtml.ado
-f d3-hexbin.min.js
+f sparkta2.sthlp
+f sparkta2_engine.js
+f sparkta2_chart_engine.js
 f d3.min.js
+f d3-hexbin.min.js
 f topojson-client.min.js
 f texas_counties.topojson
 f texas_districts.geojson
 f texas_county_demo.csv
-f test_helpfile_examples.do

@@ -1,10 +1,30 @@
-*! sparkta2 v0.7.8  2026-06-26
+*! sparkta2 v0.8.0  2026-08-11
 *! sparkta + interactive choropleth maps + native D3 charts in one command.
 *!
 *! Dispatcher:
 *!   type(map|bivariate|choropleth|hexbin|points)     -> sparkta2_map   (D3 map engine)
 *!   type(donut|divbar|barrace|bar2|line2)            -> sparkta2_chart (D3 chart engine)
 *!   everything else (incl. bar, line, scatter, ...)  -> sparkta (Fahad Mirza)
+*!
+*! New in 0.8.0:
+*!   - dashtab(varname): higher-order tabs above the output — one FULL map
+*!     or chart per level of the variable.  Where over() breaks out
+*!     subgroups within a chart and by() makes small multiples, dashtab()
+*!     switches between entirely different figures (e.g. counties vs
+*!     school districts vs regions), each tab with its own geography via
+*!     dashtabgeo()/dashtablayer()/dashtabidwidth().  dashtabstyle(tabs|
+*!     buttons) picks the bar style.  Native map + chart types only; for
+*!     sparkta pass-through types build one file per level and combine
+*!     with sparkta2_dashboard, tabs.
+*!   - overlays(list): checkbox-toggleable overlay layers on maps.  Tokens
+*!     are topojson objects (states, nation) drawn as boundary meshes, or
+*!     data variables: focused features are dissolved client-side by the
+*!     variable's value (topojson.merge) into labelled group boundaries —
+*!     regions on top of counties with no extra shapefile.
+*!   - maplabels + labelsize(): toggleable feature name labels.
+*!   - rasterimage()/rasterbounds()/rasteropacity(): offline georeferenced
+*!     image layer under the data layer (base64-embedded).
+*!   - sparkta2_dashboard, tabs: tabbed (instead of long-scroll) dashboard.
 *!
 *! New in 0.7.7:
 *!   - Iframe auto-resize protocol: every sparkta2-native HTML output emits a
@@ -46,7 +66,7 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.7.8"
+    local sparkta2_version "0.8.0"
     display as text "  [sparkta2 v`sparkta2_version']"
 
     * Peek at user-supplied type() without consuming any args.
@@ -72,6 +92,16 @@ program define sparkta2
     if `:list _peek_type in _native_chart_types' {
         sparkta2_chart `0'
         exit
+    }
+
+    * dashtab() cannot ride through to sparkta: the pass-through is verbatim,
+    * so there is nowhere to split the data into tabs.  Point at the
+    * dashboard's tabbed layout, which composes any per-level files.
+    if strpos(lower(`"`_raw'"'), "dashtab(") > 0 {
+        display as error "sparkta2: dashtab() works with sparkta2-native types only (maps + donut|divbar|barrace|bar2|line2)."
+        display as error "  For sparkta pass-through charts, write one file per level and combine:"
+        display as error `"    sparkta2_dashboard, files("lvl1.html lvl2.html") titles("Level 1|Level 2") tabs export(combined.html)"'
+        exit 198
     }
 
     capture which sparkta

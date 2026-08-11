@@ -1,5 +1,14 @@
-*! sparkta2_writehtml v0.7.8  2026-06-26
+*! sparkta2_writehtml v0.8.0  2026-08-11
 *! Assemble the final self-contained HTML for a sparkta2 map.
+*!
+*! v0.8.0: unified tab payload.  The page always carries
+*!   window.__SPARKTA2_TOPOS__ (distinct geographies, keyed) and
+*!   window.__SPARKTA2_TABS__  (one {label, topokey, cfg} per tab), plus a
+*!   bootstrap that renders the active tab via sparkta2Render(cfg).  A plain
+*!   single map is simply ntabs==1 with no tab bar — same code path as
+*!   dashtab(), so both are exercised by every run.  Also new: dashtab bar
+*!   CSS (tabs | buttons styles), Layers checkbox CSS, map label / overlay
+*!   label text styles.
 *!
 *! v0.2.2: forward projection / rotate / parallels / center option strings
 *!   into the meta JSON so the engine's projection builder can apply them.
@@ -8,8 +17,7 @@
 *!   collapsible data-table container, and print-only stylesheet.
 program define sparkta2_writehtml
     version 17.0
-    syntax , TOPOPATH(string) ENGPATH(string) D3PATH(string) TCPATH(string) ///
-        ROWJSON(string) METAJSON(string)                                     ///
+    syntax , ENGPATH(string) D3PATH(string) TCPATH(string)                   ///
         EXPORT(string) ISOFFline(integer)                                    ///
         TYPE(string) SCHEME(string) TITLE(string)                            ///
         XVAR(string)                                                         ///
@@ -19,17 +27,34 @@ program define sparkta2_writehtml
         ISZoom(integer) ISSEArch(integer)                                    ///
         BINS(integer)                                                        ///
         WIDTH(integer) HEIGHT(integer)                                       ///
-        IDWidth(integer)                                                     ///
         HEXRadius(integer) POINTSIze(integer)                                ///
-        [HXPATH(string) GEO(string)                                          ///
-         SUBtitle(string) NOTE(string) XLAbel(string) YLAbel(string)         ///
-         YVAR(string) ZOOMTo(string) LAYer(string) HEXStat(string)           ///
-         LATvar(string) LONvar(string)                                       ///
-         ISDATAtable(integer 0) ISANImate(integer 0)                         ///
-         ISTX2036Style(integer 0) DOWNLOADPos(string)                        ///
-         PROJection(string) ROTATestr(string)                                ///
-         PARALLELSstr(string) CENTERstr(string)]
+        NTABS(integer)                                                       ///
+        TABROWJSONS(string) TABMETAJSONS(string) TABTOPOPATHS(string)        ///
+        TABGEOS(string) TABIDWIDTHS(string)                                  ///
+        [TABLAYERS(string) TABLABELS(string) TABSTYle(string)                ///
+         HXPATH(string)                                                     ///
+         SUBtitle(string) NOTE(string) XLAbel(string) YLAbel(string)        ///
+         YVAR(string) ZOOMTo(string) HEXStat(string)                        ///
+         LATvar(string) LONvar(string)                                      ///
+         ISDATAtable(integer 0) ISANImate(integer 0)                        ///
+         ISTX2036Style(integer 0) DOWNLOADPos(string)                       ///
+         PROJection(string) ROTATestr(string)                               ///
+         PARALLELSstr(string) CENTERstr(string)                             ///
+         ISLABels(integer 0) LABELSIZE(integer 9)]
     if "`downloadpos'" == "" local downloadpos "side"
+    if "`tabstyle'"    == "" local tabstyle "tabs"
+
+    * ---- Unpack the per-tab pipe lists into indexed locals ----------------
+    _s2wh_splitpipe, name(_trow)   value(`"`tabrowjsons'"')
+    _s2wh_splitpipe, name(_tmeta)  value(`"`tabmetajsons'"')
+    _s2wh_splitpipe, name(_ttopo)  value(`"`tabtopopaths'"')
+    _s2wh_splitpipe, name(_tgeo)   value(`"`tabgeos'"')
+    _s2wh_splitpipe, name(_tlayer) value(`"`tablayers'"')
+    _s2wh_splitpipe, name(_tlab)   value(`"`tablabels'"')
+    forvalues _t = 1/`ntabs' {
+        local _tidw`_t' = word("`tabidwidths'", `_t')
+        if "`_tidw`_t''" == "" local _tidw`_t' = word("`tabidwidths'", 1)
+    }
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
@@ -97,6 +122,20 @@ program define sparkta2_writehtml
     file write `fh' `".region.hl{stroke:#0f172a;stroke-width:1.3px;}"' _n
     file write `fh' `"#tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}"' _n
     file write `fh' `".note{margin-top:14px;color:var(--muted);font-size:.78rem;}"' _n
+    * v0.8.0 dashtab bar.  Default "tabs" style: underline tab strip riding
+    * the card row; "buttons" style: pill button group.
+    file write `fh' `".dashtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;border-bottom:2px solid var(--line);}"' _n
+    file write `fh' `".dashtabs button{appearance:none;background:none;border:none;border-bottom:3px solid transparent;padding:8px 14px;font-size:.92rem;font-weight:600;color:var(--muted);cursor:pointer;margin-bottom:-2px;font-family:inherit;}"' _n
+    file write `fh' `".dashtabs button:hover{color:var(--ink);}"' _n
+    file write `fh' `".dashtabs button.active{color:var(--accent);border-bottom-color:var(--accent);}"' _n
+    file write `fh' `".dashtabs.buttons{border-bottom:none;gap:8px;}"' _n
+    file write `fh' `".dashtabs.buttons button{border:1px solid var(--line);border-radius:999px;padding:7px 16px;margin-bottom:0;background:#fff;}"' _n
+    file write `fh' `".dashtabs.buttons button.active{background:var(--ink);color:#fff;border-color:var(--ink);}"' _n
+    * v0.8.0 Layers checkboxes + map/overlay label text styles.
+    file write `fh' `".layerbox label.layerrow{display:flex;align-items:center;gap:7px;margin:6px 0 2px;font-size:.85rem;font-weight:500;cursor:pointer;}"' _n
+    file write `fh' `".layerbox input[type=checkbox]{width:auto;margin:0;accent-color:var(--ink);}"' _n
+    file write `fh' `".maplabel{paint-order:stroke;stroke:#ffffff;stroke-width:2.4px;stroke-linejoin:round;fill:#334155;pointer-events:none;}"' _n
+    file write `fh' `".ovlabel{paint-order:stroke;stroke:#ffffff;stroke-width:3px;stroke-linejoin:round;fill:#0f172a;font-weight:600;pointer-events:none;}"' _n
     * Under-chart export footer (downloadpos=below).  Drops in below the SVG
     * inside the chartcard, right-aligned, so the side controls column can
     * stay narrow (or collapse entirely when only View is active).
@@ -132,9 +171,9 @@ program define sparkta2_writehtml
     file write `fh' `"#datatable .dt-table tr:hover td{background:#f8fafc;}"' _n
     file write `fh' `"#datatable .dt-truncated{padding:8px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:.78rem;background:#f8fafc;border-radius:0 0 8px 8px;}"' _n
     * Print stylesheet — for "Print to PDF…" via window.print().  Hide the
-    * controls panel, the tooltip, and the data table so only the chart and
-    * page header print.
-    file write `fh' `"@media print {.controls{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}"' _n
+    * controls panel, the tab bar, the tooltip, and the data table so only
+    * the chart and page header print.
+    file write `fh' `"@media print {.controls{display:none !important;}.dashtabs{display:none !important;}#tooltip{display:none !important;}#datatable{display:none !important;}.panels{grid-template-columns:1fr !important;}body{background:#fff;}}"' _n
     file write `fh' `"</style>"' _n
 
     if `isoffline' {
@@ -158,6 +197,16 @@ program define sparkta2_writehtml
     if "`subtitle'" != "" {
         local esc_sub : subinstr local subtitle `"&"' `"&amp;"', all
         file write `fh' `"<p class="sub">`esc_sub'</p>"' _n
+    }
+    * Dashtab bar (only when there is more than one tab).  Buttons are
+    * populated by the bootstrap script from window.__SPARKTA2_TABS__.
+    if `ntabs' > 1 {
+        if "`tabstyle'" == "buttons" {
+            file write `fh' `"<div class="dashtabs buttons" id="dashtabs"></div>"' _n
+        }
+        else {
+            file write `fh' `"<div class="dashtabs" id="dashtabs"></div>"' _n
+        }
     }
     file write `fh' `"<div class="panels">"' _n
     file write `fh' `"  <div class="card controls" id="controls"></div>"' _n
@@ -189,33 +238,106 @@ program define sparkta2_writehtml
     file write `fh' `"})();"' _n
     file write `fh' `"</script>"' _n
 
+    * --- The payload: distinct topos + one config per tab -------------------
     file write `fh' `"<script>"' _n
-    file write `fh' `"window.__SPARKTA2__ = {"' _n
-    file write `fh' `""meta":{"' _n
-    file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
-    file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
-    file write `fh' `""xlabel":"`xlabel'","ylabel":"`ylabel'","' _n
-    file write `fh' `""mode":"`mode'","modes":"`modes'","' _n
-    file write `fh' `""comparable":`iscomparable',"swap":`isswap',"download":`isdownload',"multiples":`ismultiples',"' _n
-    file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
-    file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
-    file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
-    file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
-    file write `fh' `""layer":"`layer'","geo":"`geo'","idwidth":`idwidth',"' _n
-    file write `fh' `""hexradius":`hexradius',"hexstat":"`hexstat'","pointsize":`pointsize',"' _n
-    file write `fh' `""latvar":"`latvar'","lonvar":"`lonvar'","' _n
-    file write `fh' `""bins":`bins',"width":`width',"height":`height'"' _n
-    file write `fh' `"},"' _n
-    file write `fh' `""controls":"' _n
-    sparkta2_appendfile, fh(`fh') path("`metajson'") outpath(`"`export'"')
-    file write `fh' `","' _n
-    file write `fh' `""data":["' _n
-    sparkta2_appendfile, fh(`fh') path("`rowjson'") outpath(`"`export'"')
-    file write `fh' `"],"' _n
-    file write `fh' `""topo":"' _n
-    sparkta2_appendfile, fh(`fh') path("`topopath'") outpath(`"`export'"')
-    file write `fh' _n `"};"' _n
-    file write `fh' `"sparkta2Render(window.__SPARKTA2__);"' _n
+    file write `fh' `"window.__SPARKTA2_TOPOS__ = {};"' _n
+
+    * Dedup topopaths: the first tab using a given file writes it under key
+    * g<t>; later tabs sharing the file reuse that key.
+    forvalues _t = 1/`ntabs' {
+        local _tkey`_t' ""
+        local _u 1
+        while `_u' < `_t' & "`_tkey`_t''" == "" {
+            if `"`_ttopo`_u''"' == `"`_ttopo`_t''"' local _tkey`_t' "`_tkey`_u''"
+            local ++_u
+        }
+        if "`_tkey`_t''" == "" {
+            local _tkey`_t' "g`_t'"
+            file write `fh' `"window.__SPARKTA2_TOPOS__["g`_t'"] ="' _n
+            sparkta2_appendfile, fh(`fh') path("`_ttopo`_t''") outpath(`"`export'"')
+            file write `fh' _n `";"' _n
+        }
+    }
+
+    file write `fh' `"window.__SPARKTA2_TABS__ = ["' _n
+    forvalues _t = 1/`ntabs' {
+        if `_t' > 1 file write `fh' `","' _n
+        local _lab `"`_tlab`_t''"'
+        if `"`_lab'"' == "" local _lab "Tab `_t'"
+        local _lab : subinstr local _lab `"\"' `"\\"', all
+        local _lab : subinstr local _lab `"""' `"\""', all
+        file write `fh' `"{"label":"`_lab'","topokey":"`_tkey`_t''","cfg":{"' _n
+        file write `fh' `""meta":{"' _n
+        file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
+        file write `fh' `""xvar":"`xvar'","yvar":"`yvar'","' _n
+        file write `fh' `""xlabel":"`xlabel'","ylabel":"`ylabel'","' _n
+        file write `fh' `""mode":"`mode'","modes":"`modes'","' _n
+        file write `fh' `""comparable":`iscomparable',"swap":`isswap',"download":`isdownload',"multiples":`ismultiples',"' _n
+        file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
+        file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
+        file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
+        file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
+        file write `fh' `""layer":"`_tlayer`_t''","geo":"`_tgeo`_t''","idwidth":`_tidw`_t'',"' _n
+        file write `fh' `""hexradius":`hexradius',"hexstat":"`hexstat'","pointsize":`pointsize',"' _n
+        file write `fh' `""latvar":"`latvar'","lonvar":"`lonvar'","' _n
+        file write `fh' `""maplabels":`islabels',"labelsize":`labelsize',"' _n
+        file write `fh' `""bins":`bins',"width":`width',"height":`height'"' _n
+        file write `fh' `"},"' _n
+        file write `fh' `""controls":"' _n
+        sparkta2_appendfile, fh(`fh') path("`_tmeta`_t''") outpath(`"`export'"')
+        file write `fh' `","' _n
+        file write `fh' `""data":["' _n
+        sparkta2_appendfile, fh(`fh') path("`_trow`_t''") outpath(`"`export'"')
+        file write `fh' `"]}}"' _n
+    }
+    file write `fh' _n `"];"' _n
+
+    * Bootstrap: build the tab bar (if any), then render the active tab by
+    * re-invoking sparkta2Render with that tab's config.  The engine rebuilds
+    * #controls / #map / #panels from scratch on every call, so a tab switch
+    * is a clean re-render; transient chrome (data table, tooltip, footer,
+    * sidebar-collapse classes) is reset here first.
+    file write `fh' `"(function(){"' _n
+    file write `fh' `"var tabs=window.__SPARKTA2_TABS__||[];"' _n
+    file write `fh' `"var topos=window.__SPARKTA2_TOPOS__||{};"' _n
+    file write `fh' `"if(!tabs.length)return;"' _n
+    file write `fh' `"var bar=document.getElementById('dashtabs');"' _n
+    file write `fh' `"function show(i){"' _n
+    file write `fh' `"if(bar){var bs=bar.getElementsByTagName('button');for(var j=0;j<bs.length;j++){bs[j].className=(j===i?'active':'');}}"' _n
+    file write `fh' `"var dt=document.getElementById('datatable');if(dt){dt.className='';dt.innerHTML='';}"' _n
+    file write `fh' `"var tt=document.getElementById('tooltip');if(tt){tt.style.opacity=0;}"' _n
+    file write `fh' `"var cf=document.getElementById('chart-footer');if(cf){cf.className='';cf.innerHTML='';}"' _n
+    file write `fh' `"var ctl=document.getElementById('controls');if(ctl){ctl.className='card controls';}"' _n
+    file write `fh' `"var pn=document.querySelector('.panels');if(pn){pn.className='panels';}"' _n
+    file write `fh' `"var t=tabs[i];t.cfg.topo=topos[t.topokey];"' _n
+    file write `fh' `"sparkta2Render(t.cfg);"' _n
+    file write `fh' `"}"' _n
+    file write `fh' `"if(bar&&tabs.length>1){tabs.forEach(function(t,i){"' _n
+    file write `fh' `"var b=document.createElement('button');b.type='button';b.textContent=t.label;"' _n
+    file write `fh' `"b.addEventListener('click',function(){show(i);});bar.appendChild(b);});}"' _n
+    file write `fh' `"show(0);"' _n
+    file write `fh' `"})();"' _n
     file write `fh' `"</script></body></html>"' _n
     file close `fh'
+end
+
+* Split a pipe-separated string into caller locals `name'1..`name'N and
+* set `name'_n to N.  Empty segments are preserved (they signal "use the
+* default" to the caller).
+program define _s2wh_splitpipe
+    version 17.0
+    syntax , NAME(name) [VALue(string asis)]
+    local str `"`value'"'
+    local k 0
+    local _pp = strpos(`"`str'"', "|")
+    while `_pp' > 0 {
+        local ++k
+        local piece = substr(`"`str'"', 1, `_pp' - 1)
+        c_local `name'`k' `"`piece'"'
+        local str = substr(`"`str'"', `_pp' + 1, .)
+        local _pp = strpos(`"`str'"', "|")
+    }
+    local ++k
+    c_local `name'`k' `"`str'"'
+    c_local `name'_n `k'
 end

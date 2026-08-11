@@ -20,6 +20,11 @@
      - Export menu: PNG, SVG, CSV download + view-data table + print-to-PDF
      - Animate-on-view (IntersectionObserver-gated fade-in)
      - Small-multiples mode
+     - v0.8.0: overlay layers with checkbox toggles (boundary mesh of any
+       topo object, or client-side dissolve of the focused layer by a
+       data variable via topojson.merge), georeferenced raster image
+       layer, toggleable feature name labels; dashtab re-render protocol
+       (the page bootstrap calls sparkta2Render once per tab switch)
 */
 (function () {
   "use strict";
@@ -129,6 +134,10 @@
     ctrl.filters.forEach(function (f) { state.filters[f.var] = "__all__"; });
     ctrl.sliders.forEach(function (s) { state.sliders[s.var] = [s.min, s.max]; });
 
+    // Layer-toggle state (checkboxes in the "Layers" controls section).
+    // Populated after ctrl is known; overlays default to visible.
+    state.layersOn = { labels: true, raster: true };
+
     // ---- Pick topojson layer (with GeoJSON FeatureCollection fallback) ---
     // The bundled texas_counties topojson exposes objects {counties, states,
     // nation}.  For custom geographies the file may be either a TopoJSON
@@ -161,6 +170,18 @@
         basemapFeatures = topojson.feature(topo, topo.objects.nation).features;
       }
     }
+
+    // ---- v0.8.0 layer stack: overlays / raster / name labels -------------
+    // ctrl.overlays: [{kind:"object"|"groupvar", key, label}, ...]
+    //   object   -> boundary mesh of another object in the same TopoJSON
+    //   groupvar -> dissolve the focused layer by the o__<key> row field
+    //               (client-side topojson.merge — no extra shapefile needed)
+    // ctrl.raster: {href, bounds:[west,south,east,north], opacity, label}
+    var overlays = ctrl.overlays || [];
+    var raster = ctrl.raster || null;
+    var showLabels = !!meta.maplabels;
+    var labelSize = +meta.labelsize || 9;
+    var OVERLAY_STROKE = 1.3, OVERLAY_FONT = 11;
 
     var index = d3.index(data, function (d) { return padId(d.id, idwidth); });
 
@@ -378,6 +399,12 @@
             .on("zoom", function (ev) {
               panel.gWrap.attr("transform", ev.transform);
               panel.gWrap.attr("stroke-width", 0.45 / ev.transform.k);
+              // Counter-scale overlay strokes and label text so they keep a
+              // constant on-screen size while the map zooms underneath.
+              var k = ev.transform.k;
+              panel.gOver.attr("stroke-width", OVERLAY_STROKE / k)
+                         .attr("font-size", (OVERLAY_FONT / k) + "px");
+              panel.gLbl.attr("font-size", (labelSize / k) + "px");
             });
           panel.zoom = zoom;
           panel.svg.call(zoom);
@@ -493,15 +520,19 @@
       var pathGen = d3.geoPath(projection);
       var gWrap   = svg.append("g").attr("class", "wrap");
       var gBase   = gWrap.append("g").attr("class", "basemap");
+      var gRaster = gWrap.append("g").attr("class", "rasterlayer");
       var gMap    = gWrap.append("g").attr("class", "regions");
       var gHex    = gWrap.append("g").attr("class", "hexbins");
       var gPts    = gWrap.append("g").attr("class", "points");
+      var gOver   = gWrap.append("g").attr("class", "overlays");
+      var gLbl    = gWrap.append("g").attr("class", "maplabels");
       var gLegend = svg.append("g").attr("class", "legend");
 
       return {
         mode: mode, svg: svg, w: w, h: h, margin: margin,
         pathGen: pathGen, projection: projection,
-        gWrap: gWrap, gBase: gBase, gMap: gMap, gHex: gHex, gPts: gPts, gLegend: gLegend
+        gWrap: gWrap, gBase: gBase, gRaster: gRaster, gMap: gMap, gHex: gHex,
+        gPts: gPts, gOver: gOver, gLbl: gLbl, gLegend: gLegend
       };
     }
 
@@ -521,6 +552,8 @@
           .attr("pointer-events", "none");
       }
 
+      paintRaster(panel);
+
       if (renderType === "hexbin") {
         paintHexbins(panel, palette);
       }
@@ -531,7 +564,116 @@
         paintRegions(panel, palette);
       }
 
+      paintOverlays(panel);
+      paintLabels(panel);
+
       drawLegend(panel, palette);
+    }
+
+    // ---- v0.8.0 painters: raster / overlays / labels ---------------------
+    function paintRaster(panel) {
+      panel.gRaster.selectAll("*").remove();
+      if (!raster || !raster.href || state.layersOn.raster === false) return;
+      var b = raster.bounds || [];
+      if (b.length !== 4) return;
+      // bounds = [west, south, east, north] in decimal degrees.
+      // Project the NW and SE corners and stretch the image between them.
+      // Exact only for Mercator; conic projections bend the graticule while
+      // the pixels stay straight, so expect drift toward the image edges.
+      var tl = panel.projection([+b[0], +b[3]]);
+      var br = panel.projection([+b[2], +b[1]]);
+      if (!tl || !br) return;   // corners outside a composite projection's zones
+      panel.gRaster.append("image")
+        .attr("href", raster.href)
+        .attr("x", tl[0]).attr("y", tl[1])
+        .attr("width", br[0] - tl[0]).attr("height", br[1] - tl[1])
+        .attr("opacity", raster.opacity == null ? 0.75 : +raster.opacity)
+        .attr("preserveAspectRatio", "none")
+        .attr("pointer-events", "none");
+    }
+
+    // Dissolved / referenced overlay geometry, computed once per overlay.
+    var _overlayCache = {};
+    function overlayFeatures(ov) {
+      var ck = ov.kind + ":" + ov.key;
+      if (_overlayCache[ck]) return _overlayCache[ck];
+      var out = [];
+      if (isGeoJSON) {
+        // No arcs to merge/mesh — overlays need a TopoJSON input.
+        _overlayCache[ck] = out;
+        return out;
+      }
+      if (ov.kind === "object") {
+        if (topo.objects[ov.key]) {
+          out = [{ type: "Feature", properties: {},
+                   geometry: topojson.mesh(topo, topo.objects[ov.key]) }];
+        }
+      }
+      else {  // groupvar: dissolve focused-layer features by the o__<key> field
+        var src = topo.objects[layerName];
+        var groups = {};
+        ((src && src.geometries) || []).forEach(function (g) {
+          var row = index.get(padId(g.id, idwidth));
+          var v = row ? row["o__" + ov.key] : null;
+          if (v == null || v === "") return;
+          (groups[v] = groups[v] || []).push(g);
+        });
+        Object.keys(groups).sort().forEach(function (v) {
+          out.push({ type: "Feature", properties: { __ovname: v },
+                     geometry: topojson.merge(topo, groups[v]) });
+        });
+      }
+      _overlayCache[ck] = out;
+      return out;
+    }
+
+    function paintOverlays(panel) {
+      panel.gOver.selectAll("*").remove();
+      if (!overlays.length) return;
+      panel.gOver
+        .attr("stroke-width", OVERLAY_STROKE)
+        .attr("font-size", OVERLAY_FONT + "px");
+      overlays.forEach(function (ov) {
+        if (state.layersOn["ov_" + ov.key] === false) return;
+        var feats = overlayFeatures(ov);
+        if (!feats.length) return;
+        var g = panel.gOver.append("g").attr("class", "overlay");
+        g.selectAll("path").data(feats).enter().append("path")
+          .attr("d", panel.pathGen)
+          .attr("fill", "none")
+          .attr("stroke", "#0f172a")
+          .attr("stroke-linejoin", "round")
+          .attr("pointer-events", "none");
+        // Group-name labels at polygon centroids (dissolved overlays only).
+        feats.forEach(function (f) {
+          if (!f.properties || !f.properties.__ovname) return;
+          var c = panel.pathGen.centroid(f);
+          if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return;
+          g.append("text").attr("class", "ovlabel")
+            .attr("x", c[0]).attr("y", c[1])
+            .attr("text-anchor", "middle")
+            .text(f.properties.__ovname);
+        });
+      });
+    }
+
+    function paintLabels(panel) {
+      panel.gLbl.selectAll("*").remove();
+      if (!showLabels || state.layersOn.labels === false) return;
+      if (renderType === "hexbin" || renderType === "points") return;
+      panel.gLbl
+        .attr("font-size", labelSize + "px")
+        .attr("pointer-events", "none");
+      features.forEach(function (f) {
+        var row = index.get(padId(f.id, idwidth));
+        if (!row || !passes(row)) return;
+        var c = panel.pathGen.centroid(f);
+        if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return;
+        panel.gLbl.append("text").attr("class", "maplabel")
+          .attr("x", c[0]).attr("y", c[1])
+          .attr("text-anchor", "middle")
+          .text(row.name || padId(f.id, idwidth));
+      });
     }
 
     function paintRegions(panel, palette) {
@@ -876,6 +1018,28 @@
       if ((ctrl.sliders || []).length) {
         controlsRoot.append("h3").style("margin-top", "14px").text("Range filters");
         ctrl.sliders.forEach(function (s) { buildSlider(controlsRoot, s); });
+      }
+
+      // v0.8.0 Layers section: one checkbox per toggleable layer.
+      var canLabel = showLabels && renderType !== "hexbin" && renderType !== "points";
+      if (overlays.length || raster || canLabel) {
+        controlsRoot.append("h3").style("margin-top", "14px").text("Layers");
+        var lbox = controlsRoot.append("div").attr("class", "layerbox");
+        var layerToggle = function (key, text) {
+          var lab = lbox.append("label").attr("class", "layerrow");
+          lab.append("input").attr("type", "checkbox")
+            .property("checked", state.layersOn[key] !== false)
+            .on("change", function () {
+              state.layersOn[key] = this.checked;
+              repaint();
+            });
+          lab.append("span").text(text);
+        };
+        overlays.forEach(function (ov) {
+          layerToggle("ov_" + ov.key, ov.label || ov.key);
+        });
+        if (raster)   layerToggle("raster", raster.label || "Raster image");
+        if (canLabel) layerToggle("labels", "Name labels");
       }
 
       var hasZoom = meta.zoom !== 0;

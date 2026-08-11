@@ -1,3 +1,4 @@
 v 3
-d sparkta2: interactive D3 maps and charts from Stata
+d sparkta2: interactive D3 maps and charts from Stata, as one self-contained HTML file
+d Eric A. Booth, Sr Researcher, Texas 2036, eric.a.booth@gmail.com
 p sparkta2

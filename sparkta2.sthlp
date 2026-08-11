@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.7.8  26jun2026}{...}
+{* *! version 0.7.9  11aug2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -893,7 +893,7 @@ declared height; with it, they get a native scrollbar.  Section 11 of
 {title:Author}
 
 {pstd}
-Eric A. Booth, Sr Researcher, Texas2036.org (eric.a.booth@gmail.com).{break}
+Eric A. Booth, Sr Researcher, Texas 2036 (eric.a.booth@gmail.com).{break}
 eric.a.booth@gmail.com
 
 {pstd}

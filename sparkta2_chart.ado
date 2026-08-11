@@ -1,5 +1,11 @@
-*! sparkta2_chart v0.7.8  2026-06-26
+*! sparkta2_chart v0.7.9  2026-08-11
 *! D3-native non-map chart types for sparkta2.
+*!
+*! v0.7.9: asset discovery now goes through sparkta2_findfile (new charts
+*!   option), so the chart engine and d3.min.js resolve from the adopath,
+*!   the PLUS/s/sparkta2/ cache, or the auto-download mirror, exactly like
+*!   the map types.  Previously two bare -findfile- calls errored r(601) on
+*!   any install where net install had placed only the ado files.
 *!
 *! Supported types:
 *!   donut    : ring chart, one slice per row
@@ -183,19 +189,15 @@ program define sparkta2_chart, rclass
         local export "`c(pwd)'/sparkta2_`type'.html"
     }
 
-    * --- Discover the engine paths (chart engine, plus d3 + helpers) -------
-    capture findfile sparkta2_chart_engine.js
-    if _rc {
-        display as error "sparkta2_chart: sparkta2_chart_engine.js not on adopath."
-        exit 601
-    }
-    local engpath "`r(fn)'"
-    capture findfile d3.min.js
-    if _rc {
-        display as error "sparkta2_chart: d3.min.js not on adopath."
-        exit 601
-    }
-    local d3path "`r(fn)'"
+    * --- Discover the engine paths (chart engine + d3) ---------------------
+    * Route through sparkta2_findfile so charts get the same three-pass
+    * lookup maps use (adopath incl. cwd, the PLUS/s/sparkta2/ cache, then
+    * auto-download); a bare -findfile- here made the first chart after a
+    * fresh net install fail with r(601), because net install cannot place
+    * the .js ancillaries.
+    sparkta2_findfile, charts
+    local engpath "`r(chartpath)'"
+    local d3path  "`r(d3path)'"
 
     * --- Build the row JSON ----------------------------------------------
     tempfile rowjson

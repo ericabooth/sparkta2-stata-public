@@ -1,5 +1,26 @@
-*! sparkta2_map v0.7.8  2026-06-26
+*! sparkta2_map v0.8.0  2026-08-11
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
+*!
+*! v0.8.0 additions:
+*!   - dashtab(varname): higher-order tabs.  Where over() splits within a
+*!     chart and by() makes small multiples, dashtab() renders one FULL map
+*!     per level of the variable and puts a tab bar above the output.  Each
+*!     tab can use its own geography via dashtabgeo() / dashtablayer() /
+*!     dashtabidwidth() (pipe / space lists, one entry per level in levelsof
+*!     order), so one HTML file can hold counties, school districts, and
+*!     dissolved regions as separate tabs.  dashtabstyle(tabs|buttons).
+*!   - overlays(list): checkbox-toggleable overlay layers drawn on top of
+*!     the data layer.  Each token is either an object in the topojson
+*!     (states, nation, ...) drawn as a boundary mesh, or a variable in the
+*!     data: the focused features are DISSOLVED client-side by that
+*!     variable's value (topojson.merge) and drawn as labelled group
+*!     boundaries — regions over counties with no extra shapefile.
+*!   - maplabels + labelsize(#): feature name labels at centroids with a
+*!     Layers checkbox; label size counter-scales against zoom.
+*!   - rasterimage(file) + rasterbounds(w s e n) + rasteropacity(#): embed a
+*!     georeferenced image (base64 data URI, still fully offline) stretched
+*!     between its projected corner coordinates, beneath the data layer.
+*!     Exact in mercator; approximate under conic projections (see help).
 *!
 *! v0.7.8 fix:
 *!   - Texas projection tilt iteration: the v0.6.1 settings
@@ -95,6 +116,18 @@ program define sparkta2_map, rclass
         CENter(numlist max=2 min=2)                        ///  projection center, degrees: lon lat
         MULTiples                                          ///  small-multiples: one panel per mode
         BINS(integer 3)                                    ///  quantile bins per axis for bivariate
+        OVERlays(string)                                   ///  overlay layers: topo objects and/or dissolve-by variables
+        MAPLABels                                          ///  feature name labels at centroids (Layers checkbox)
+        LABELSize(integer 9)                               ///  label font size in svg px
+        RASTERimage(string)                                ///  georeferenced image file to draw under the data layer
+        RASTERBounds(numlist min=4 max=4)                  ///  west south east north, decimal degrees
+        RASTEROpacity(real 0.75)                           ///  raster opacity 0-1
+        RASTERLabel(string)                                ///  checkbox label for the raster layer
+        DASHtab(varname)                                   ///  higher-order tabs: one full map per level of this var
+        DASHTABGeo(string)                                 ///  pipe-sep geo() per tab, in levelsof order
+        DASHTABLayer(string)                               ///  pipe-sep layer() per tab
+        DASHTABIDWidth(numlist int >=1)                    ///  per-tab idwidth (space-sep)
+        DASHTABStyle(string)                               ///  tabs (default) | buttons
         EXPORT(string) OFFLINE NOOPEN                      ///
         WIDTH(integer 980) HEIGHT(integer 828)             ///
     ]
@@ -234,13 +267,6 @@ program define sparkta2_map, rclass
 
     if "`layer'" != "" local layer = lower("`layer'")
 
-    quietly sparkta2_findfile, geo("`geo'")
-    local topopath  "`r(topopath)'"
-    local engpath   "`r(engpath)'"
-    local d3path    "`r(d3path)'"
-    local tcpath    "`r(tcpath)'"
-    local hxpath    "`r(hxpath)'"
-
     if "`export'" == "" {
         local export "`c(pwd)'/sparkta2_`type'_`geo'.html"
     }
@@ -294,9 +320,199 @@ program define sparkta2_map, rclass
         }
     }
 
-    tempfile rowjson
+    * ---- dashtab: build tab specs (v0.8.0) --------------------------------
+    * A plain call is one tab with no filter; dashtab(varname) makes one tab
+    * per level.  Both run the identical row/meta/render pipeline below.
+    if "`dashtabstyle'" == "" local dashtabstyle "tabs"
+    local dashtabstyle = lower("`dashtabstyle'")
+    if !inlist("`dashtabstyle'", "tabs", "buttons") {
+        display as error "sparkta2: dashtabstyle(`dashtabstyle') not recognised (tabs | buttons)"
+        exit 198
+    }
+    local _ntabs 1
+    local _dt_is_str 0
+    if "`dashtab'" != "" {
+        if `_cty_keep_set' {
+            display as error "sparkta2: counties() cannot be combined with dashtab() — one FIPS list cannot apply across aggregation levels.  Use [if] instead."
+            exit 198
+        }
+        capture confirm string variable `dashtab'
+        local _dt_is_str = (_rc == 0)
+        local _dt_vallab ""
+        if !`_dt_is_str' local _dt_vallab : value label `dashtab'
+        quietly levelsof `dashtab' if `touse', local(_dtlevels)
+        local _ntabs : word count `_dtlevels'
+        if `_ntabs' < 2 {
+            display as error "sparkta2: dashtab(`dashtab') has only `_ntabs' level on the active sample — need at least 2 tabs"
+            exit 198
+        }
+        if `_ntabs' > 10 {
+            display as error "sparkta2: dashtab(`dashtab') has `_ntabs' levels — more than 10 tabs is unusable.  Recode the variable."
+            exit 198
+        }
+        local _k 0
+        foreach _lv of local _dtlevels {
+            local ++_k
+            local _dtval_`_k' `"`_lv'"'
+            if `_dt_is_str' local _dtlab_`_k' `"`_lv'"'
+            else {
+                if "`_dt_vallab'" != "" {
+                    local _dtlab_`_k' : label `_dt_vallab' `_lv'
+                }
+                else local _dtlab_`_k' "`_lv'"
+            }
+            * "|" is the tab-list separator downstream — swap it out of labels
+            local _dtlab_`_k' : subinstr local _dtlab_`_k' "|" "/", all
+        }
+    }
+
+    * Per-tab geo / layer / idwidth: pipe (geo, layer) or space (idwidth)
+    * lists in levelsof order; empty entries fall back to the global option.
+    forvalues _t = 1/`_ntabs' {
+        local _tgeo_`_t' "`geo'"
+        local _tlayer_`_t' "`layer'"
+        local _tidw_`_t' "`idwidth'"
+    }
+    if "`dashtabgeo'" != "" {
+        local _rest "`dashtabgeo'"
+        local _t 0
+        while "`_rest'" != "" & `_t' < `_ntabs' {
+            local ++_t
+            local _pp = strpos("`_rest'", "|")
+            if `_pp' > 0 {
+                local _piece = substr("`_rest'", 1, `_pp' - 1)
+                local _rest  = substr("`_rest'", `_pp' + 1, .)
+            }
+            else {
+                local _piece "`_rest'"
+                local _rest ""
+            }
+            if "`_piece'" != "" local _tgeo_`_t' = lower(strtrim("`_piece'"))
+        }
+    }
+    if "`dashtablayer'" != "" {
+        local _rest "`dashtablayer'"
+        local _t 0
+        while "`_rest'" != "" & `_t' < `_ntabs' {
+            local ++_t
+            local _pp = strpos("`_rest'", "|")
+            if `_pp' > 0 {
+                local _piece = substr("`_rest'", 1, `_pp' - 1)
+                local _rest  = substr("`_rest'", `_pp' + 1, .)
+            }
+            else {
+                local _piece "`_rest'"
+                local _rest ""
+            }
+            if "`_piece'" != "" local _tlayer_`_t' = lower(strtrim("`_piece'"))
+        }
+    }
+    if "`dashtabidwidth'" != "" {
+        forvalues _t = 1/`_ntabs' {
+            local _w = word("`dashtabidwidth'", `_t')
+            if "`_w'" != "" local _tidw_`_t' "`_w'"
+        }
+    }
+
+    * ---- Resolve engine + per-tab geography assets ------------------------
+    forvalues _t = 1/`_ntabs' {
+        quietly sparkta2_findfile, geo("`_tgeo_`_t''")
+        local _ttopo_`_t' "`r(topopath)'"
+        if `_t' == 1 {
+            local engpath "`r(engpath)'"
+            local d3path  "`r(d3path)'"
+            local tcpath  "`r(tcpath)'"
+            local hxpath  "`r(hxpath)'"
+        }
+    }
+
+    * ---- overlays(): classify tokens (v0.8.0) -----------------------------
+    * A token that names a variable in memory becomes a dissolve-by overlay
+    * (the engine merges focused features sharing that variable's value);
+    * anything else is treated as a topojson object name (states, nation, ...)
+    * drawn as a boundary mesh.
+    local _n_ov 0
+    local _ov_gvars ""
+    if "`overlays'" != "" {
+        foreach _ov of local overlays {
+            local ++_n_ov
+            capture confirm variable `_ov'
+            if !_rc {
+                local _ovkind_`_n_ov' "groupvar"
+                local _ovkey_`_n_ov' "`_ov'"
+                local _lbl : variable label `_ov'
+                if `"`_lbl'"' == "" local _lbl "`_ov' boundaries"
+                local _ovlab_`_n_ov' `"`_lbl'"'
+                local _ov_gvars "`_ov_gvars' `_ov'"
+            }
+            else {
+                local _ovkind_`_n_ov' "object"
+                local _ovkey_`_n_ov' = lower("`_ov'")
+                local _ovlab_`_n_ov' = strproper("`_ov'") + " outline"
+            }
+        }
+        local _ov_gvars = strtrim("`_ov_gvars'")
+    }
+
+    * ---- rasterimage(): base64-embed a georeferenced image (v0.8.0) -------
+    local _has_raster 0
+    if "`rasterimage'" != "" {
+        capture confirm file `"`rasterimage'"'
+        if _rc {
+            display as error `"sparkta2: rasterimage(`rasterimage') not found"'
+            exit 601
+        }
+        if "`rasterbounds'" == "" {
+            display as error "sparkta2: rasterimage() requires rasterbounds(west south east north) in decimal degrees"
+            exit 198
+        }
+        if `rasteropacity' < 0 | `rasteropacity' > 1 {
+            display as error "sparkta2: rasteropacity() must be between 0 and 1"
+            exit 198
+        }
+        capture python query
+        if _rc {
+            display as error "sparkta2: rasterimage() needs Stata's Python integration to base64-encode the image; see {help python}"
+            exit 198
+        }
+        local _rb_w : word 1 of `rasterbounds'
+        local _rb_s : word 2 of `rasterbounds'
+        local _rb_e : word 3 of `rasterbounds'
+        local _rb_n : word 4 of `rasterbounds'
+        if !(`_rb_w' < `_rb_e' & `_rb_s' < `_rb_n') {
+            display as error "sparkta2: rasterbounds() must be west south east north with west < east and south < north"
+            exit 198
+        }
+        quietly checksum `"`rasterimage'"'
+        if r(filelen) > 20000000 {
+            display as error "sparkta2: rasterimage() file is > 20 MB — downscale it first (the image is embedded base64 into the HTML)"
+            exit 198
+        }
+        if r(filelen) > 2000000 {
+            display as txt "  sparkta2: note — rasterimage() is `=strofreal(r(filelen)/1048576, "%4.1f")' MB; the HTML grows by ~4/3 of that"
+        }
+        if `"`rasterlabel'"' == "" {
+            local rasterlabel = substr(`"`rasterimage'"', strrpos(`"`rasterimage'"', "/") + 1, .)
+        }
+        tempfile rasterb64
+        python:
+import base64, os
+from sfi import Macro
+_p = Macro.getLocal("rasterimage")
+_o = Macro.getLocal("rasterb64")
+_ext = os.path.splitext(_p)[1].lower().lstrip(".")
+_mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+         "gif": "image/gif", "webp": "image/webp"}.get(_ext, "image/png")
+with open(_p, "rb") as _f:
+    _b64 = base64.b64encode(_f.read()).decode("ascii")
+with open(_o, "w") as _f:
+    _f.write("data:" + _mime + ";base64," + _b64)
+end
+        local _has_raster 1
+    }
+    local is_maplabels = cond("`maplabels'" != "", 1, 0)
+
     tempname rfh
-    file open `rfh' using "`rowjson'", write text replace
 
     local filt_vars `"`filters'"'
     local slid_vars `"`sliders'"'
@@ -306,27 +522,73 @@ program define sparkta2_map, rclass
     capture confirm string variable `id'
     local _id_is_string = (_rc == 0)
 
-    local _first 1
-    local _rows_written 0
-    quietly {
-        forvalues _i = 1/`=_N' {
-            if !`touse'[`_i'] continue
-            * Build a padded string id matching idwidth.
-            * Padding uses explicit leading-zero prefixing rather than the
-            * real()->display %0Wf round-trip: that idiom silently overflows
-            * to scientific notation (" 2.0e+08") for any numeric value past
-            * ~10^8, collapsing distinct 9-digit ids into one string and
-            * breaking d3.index() with duplicate-key errors downstream.
-            if `_id_is_string' {
-                local _idraw = `id'[`_i']
-                local _fid = "`_idraw'"
-                * Pad with leading zeros only if shorter than idwidth -- and
-                * only when the raw value is numeric-looking (FIPS-style).
-                * Already-padded or long string ids are written verbatim.
-                if strlen("`_fid'") < `idwidth' {
-                    capture local _rn = real("`_fid'")
-                    if !_rc & "`_fid'" != "." & !missing(`_rn') {
-                        local _padlen = `idwidth' - strlen("`_fid'")
+    * ---- Per-tab row + meta JSON (v0.8.0: one pass per dashtab level; a
+    * ---- plain call is a single pass with no tab filter) ------------------
+    local _tabrowjsons ""
+    local _tabmetajsons ""
+    local _tabtopopaths ""
+    local _tabgeos ""
+    local _tablayers ""
+    local _tabidwidths ""
+    local _tablabels ""
+    local _rows_total 0
+
+    forvalues _t = 1/`_ntabs' {
+        local _tidw "`_tidw_`_t''"
+
+        tempfile rowjson_`_t'
+        file open `rfh' using "`rowjson_`_t''", write text replace
+
+        local _first 1
+        local _rows_written 0
+        quietly {
+            forvalues _i = 1/`=_N' {
+                if !`touse'[`_i'] continue
+                * dashtab filter: this pass keeps only the rows on this tab.
+                if `_ntabs' > 1 {
+                    if `_dt_is_str' {
+                        local _dtv = `dashtab'[`_i']
+                        if `"`_dtv'"' != `"`_dtval_`_t''"' continue
+                    }
+                    else {
+                        if `dashtab'[`_i'] != `_dtval_`_t'' continue
+                    }
+                }
+                * Build a padded string id matching this tab's idwidth.
+                * Padding uses explicit leading-zero prefixing rather than the
+                * real()->display %0Wf round-trip: that idiom silently overflows
+                * to scientific notation (" 2.0e+08") for any numeric value past
+                * ~10^8, collapsing distinct 9-digit ids into one string and
+                * breaking d3.index() with duplicate-key errors downstream.
+                if `_id_is_string' {
+                    local _idraw = `id'[`_i']
+                    local _fid = "`_idraw'"
+                    * Pad with leading zeros only if shorter than idwidth -- and
+                    * only when the raw value is numeric-looking (FIPS-style).
+                    * Already-padded or long string ids are written verbatim.
+                    if strlen("`_fid'") < `_tidw' {
+                        capture local _rn = real("`_fid'")
+                        if !_rc & "`_fid'" != "." & !missing(`_rn') {
+                            local _padlen = `_tidw' - strlen("`_fid'")
+                            local _zeros = ""
+                            forvalues _z = 1/`_padlen' {
+                                local _zeros = "0`_zeros'"
+                            }
+                            local _fid = "`_zeros'`_fid'"
+                        }
+                    }
+                }
+                else {
+                    local _idnum = `id'[`_i']
+                    if missing(`_idnum') continue
+                    * Format with width 19 (max int64 digits) then strip the
+                    * leading sign-padding spaces.  Avoids the `display %0Wf`
+                    * scientific-notation overflow on values past ~10^8 that
+                    * the legacy idiom triggered.
+                    local _fid : display %19.0f `_idnum'
+                    local _fid = strtrim("`_fid'")
+                    if strlen("`_fid'") < `_tidw' {
+                        local _padlen = `_tidw' - strlen("`_fid'")
                         local _zeros = ""
                         forvalues _z = 1/`_padlen' {
                             local _zeros = "0`_zeros'"
@@ -334,221 +596,288 @@ program define sparkta2_map, rclass
                         local _fid = "`_zeros'`_fid'"
                     }
                 }
+
+                if `_cty_keep_set' {
+                    if !`:list _fid in _cty_keep_sp' continue
+                }
+
+                local _xv = `xvar'[`_i']
+                local _yv .
+                if "`yvar'" != "" local _yv = `yvar'[`_i']
+
+                local _nm "`_fid'"
+                if "`name'" != "" {
+                    capture confirm string variable `name'
+                    if !_rc {
+                        local _nm = `name'[`_i']
+                    }
+                    else {
+                        capture local _nm : display `name'[`_i']
+                    }
+                    if "`_nm'" == "" local _nm "`_fid'"
+                }
+                local _nm : subinstr local _nm `"\"' `"\\"', all
+                local _nm : subinstr local _nm `"""' `"\""', all
+
+                if `_first' local _first 0
+                else file write `rfh' "," _n
+
+                file write `rfh' "        {"
+                file write `rfh' `""id":"`_fid'""'
+                file write `rfh' `","name":"`_nm'""'
+
+                if missing(`_xv') file write `rfh' `","x":null"'
+                else              file write `rfh' `","x":"' (`_xv')
+
+                if "`yvar'" != "" {
+                    if missing(`_yv') file write `rfh' `","y":null"'
+                    else              file write `rfh' `","y":"' (`_yv')
+                }
+
+                if "`latvar'" != "" {
+                    local _ltv = `latvar'[`_i']
+                    if missing(`_ltv') file write `rfh' `","lat":null"'
+                    else                file write `rfh' `","lat":"' (`_ltv')
+                }
+                if "`lonvar'" != "" {
+                    local _lnv = `lonvar'[`_i']
+                    if missing(`_lnv') file write `rfh' `","lon":null"'
+                    else                file write `rfh' `","lon":"' (`_lnv')
+                }
+
+                foreach _fv of local filt_vars {
+                    local _val ""
+                    capture confirm string variable `_fv'
+                    if !_rc {
+                        local _val = `_fv'[`_i']
+                    }
+                    else {
+                        local _lab : value label `_fv'
+                        local _num = `_fv'[`_i']
+                        if "`_lab'" != "" & !missing(`_num') {
+                            local _val : label `_lab' `_num'
+                        }
+                        else if missing(`_num') {
+                            local _val ""
+                        }
+                        else {
+                            local _val = strofreal(`_num')
+                        }
+                    }
+                    local _val : subinstr local _val `"\"' `"\\"', all
+                    local _val : subinstr local _val `"""' `"\""', all
+                    file write `rfh' `","f__`_fv'":"`_val'""'
+                }
+                foreach _sv of local slid_vars {
+                    local _snum = `_sv'[`_i']
+                    if missing(`_snum') file write `rfh' `","s__`_sv'":null"'
+                    else                file write `rfh' `","s__`_sv'":"' (`_snum')
+                }
+                * v0.8.0 dissolve-by overlay group values (same display logic
+                * as filters: string verbatim, value label when present).
+                foreach _gv of local _ov_gvars {
+                    local _val ""
+                    capture confirm string variable `_gv'
+                    if !_rc {
+                        local _val = `_gv'[`_i']
+                    }
+                    else {
+                        local _lab : value label `_gv'
+                        local _num = `_gv'[`_i']
+                        if "`_lab'" != "" & !missing(`_num') {
+                            local _val : label `_lab' `_num'
+                        }
+                        else if missing(`_num') {
+                            local _val ""
+                        }
+                        else {
+                            local _val = strofreal(`_num')
+                        }
+                    }
+                    local _val : subinstr local _val `"\"' `"\\"', all
+                    local _val : subinstr local _val `"""' `"\""', all
+                    file write `rfh' `","o__`_gv'":"`_val'""'
+                }
+                foreach _tv of local tip_vars {
+                    capture confirm string variable `_tv'
+                    local _isstr = (_rc == 0)
+                    if `_isstr' {
+                        local _tval = `_tv'[`_i']
+                        local _tval : subinstr local _tval `"\"' `"\\"', all
+                        local _tval : subinstr local _tval `"""' `"\""', all
+                        file write `rfh' `","t__`_tv'":"`_tval'""'
+                    }
+                    else {
+                        local _tnum = `_tv'[`_i']
+                        local _tlab : value label `_tv'
+                        if "`_tlab'" != "" & !missing(`_tnum') {
+                            local _tdsp : label `_tlab' `_tnum'
+                            local _tdsp : subinstr local _tdsp `"\"' `"\\"', all
+                            local _tdsp : subinstr local _tdsp `"""' `"\""', all
+                            file write `rfh' `","t__`_tv'":"`_tdsp'""'
+                        }
+                        else if missing(`_tnum') {
+                            file write `rfh' `","t__`_tv'":null"'
+                        }
+                        else {
+                            file write `rfh' `","t__`_tv'":"' (`_tnum')
+                        }
+                    }
+                }
+
+                file write `rfh' "}" _n
+                local ++_rows_written
+            }
+        }
+        file close `rfh'
+
+        if `_rows_written' == 0 {
+            if `_ntabs' > 1 {
+                display as error `"sparkta2: no rows to plot on dashtab() tab `_t' ("`_dtlab_`_t''") — check [if]/[in] and `dashtab'"'
             }
             else {
-                local _idnum = `id'[`_i']
-                if missing(`_idnum') continue
-                * Format with width 19 (max int64 digits) then strip the
-                * leading sign-padding spaces.  Avoids the `display %0Wf`
-                * scientific-notation overflow on values past ~10^8 that
-                * the legacy idiom triggered.
-                local _fid : display %19.0f `_idnum'
-                local _fid = strtrim("`_fid'")
-                if strlen("`_fid'") < `idwidth' {
-                    local _padlen = `idwidth' - strlen("`_fid'")
-                    local _zeros = ""
-                    forvalues _z = 1/`_padlen' {
-                        local _zeros = "0`_zeros'"
-                    }
-                    local _fid = "`_zeros'`_fid'"
-                }
+                display as error "sparkta2: no rows to plot (check [if]/[in], counties(), or filter expressions)"
             }
+            exit 459
+        }
+        local _rows_total = `_rows_total' + `_rows_written'
 
-            if `_cty_keep_set' {
-                if !`:list _fid in _cty_keep_sp' continue
-            }
+        * Restrict the meta-JSON scans (filter levels, slider ranges) to the
+        * rows on this tab so each tab's controls match its own data.
+        local _tcond ""
+        if `_ntabs' > 1 {
+            if `_dt_is_str' local _tcond `" & `dashtab' == `"`_dtval_`_t''"'"'
+            else            local _tcond " & `dashtab' == `_dtval_`_t''"
+        }
 
-            local _xv = `xvar'[`_i']
-            local _yv .
-            if "`yvar'" != "" local _yv = `yvar'[`_i']
-
-            local _nm "`_fid'"
-            if "`name'" != "" {
-                capture confirm string variable `name'
-                if !_rc {
-                    local _nm = `name'[`_i']
-                }
-                else {
-                    capture local _nm : display `name'[`_i']
-                }
-                if "`_nm'" == "" local _nm "`_fid'"
-            }
-            local _nm : subinstr local _nm `"\"' `"\\"', all
-            local _nm : subinstr local _nm `"""' `"\""', all
-
-            if `_first' local _first 0
-            else file write `rfh' "," _n
-
-            file write `rfh' "        {"
-            file write `rfh' `""id":"`_fid'""'
-            file write `rfh' `","name":"`_nm'""'
-
-            if missing(`_xv') file write `rfh' `","x":null"'
-            else              file write `rfh' `","x":"' (`_xv')
-
-            if "`yvar'" != "" {
-                if missing(`_yv') file write `rfh' `","y":null"'
-                else              file write `rfh' `","y":"' (`_yv')
-            }
-
-            if "`latvar'" != "" {
-                local _ltv = `latvar'[`_i']
-                if missing(`_ltv') file write `rfh' `","lat":null"'
-                else                file write `rfh' `","lat":"' (`_ltv')
-            }
-            if "`lonvar'" != "" {
-                local _lnv = `lonvar'[`_i']
-                if missing(`_lnv') file write `rfh' `","lon":null"'
-                else                file write `rfh' `","lon":"' (`_lnv')
-            }
-
-            foreach _fv of local filt_vars {
-                local _val ""
+        tempfile metajson_`_t'
+        file open `rfh' using "`metajson_`_t''", write text replace
+        file write `rfh' "{"
+        file write `rfh' `""filters":["'
+        local _fcount = 0
+        foreach _fv of local filt_vars {
+            if `_fcount' > 0 file write `rfh' ","
+            local ++_fcount
+            local _lbl : variable label `_fv'
+            if "`_lbl'" == "" local _lbl "`_fv'"
+            local _lbl : subinstr local _lbl `"""' `"\""', all
+            file write `rfh' `"{"var":"`_fv'","label":"`_lbl'","values":["'
+            * Drop the `clean' option: it strips the compound quotes that
+            * levelsof wraps multi-word string values in, so values like
+            * "Middle / Jr. High" survive as a single token through foreach.
+            quietly levelsof `_fv' if `touse' `_tcond', local(_levels)
+            local _lvi 0
+            foreach _lv of local _levels {
+                if `_lvi' > 0 file write `rfh' ","
+                local ++_lvi
                 capture confirm string variable `_fv'
-                if !_rc {
-                    local _val = `_fv'[`_i']
-                }
-                else {
+                if _rc {
                     local _lab : value label `_fv'
-                    local _num = `_fv'[`_i']
-                    if "`_lab'" != "" & !missing(`_num') {
-                        local _val : label `_lab' `_num'
+                    if "`_lab'" != "" {
+                        local _disp : label `_lab' `_lv'
                     }
-                    else if missing(`_num') {
-                        local _val ""
-                    }
-                    else {
-                        local _val = strofreal(`_num')
-                    }
+                    else local _disp "`_lv'"
                 }
-                local _val : subinstr local _val `"\"' `"\\"', all
-                local _val : subinstr local _val `"""' `"\""', all
-                file write `rfh' `","f__`_fv'":"`_val'""'
+                else local _disp `"`_lv'"'
+                local _disp : subinstr local _disp `"\"' `"\\"', all
+                local _disp : subinstr local _disp `"""' `"\""', all
+                file write `rfh' `""`_disp'""'
             }
-            foreach _sv of local slid_vars {
-                local _snum = `_sv'[`_i']
-                if missing(`_snum') file write `rfh' `","s__`_sv'":null"'
-                else                file write `rfh' `","s__`_sv'":"' (`_snum')
+            file write `rfh' "]}"
+        }
+        file write `rfh' `"],"sliders":["'
+        local _scount = 0
+        foreach _sv of local slid_vars {
+            quietly summarize `_sv' if `touse' `_tcond', meanonly
+            local _lo = r(min)
+            local _hi = r(max)
+            * If the variable has no observed range (all-missing on `touse'),
+            * skip the slider rather than emit Stata's `.' as bare JSON (which
+            * would cause the JS parser to bail and the map to render blank).
+            if missing(`_lo') | missing(`_hi') {
+                display as txt "sparkta2: sliders(`_sv') has no observed range -- skipped"
+                continue
             }
-            foreach _tv of local tip_vars {
-                capture confirm string variable `_tv'
-                local _isstr = (_rc == 0)
-                if `_isstr' {
-                    local _tval = `_tv'[`_i']
-                    local _tval : subinstr local _tval `"\"' `"\\"', all
-                    local _tval : subinstr local _tval `"""' `"\""', all
-                    file write `rfh' `","t__`_tv'":"`_tval'""'
-                }
-                else {
-                    local _tnum = `_tv'[`_i']
-                    local _tlab : value label `_tv'
-                    if "`_tlab'" != "" & !missing(`_tnum') {
-                        local _tdsp : label `_tlab' `_tnum'
-                        local _tdsp : subinstr local _tdsp `"\"' `"\\"', all
-                        local _tdsp : subinstr local _tdsp `"""' `"\""', all
-                        file write `rfh' `","t__`_tv'":"`_tdsp'""'
-                    }
-                    else if missing(`_tnum') {
-                        file write `rfh' `","t__`_tv'":null"'
-                    }
-                    else {
-                        file write `rfh' `","t__`_tv'":"' (`_tnum')
-                    }
-                }
-            }
+            if `_scount' > 0 file write `rfh' ","
+            local ++_scount
+            local _lbl : variable label `_sv'
+            if "`_lbl'" == "" local _lbl "`_sv'"
+            local _lbl : subinstr local _lbl `"""' `"\""', all
+            file write `rfh' `"{"var":"`_sv'","label":"`_lbl'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
+        }
+        file write `rfh' `"],"tooltipvars":["'
+        local _tcount = 0
+        foreach _tv of local tip_vars {
+            if `_tcount' > 0 file write `rfh' ","
+            local ++_tcount
+            local _lbl : variable label `_tv'
+            if "`_lbl'" == "" local _lbl "`_tv'"
+            local _lbl : subinstr local _lbl `"""' `"\""', all
+            capture confirm numeric variable `_tv'
+            local _isnum = (_rc == 0)
+            local _tlabname : value label `_tv'
+            local _numfmt = cond(`_isnum' & "`_tlabname'" == "", 1, 0)
+            file write `rfh' `"{"var":"`_tv'","label":"`_lbl'","numeric":`_numfmt'}"'
+        }
+        file write `rfh' `"]"'
+        * v0.8.0 overlay specs: [{kind, key, label}, ...]
+        file write `rfh' `","overlays":["'
+        forvalues _o = 1/`_n_ov' {
+            if `_o' > 1 file write `rfh' ","
+            local _olb `"`_ovlab_`_o''"'
+            local _olb : subinstr local _olb `"\"' `"\\"', all
+            local _olb : subinstr local _olb `"""' `"\""', all
+            file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`_olb'"}"'
+        }
+        file write `rfh' `"]"'
+        * v0.8.0 raster layer: bounds + opacity + base64 data URI.
+        if `_has_raster' {
+            local _rlb `"`rasterlabel'"'
+            local _rlb : subinstr local _rlb `"\"' `"\\"', all
+            local _rlb : subinstr local _rlb `"""' `"\""', all
+            file write `rfh' `","raster":{"bounds":[`_rb_w',`_rb_s',`_rb_e',`_rb_n'],"opacity":`rasteropacity',"label":"`_rlb'","href":""'
+            sparkta2_appendfile, fh(`rfh') path("`rasterb64'") outpath("`metajson_`_t''")
+            file write `rfh' `""}"'
+        }
+        file write `rfh' "}"
+        file close `rfh'
 
-            file write `rfh' "}" _n
-            local ++_rows_written
+        * Accumulate the per-tab pipe/space lists for the HTML writer.
+        if `_t' == 1 {
+            local _tabrowjsons  "`rowjson_`_t''"
+            local _tabmetajsons "`metajson_`_t''"
+            local _tabtopopaths "`_ttopo_`_t''"
+            local _tabgeos      "`_tgeo_`_t''"
+            local _tablayers    "`_tlayer_`_t''"
+            local _tabidwidths  "`_tidw_`_t''"
+            local _tablabels    `"`_dtlab_`_t''"'
+        }
+        else {
+            local _tabrowjsons  "`_tabrowjsons'|`rowjson_`_t''"
+            local _tabmetajsons "`_tabmetajsons'|`metajson_`_t''"
+            local _tabtopopaths "`_tabtopopaths'|`_ttopo_`_t''"
+            local _tabgeos      "`_tabgeos'|`_tgeo_`_t''"
+            local _tablayers    "`_tablayers'|`_tlayer_`_t''"
+            local _tabidwidths  "`_tabidwidths' `_tidw_`_t''"
+            local _tablabels    `"`_tablabels'|`_dtlab_`_t''"'
         }
     }
-    file close `rfh'
-
-    if `_rows_written' == 0 {
-        display as error "sparkta2: no rows to plot (check [if]/[in], counties(), or filter expressions)"
-        exit 459
-    }
-
-    tempfile metajson
-    file open `rfh' using "`metajson'", write text replace
-    file write `rfh' "{"
-    file write `rfh' `""filters":["'
-    local _fcount = 0
-    foreach _fv of local filt_vars {
-        if `_fcount' > 0 file write `rfh' ","
-        local ++_fcount
-        local _lbl : variable label `_fv'
-        if "`_lbl'" == "" local _lbl "`_fv'"
-        local _lbl : subinstr local _lbl `"""' `"\""', all
-        file write `rfh' `"{"var":"`_fv'","label":"`_lbl'","values":["'
-        * Drop the `clean' option: it strips the compound quotes that
-        * levelsof wraps multi-word string values in, so values like
-        * "Middle / Jr. High" survive as a single token through foreach.
-        quietly levelsof `_fv' if `touse', local(_levels)
-        local _lvi 0
-        foreach _lv of local _levels {
-            if `_lvi' > 0 file write `rfh' ","
-            local ++_lvi
-            capture confirm string variable `_fv'
-            if _rc {
-                local _lab : value label `_fv'
-                if "`_lab'" != "" {
-                    local _disp : label `_lab' `_lv'
-                }
-                else local _disp "`_lv'"
-            }
-            else local _disp `"`_lv'"'
-            local _disp : subinstr local _disp `"\"' `"\\"', all
-            local _disp : subinstr local _disp `"""' `"\""', all
-            file write `rfh' `""`_disp'""'
-        }
-        file write `rfh' "]}"
-    }
-    file write `rfh' `"],"sliders":["'
-    local _scount = 0
-    foreach _sv of local slid_vars {
-        quietly summarize `_sv' if `touse', meanonly
-        local _lo = r(min)
-        local _hi = r(max)
-        * If the variable has no observed range (all-missing on `touse'),
-        * skip the slider rather than emit Stata's `.' as bare JSON (which
-        * would cause the JS parser to bail and the map to render blank).
-        if missing(`_lo') | missing(`_hi') {
-            display as txt "sparkta2: sliders(`_sv') has no observed range -- skipped"
-            continue
-        }
-        if `_scount' > 0 file write `rfh' ","
-        local ++_scount
-        local _lbl : variable label `_sv'
-        if "`_lbl'" == "" local _lbl "`_sv'"
-        local _lbl : subinstr local _lbl `"""' `"\""', all
-        file write `rfh' `"{"var":"`_sv'","label":"`_lbl'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
-    }
-    file write `rfh' `"],"tooltipvars":["'
-    local _tcount = 0
-    foreach _tv of local tip_vars {
-        if `_tcount' > 0 file write `rfh' ","
-        local ++_tcount
-        local _lbl : variable label `_tv'
-        if "`_lbl'" == "" local _lbl "`_tv'"
-        local _lbl : subinstr local _lbl `"""' `"\""', all
-        capture confirm numeric variable `_tv'
-        local _isnum = (_rc == 0)
-        local _tlabname : value label `_tv'
-        local _numfmt = cond(`_isnum' & "`_tlabname'" == "", 1, 0)
-        file write `rfh' `"{"var":"`_tv'","label":"`_lbl'","numeric":`_numfmt'}"'
-    }
-    file write `rfh' "]}"
-    file close `rfh'
 
     sparkta2_writehtml,                                    ///
-        topopath("`topopath'") engpath("`engpath'")         ///
+        engpath("`engpath'")                                ///
         d3path("`d3path'") tcpath("`tcpath'")               ///
         hxpath("`hxpath'")                                  ///
-        rowjson("`rowjson'") metajson("`metajson'")         ///
+        ntabs(`_ntabs')                                     ///
+        tabrowjsons("`_tabrowjsons'")                       ///
+        tabmetajsons("`_tabmetajsons'")                     ///
+        tabtopopaths("`_tabtopopaths'")                     ///
+        tabgeos("`_tabgeos'") tablayers("`_tablayers'")     ///
+        tabidwidths("`_tabidwidths'")                       ///
+        tablabels(`"`_tablabels'"')                         ///
+        tabstyle("`dashtabstyle'")                          ///
+        islabels(`is_maplabels') labelsize(`labelsize')     ///
         export(`"`export'"') isoffline(`is_offline')        ///
         type("`type'") scheme("`scheme'") title(`"`title'"') ///
-        geo("`geo'") layer("`layer'")                       ///
-        idwidth(`idwidth')                                  ///
         hexradius(`hexradius') hexstat("`hexstat'")         ///
         pointsize(`pointsize')                              ///
         latvar("`latvar'") lonvar("`lonvar'")               ///
@@ -568,14 +897,18 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.7.8]  `type' map written:"
+    display as text _n "[sparkta2 v0.8.0]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
-    display as text "  Rows: `_rows_written'  Geo: `geo'  Scheme: `scheme'  Mode: `mode'"
+    display as text "  Rows: `_rows_total'  Geo: `_tabgeos'  Scheme: `scheme'  Mode: `mode'"
+    if `_ntabs' > 1 {
+        display as text "  Tabs: `_ntabs' (`dashtab') — `_tablabels'"
+    }
 
     return local export "`export'"
     return local type   "`type'"
     return local geo    "`geo'"
-    return scalar n_rows = `_rows_written'
+    return scalar n_rows = `_rows_total'
+    return scalar n_tabs = `_ntabs'
 
     if "`noopen'" == "" {
         sparkta2_open, file(`"`export'"')
