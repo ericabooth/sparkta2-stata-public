@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.0  11aug2026}{...}
+{* *! version 0.8.1  12aug2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.0):
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.1):
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -53,6 +53,31 @@ a tabbed page layout -- the composition path for sparkta pass-through
 charts, which cannot use native {cmd:dashtab()}.  See
 {it:Higher-order tabs, overlays, and raster underlays (v0.8.0)} and
 examples 9k-9m below.
+
+{pstd}
+{bf:New in v0.8.1.}  Map classification is now selectable:
+{cmd:classes(}quantile{c |}jenks{c |}equal{c |}std{cmd:)} picks how
+choropleth, bivariate, and hexbin values are binned (default
+{bf:quantile}, unchanged from every earlier version), and
+{cmd:breaks(}{it:numlist}{cmd:)} sets explicit cutpoints for
+single-measure classifications.  Two map-furniture flags,
+{cmd:scalebar} and {cmd:northarrow}, add a zoom-aware miles scale bar
+and a north arrow.  {cmd:overlaycolors()}, {cmd:overlaywidths()}, and
+{cmd:overlaydash()} style each {cmd:overlays()} token individually.
+When {cmd:xlabel()} / {cmd:ylabel()} are not given, they now default to
+the {bf:variable label} of the mapped variable(s) (then the varname as
+before) -- so legends, mode-toggle buttons, and tooltips read
+"Poverty rate (%)" instead of "poverty_rate".  The same applies to the
+native chart types' axis labels.  See example 9o below.
+
+{pstd}
+{bf:Robustness (v0.8.1).}  v0.8.1 removed the package's only shell
+dependency -- embedded assets are now spliced byte-for-byte in Mata
+rather than via the OS shell, which fixes two Windows failures reported
+in the wild (cmd's {cmd:type} rejecting forward-slash paths, and paths
+with spaces -- OneDrive / Google Drive folders -- breaking cmd quoting).
+Outputs are byte-identical to before; sparkta2 now runs from spaced
+paths on every OS, and this is exercised by the test battery.
 
 {pstd}
 Map design borrows from Mike Bostock's Observable notebooks
@@ -129,10 +154,16 @@ Map {cmd:type()} values:
 {synopt :{cmd:type(}{it:string}{cmd:)}}{bf:bivariate} | {bf:choropleth} | {bf:hexbin} | {bf:points} | {bf:map}{p_end}
 {synopt :{cmd:scheme(}{it:string}{cmd:)}}bivariate: {bf:rdbu|bupu|gnbu|puor}; sequential: {bf:blues|reds|greens|oranges|purples|viridis|magma|inferno|plasma|cividis}{p_end}
 {synopt :{cmd:bins(}{it:#}{cmd:)}}quantile bins per axis (bivariate); 2-5, default 3{p_end}
+{synopt :{cmd:classes(}quantile{c |}jenks{c |}equal{c |}std{cmd:)}}how choropleth/bivariate/hexbin values are binned (v0.8.1); default {bf:quantile} (unchanged from every earlier version). {bf:jenks} = Fisher-Jenks natural breaks; {bf:equal} = equal intervals over [min,max]; {bf:std} = one-standard-deviation steps centered on the mean. Applies to the bivariate x/y axis scales, the x/y single-measure modes, and hexbin aggregates; the diff and ratio modes keep their symmetric diverging scales regardless.{p_end}
+{synopt :{cmd:breaks(}{it:numlist}{cmd:)}}2 to 8 explicit ascending cutpoints for single-measure classifications -- choropleth x/y modes and hexbin (v0.8.1). Number of classes = number of cuts + 1. Cannot be combined with {cmd:type(bivariate)} (r(198): use {cmd:classes()} there) nor with a non-quantile {cmd:classes()} (r(198): specify one or the other). Legend rows show the cut values.{p_end}
 {synopt :{cmd:basemap}}draw a faded states/nation outline behind the focused features (background-map style){p_end}
 {synopt :{cmd:hexradius(}{it:#}{cmd:)}}hexagon radius in SVG units; default 18{p_end}
 {synopt :{cmd:hexstat(}{it:string}{cmd:)}}hexbin aggregate: {bf:mean} (default) | {bf:sum} | {bf:median} | {bf:count} | {bf:min} | {bf:max}{p_end}
 {synopt :{cmd:pointsize(}{it:#}{cmd:)}}circle radius for {cmd:type(points)}; default 4{p_end}
+
+{syntab :Map furniture (v0.8.1)}
+{synopt :{cmd:scalebar}}miles scale bar at the bottom-left of the map, on a translucent chip. Zoom-aware: recomputes its round-number length (1/2/5 x 10^n miles) as you zoom. Computed from the projection at the panel center; suppressed automatically if the projection cannot invert there.{p_end}
+{synopt :{cmd:northarrow}}north arrow at the top-left. Under rotated conic projections north is exact only at the central meridian; treat as cartographic furniture.{p_end}
 
 {syntab :Comparison-mode toggle}
 {synopt :{cmd:mode(}{it:string}{cmd:)}}initial mode: {bf:bivariate|x|y|diff|ratio}{p_end}
@@ -188,6 +219,9 @@ Map {cmd:type()} values:
 
 {syntab :Overlays and raster underlays (v0.8.0)}
 {synopt :{cmd:overlays(}{it:tokens}{cmd:)}}checkbox-toggleable layers on top of the data layer: each token is a variable (client-side dissolve into labelled group boundaries) or a TopoJSON object name (boundary mesh){p_end}
+{synopt :{cmd:overlaycolors(}{it:list}{cmd:)}}CSS colors (named or #hex) for the overlay strokes: one value for all overlays or one per {cmd:overlays()} token in order; default #0f172a (v0.8.1). Requires {cmd:overlays()} -- r(198) without it.{p_end}
+{synopt :{cmd:overlaywidths(}{it:numlist}{cmd:)}}overlay stroke widths in SVG px, one for all or one per token; default 1.3 (v0.8.1). Widths hold their on-screen size while zooming. Requires {cmd:overlays()}.{p_end}
+{synopt :{cmd:overlaydash(}{it:list}{cmd:)}}{bf:solid} | {bf:dashed} | {bf:dotted} per token; default solid (v0.8.1). Dash patterns hold their on-screen scale under zoom. Requires {cmd:overlays()}.{p_end}
 {synopt :{cmd:maplabels}}feature name labels at centroids, with a "Name labels" checkbox; regions-based types only (choropleth/bivariate){p_end}
 {synopt :{cmd:labelsize(}{it:#}{cmd:)}}label font size in SVG px; default 9{p_end}
 {synopt :{cmd:rasterimage(}{it:file}{cmd:)}}georeferenced raster image under the data layer, base64-embedded (PNG/JPG/GIF/WebP); requires {cmd:rasterbounds()} and Stata's Python integration{p_end}
@@ -199,8 +233,8 @@ Map {cmd:type()} values:
 {synopt :{cmd:title(}{it:string}{cmd:)}}{p_end}
 {synopt :{cmd:subtitle(}{it:string}{cmd:)}}{p_end}
 {synopt :{cmd:note(}{it:string}{cmd:)}}{p_end}
-{synopt :{cmd:xlabel(}{it:string}{cmd:)}}{p_end}
-{synopt :{cmd:ylabel(}{it:string}{cmd:)}}{p_end}
+{synopt :{cmd:xlabel(}{it:string}{cmd:)}}x-measure / x-axis label. Default (v0.8.1): the variable label of the mapped variable, then the varname -- used in legends, mode-toggle buttons, tooltips, and native chart axes.{p_end}
+{synopt :{cmd:ylabel(}{it:string}{cmd:)}}y-measure / y-axis label; same variable-label default (v0.8.1).{p_end}
 {synopt :{cmd:export(}{it:path}{cmd:)}}output HTML path{p_end}
 {synopt :{cmd:offline}}embed D3 + topojson-client + d3-hexbin inline (no CDN at runtime){p_end}
 {synopt :{cmd:noopen}}do not auto-open the result in the default browser{p_end}
@@ -523,6 +557,18 @@ then {cmd:overlays(keystudy)} outlines just those counties.  When a
 dissolved group has several disconnected parts (a scattered highlight
 set, a region with islands), its label is placed at the centroid of the
 {bf:largest} part rather than the multi-part centroid.
+
+{pstd}
+{bf:Per-overlay styling (v0.8.1).}  {cmd:overlaycolors(}{it:list}{cmd:)},
+{cmd:overlaywidths(}{it:numlist}{cmd:)}, and
+{cmd:overlaydash(}{it:list}{cmd:)} style each overlay stroke: CSS colors
+(named or #hex; default #0f172a), widths in SVG px (default 1.3), and
+solid {c |} dashed {c |} dotted (default solid).  Each option takes
+either one value applied to every overlay or one value per
+{cmd:overlays()} token in order.  Widths and dash patterns hold their
+on-screen size while zooming, and dissolved-group labels take their
+overlay's color.  Any of these options without {cmd:overlays()} is an
+error (r(198)).
 
 {pstd}
 Overlays require a TopoJSON input (arcs); GeoJSON FeatureCollection
@@ -1001,6 +1047,18 @@ very long labels you want cleanly truncated for grid embeds
 {phang}{cmd}    downloadpos(below) export(kitchen_sink.html) offline{p_end}
 
 {phang}{it:dashtab() also works as a measure switcher: stack two measures long (one}{cmd: value}{it: column, a labelled}{cmd: measure}{it: variable) and}{cmd: dashtab(measure) dashtabstyle(buttons)}{it: flips between them — composable with}{cmd: rasterimage()}{it: and overlays.}{p_end}
+
+
+{dlgtab:9o. Classified choropleth with furniture and styled overlays (v0.8.1)}
+
+{phang}{it:Fisher-Jenks natural breaks via}{cmd: classes(jenks)}{it:, a zoom-aware miles scale bar and north arrow, and per-overlay colors, widths, and dash patterns for the region and key-county layers.}{p_end}
+
+{phang}{cmd}sparkta2 poverty_rate, id(fips) name(county)                   ///{p_end}
+{phang}{cmd}    type(choropleth) classes(jenks) scalebar northarrow        ///{p_end}
+{phang}{cmd}    overlays(region keystudy)                                  ///{p_end}
+{phang}{cmd}    overlaycolors("#1B2D55 #D44500") overlaywidths(1.5 2)      ///{p_end}
+{phang}{cmd}    overlaydash(solid dashed)                                  ///{p_end}
+{phang}{cmd}    export(jenks_map.html) offline{p_end}
 
 
 {dlgtab:10. Chart pass-through to sparkta}

@@ -20,6 +20,14 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.1** (2026-08-12). Classification control, label-aware legends, map furniture, overlay styling — and a Windows/cloud-drive robustness fix. See [What's new in v0.8.1](#whats-new-in-v081-2026-08-12).
+
+- **`classes(quantile|jenks|equal|std)` + `breaks(numlist)`** — pick the choropleth/bivariate/hexbin classification instead of silently getting quantiles; `breaks()` sets explicit cutpoints.
+- **Legends and axes now read variable labels** — `xlabel()`/`ylabel()` default to the variable label, so out-of-the-box legends say "Poverty rate (%)", not `poverty_rate`.
+- **`scalebar` + `northarrow`** — a zoom-aware miles scale bar and a north arrow.
+- **`overlaycolors()` / `overlaywidths()` / `overlaydash()`** — style each overlay layer independently (e.g. navy region outlines, a dashed orange highlight).
+- **No more OS shell in the pipeline** — embedded assets are spliced in Mata now, fixing forward-slash and spaces-in-path failures on Windows (OneDrive / Google Drive folders). Byte-identical output, verified in the battery.
+
 **v0.8.0** (2026-08-11). Four headline additions — see [What's new in v0.8.0](#whats-new-in-v080-2026-08-11) for the details and the raster design notes:
 
 - **`dashtab(varname)` — higher-order tabs.** Where `over()` breaks out subgroups *within* a chart and `by()` makes small multiples, `dashtab()` renders one **full figure per level** of a variable and puts a tab bar above the output. Each tab can carry its own geography (`dashtabgeo() dashtablayer() dashtabidwidth()`), so a single self-contained HTML file can switch between county, school-district, and region views. Works on all native map types and native chart types (`donut bar2 line2 divbar barrace`); `dashtabstyle(tabs|buttons)` picks underline tabs or pill buttons.
@@ -49,6 +57,32 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 <img width="1081" height="721" alt="image" src="https://github.com/user-attachments/assets/cd9ea4ec-1747-4eae-b852-522007036d29" />
 
+
+### What's new in v0.8.1 (2026-08-12)
+
+![Jenks-classified county choropleth with variable-label legend, north arrow, zoom-aware miles scale bar, and independently styled overlay layers (navy regions, gray state lines, dashed orange key-county spotlight)](assets/sparkta2_v081_preview.png)
+
+*One frame, most of v0.8.1: `classes(jenks)` cuts in the legend, which is now titled by the variable label; north arrow and a zoom-aware miles scale bar; three overlay layers styled independently via `overlaycolors()/overlaywidths()/overlaydash()`; Export pinned bottom-right with `downloadpos(below)`.*
+
+#### Classification control — `classes()` and `breaks()`
+
+Every earlier version binned quantile-only. Now: `classes(quantile|jenks|equal|std)` picks the scheme (Fisher-Jenks natural breaks, equal intervals, or 1-sd steps centered on the mean), and `breaks(12 16 20 24)` sets explicit cutpoints for single-measure maps (classes = cuts + 1). Applies to choropleth x/y modes, both bivariate axes (`classes()` only), and hexbin aggregates; diff/ratio modes keep their symmetric diverging scales. Legend rows show the actual cut values, so "what are these bins?" finally has a visible answer.
+
+#### Legends read labels, not varnames
+
+`xlabel()`/`ylabel()` now default to the **variable label** before falling back to the varname — legends, mode-toggle buttons, and tooltips say "Poverty rate (%)" out of the box. Same for the native chart axes.
+
+#### Map furniture
+
+`scalebar` draws a miles bar (1/2/5×10ⁿ round numbers) bottom-left on a translucent chip and **recomputes as you zoom**; `northarrow` adds the arrow top-left. Standard caveat: under a rotated conic projection north is exact only at the central meridian.
+
+#### Per-overlay styling
+
+`overlaycolors()`, `overlaywidths()`, `overlaydash(solid|dashed|dotted)` — one value for all overlays or one per `overlays()` token in order. Strokes and dash patterns hold their on-screen size while zooming; dissolved-group labels take their overlay's color. A dashed accent color turns the sparse-variable spotlight trick into a proper annotation layer.
+
+#### Windows / cloud-drive robustness (user report, resolved)
+
+A Windows user reported two failures: they had to hand-edit the package to flip `/` to `\` before assets would load, and builds broke whenever the project lived under a spaced path (a Google Drive folder). Root cause for both: `sparkta2_appendfile` spliced the embedded JS/TopoJSON through the OS shell (`shell type` on Windows), and cmd both rejects forward-slash paths and mangles spaced-path quoting. v0.8.1 replaces the shell round-trip with a **byte-for-byte Mata copy** (`fopen/fread/fwrite`) — no shell, no slash direction, no quoting, no console flashing per call, and a missing asset now errors loudly instead of splicing nothing. Output verified byte-identical to the shell version, and the battery now builds from asset and export directories with spaces on every run. No Windows-specific slashes were added anywhere; the one remaining Windows-only concession is in `sparkta2_open` (the `start` launcher), where cmd genuinely requires backslashes.
 
 ### What's new in v0.8.0 (2026-08-11)
 
@@ -510,8 +544,8 @@ sparkta2/
 
 sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML file** that works offline, emailed, or dropped on GitHub Pages. Leaflet is a JS library you program; QGIS is a GIS you operate; sparkta2 is a *figure command*. The features below would close the most-noticed gaps without leaving that lane, roughly ordered by value-for-effort:
 
-1. **Choropleth classification options** — `classes(quantile|jenks|equal|std)` + `breaks(numlist)`. Quantile-only binning is the current silent default; analysts coming from GIS expect Jenks natural breaks and hand-set cutpoints. Small engine change, big credibility win. *(the next obvious "win")*
-2. **Scale bar + north arrow** — `scalebar` `northarrow`: classic map furniture, trivially cheap in d3, instantly makes exports look like "real" maps.
+1. ~~**Choropleth classification options**~~ — **shipped in v0.8.1** as `classes(quantile|jenks|equal|std)` + `breaks(numlist)`.
+2. ~~**Scale bar + north arrow**~~ — **shipped in v0.8.1** as `scalebar` + `northarrow` (the miles bar is zoom-aware).
 3. **Opt-in tile basemap mode** — `basemap(tiles)`: d3-tile + a Carto/OSM tile URL, forcing `projection(mercator)`, online-only by definition, with attribution baked in. The leaflet look for the cases where offline doesn't matter. (See the v0.8.0 raster notes for why this is separate from `rasterimage()`.)
 4. **GeoJSON export button** — an Export-menu item that downloads the focused layer *with the joined data values* as GeoJSON, so a sparkta2 map round-trips into QGIS/geopandas for print cartography.
 5. **Linked small multiples** — shared hover/zoom across `multiples` panels (d3 event bus; the panels already share state).

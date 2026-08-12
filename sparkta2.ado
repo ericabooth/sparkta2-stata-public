@@ -66,7 +66,7 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.8.0"
+    local sparkta2_version "0.8.1"
     display as text "  [sparkta2 v`sparkta2_version']"
 
     * Peek at user-supplied type() without consuming any args.

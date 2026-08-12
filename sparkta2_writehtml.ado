@@ -40,6 +40,8 @@ program define sparkta2_writehtml
          ISTX2036Style(integer 0) DOWNLOADPos(string)                       ///
          PROJection(string) ROTATestr(string)                               ///
          PARALLELSstr(string) CENTERstr(string)                             ///
+         CLASSes(string) BREAKSSTR(string)                                  ///
+         ISSCALEBar(integer 0) ISNORTHArrow(integer 0)                      ///
          ISLABels(integer 0) LABELSIZE(integer 9)]
     if "`downloadpos'" == "" local downloadpos "side"
     if "`tabstyle'"    == "" local tabstyle "tabs"
@@ -284,6 +286,7 @@ program define sparkta2_writehtml
         file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
         file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
         file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
+        file write `fh' `""classes":"`classes'","breaksstr":"`breaksstr'","scalebar":`isscalebar',"northarrow":`isnortharrow',"' _n
         file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
         file write `fh' `""layer":"`_tlayer`_t''","geo":"`_tgeo`_t''","idwidth":`_tidw`_t'',"' _n
         file write `fh' `""hexradius":`hexradius',"hexstat":"`hexstat'","pointsize":`pointsize',"' _n

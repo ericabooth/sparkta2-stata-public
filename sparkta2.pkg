@@ -12,6 +12,12 @@ d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
 d The tx2036style option applies Texas 2036 brand colors and Montserrat.
 d
+d New in v0.8.1: classes(quantile|jenks|equal|std) + breaks() classification
+d control; legends and axes default to variable labels; scalebar + northarrow
+d map furniture; per-overlay colors/widths/dash; and the asset splice moved
+d from the OS shell to Mata, fixing Windows forward-slash and spaced-path
+d (OneDrive/Google Drive) failures.
+d
 d New in v0.8.0: dashtab() renders one full figure per level of a variable
 d behind a tab bar (per-tab geographies via dashtabgeo(), so one file can
 d switch counties/districts/regions); overlays() adds checkbox-toggleable
@@ -34,7 +40,7 @@ d
 d Author: Eric A. Booth, Sr Researcher, Texas 2036
 d Support: eric.a.booth@gmail.com
 d
-d Distribution-Date: 20260811
+d Distribution-Date: 20260812
 d
 f sparkta2.ado
 f sparkta2_appendfile.ado

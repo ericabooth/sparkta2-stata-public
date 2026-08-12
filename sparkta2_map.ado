@@ -1,5 +1,14 @@
-*! sparkta2_map v0.8.0  2026-08-11
+*! sparkta2_map v0.8.1  2026-08-12
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
+*!
+*! v0.8.1 additions:
+*!   - classes(quantile|jenks|equal|std) + breaks(numlist): choropleth /
+*!     bivariate / hexbin classification control (default stays quantile).
+*!     breaks() sets explicit cutpoints for single-measure maps.
+*!   - xlabel()/ylabel() default to the VARIABLE LABEL when unset, so
+*!     legends, mode buttons, and tooltips read labels not varnames.
+*!   - scalebar + northarrow map furniture (miles bar is zoom-aware).
+*!   - overlaycolors()/overlaywidths()/overlaydash(): per-overlay styling.
 *!
 *! v0.8.0 additions:
 *!   - dashtab(varname): higher-order tabs.  Where over() splits within a
@@ -92,6 +101,10 @@ program define sparkta2_map, rclass
         HEXStat(string)                                    ///  hexbin aggregate: mean (default) | sum | median | count | min | max
         POINTSIze(integer 4)                               ///  circle radius for points
         SCHEME(string)                                     ///  rdbu | bupu | gnbu | puor | blues | reds | greens | viridis | ...
+        CLASSes(string)                                    ///  quantile (default) | jenks | equal | std
+        BREAKs(numlist ascending min=2 max=8)              ///  explicit cutpoints (single-measure classifications)
+        SCALEBar                                           ///  miles scale bar, bottom-left (zoom-aware)
+        NORTHArrow                                         ///  north arrow, top-left
         TITLE(string) SUBtitle(string) NOTE(string)        ///
         XLABEL(string) YLABEL(string)                      ///
         FILTERS(varlist)                                   ///  categorical filter dropdowns
@@ -117,6 +130,9 @@ program define sparkta2_map, rclass
         MULTiples                                          ///  small-multiples: one panel per mode
         BINS(integer 3)                                    ///  quantile bins per axis for bivariate
         OVERlays(string)                                   ///  overlay layers: topo objects and/or dissolve-by variables
+        OVERLAYCOLors(string)                              ///  per-overlay stroke colors (CSS colors; one or per-token)
+        OVERLAYWidths(numlist >0)                          ///  per-overlay stroke widths in svg px
+        OVERLAYDash(string)                                ///  per-overlay: solid | dashed | dotted
         MAPLABels                                          ///  feature name labels at centroids (Layers checkbox)
         LABELSize(integer 9)                               ///  label font size in svg px
         RASTERimage(string)                                ///  georeferenced image file to draw under the data layer
@@ -187,6 +203,46 @@ program define sparkta2_map, rclass
         else                         local scheme "blues"
     }
     local scheme = lower("`scheme'")
+
+    * ---- v0.8.1 classification -----------------------------------------
+    if "`classes'" != "" {
+        local classes = lower("`classes'")
+        local _valid_cl "quantile jenks equal std"
+        if !`:list classes in _valid_cl' {
+            display as error "sparkta2: classes(`classes') not recognised (quantile | jenks | equal | std)"
+            exit 198
+        }
+    }
+    local _brk_str ""
+    if "`breaks'" != "" {
+        if "`classes'" != "" & "`classes'" != "quantile" {
+            display as error "sparkta2: specify either classes() or breaks(), not both"
+            exit 198
+        }
+        if "`type'" == "bivariate" {
+            display as error "sparkta2: breaks() needs a single measure — not available with type(bivariate).  Use classes() there."
+            exit 198
+        }
+        foreach _b of numlist `breaks' {
+            * leading-zero any bare-dot decimals so the JS payload stays valid
+            local _bs "`_b'"
+            if substr("`_bs'", 1, 1) == "." local _bs "0`_bs'"
+            if substr("`_bs'", 1, 2) == "-." local _bs = "-0" + substr("`_bs'", 2, .)
+            if "`_brk_str'" == "" local _brk_str "`_bs'"
+            else                  local _brk_str "`_brk_str'|`_bs'"
+        }
+    }
+    local is_scalebar   = cond("`scalebar'"   != "", 1, 0)
+    local is_northarrow = cond("`northarrow'" != "", 1, 0)
+
+    * ---- v0.8.1 label defaults: fall back to the VARIABLE LABEL before
+    * ---- the bare varname, so legends / mode buttons / tooltips read well.
+    if `"`xlabel'"' == "" {
+        local xlabel : variable label `xvar'
+    }
+    if "`yvar'" != "" & `"`ylabel'"' == "" {
+        local ylabel : variable label `yvar'
+    }
 
     if "`mode'" == "" local mode = cond("`type'" == "bivariate", "bivariate", "x")
     local mode = lower("`mode'")
@@ -454,6 +510,51 @@ program define sparkta2_map, rclass
             }
         }
         local _ov_gvars = strtrim("`_ov_gvars'")
+    }
+
+    * ---- v0.8.1 per-overlay styling: color / width / dash lists ----------
+    * One value applies to every overlay; several map to the overlays()
+    * tokens in order (unmatched trailing overlays keep the defaults).
+    forvalues _o = 1/`_n_ov' {
+        local _ovcol_`_o' ""
+        local _ovwid_`_o' ""
+        local _ovdsh_`_o' ""
+    }
+    if "`overlaycolors'" != "" {
+        local _nst : word count `overlaycolors'
+        forvalues _o = 1/`_n_ov' {
+            if `_nst' == 1 local _ovcol_`_o' : word 1 of `overlaycolors'
+            else           local _ovcol_`_o' : word `_o' of `overlaycolors'
+            * colors land inside a JS string literal — strip breakers
+            local _ovcol_`_o' : subinstr local _ovcol_`_o' `"""' "", all
+            local _ovcol_`_o' : subinstr local _ovcol_`_o' `"\"' "", all
+        }
+    }
+    if "`overlaywidths'" != "" {
+        local _nst : word count `overlaywidths'
+        forvalues _o = 1/`_n_ov' {
+            if `_nst' == 1 local _w : word 1 of `overlaywidths'
+            else           local _w : word `_o' of `overlaywidths'
+            if "`_w'" != "" & substr("`_w'", 1, 1) == "." local _w "0`_w'"
+            local _ovwid_`_o' "`_w'"
+        }
+    }
+    if "`overlaydash'" != "" {
+        local overlaydash = lower("`overlaydash'")
+        local _nst : word count `overlaydash'
+        forvalues _o = 1/`_n_ov' {
+            if `_nst' == 1 local _d : word 1 of `overlaydash'
+            else           local _d : word `_o' of `overlaydash'
+            if "`_d'" != "" & !inlist("`_d'", "solid", "dashed", "dotted") {
+                display as error "sparkta2: overlaydash(`_d') not recognised (solid | dashed | dotted)"
+                exit 198
+            }
+            if "`_d'" != "solid" local _ovdsh_`_o' "`_d'"
+        }
+    }
+    if ("`overlaycolors'`overlaywidths'`overlaydash'" != "") & `_n_ov' == 0 {
+        display as error "sparkta2: overlaycolors()/overlaywidths()/overlaydash() require overlays()"
+        exit 198
     }
 
     * ---- rasterimage(): base64-embed a georeferenced image (v0.8.0) -------
@@ -842,7 +943,11 @@ program define sparkta2_map, rclass
             local _olb `"`_ovlab_`_o''"'
             local _olb : subinstr local _olb `"\"' `"\\"', all
             local _olb : subinstr local _olb `"""' `"\""', all
-            file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`macval(_olb)'"}"'
+            file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`macval(_olb)'""'
+            if "`_ovcol_`_o''" != "" file write `rfh' `","color":"`_ovcol_`_o''""'
+            if "`_ovwid_`_o''" != "" file write `rfh' `","width":`_ovwid_`_o''"'
+            if "`_ovdsh_`_o''" != "" file write `rfh' `","dash":"`_ovdsh_`_o''""'
+            file write `rfh' "}"
         }
         file write `rfh' `"]"'
         * v0.8.0 raster layer: bounds + opacity + base64 data URI.
@@ -909,10 +1014,12 @@ program define sparkta2_map, rclass
         isbasemap(`is_basemap')                             ///
         projection("`projection'") rotatestr("`_rot_str'")  ///
         parallelsstr("`_par_str'") centerstr("`_ctr_str'")  ///
+        classes("`classes'") breaksstr("`_brk_str'")        ///
+        isscalebar(`is_scalebar') isnortharrow(`is_northarrow') ///
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.8.0]  `type' map written:"
+    display as text _n "[sparkta2 v0.8.1]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_total'  Geo: `_tabgeos'  Scheme: `scheme'  Mode: `mode'"
     if `_ntabs' > 1 {

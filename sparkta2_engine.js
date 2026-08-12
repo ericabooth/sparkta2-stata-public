@@ -25,6 +25,10 @@
        data variable via topojson.merge), georeferenced raster image
        layer, toggleable feature name labels; dashtab re-render protocol
        (the page bootstrap calls sparkta2Render once per tab switch)
+     - v0.8.1: classification control (classes: quantile|jenks|equal|std,
+       or explicit breaks) for choropleth/bivariate/hexbin scales; miles
+       scale bar (zoom-aware) + north arrow furniture; per-overlay
+       color/width/dash styling
 */
 (function () {
   "use strict";
@@ -57,6 +61,95 @@
     if (name === "puor")   return d3.range(k).map(function (i) { return d3.interpolatePuOr(i / (k - 1)); });
     if (name === "rdylbu") return d3.range(k).map(function (i) { return d3.interpolateRdYlBu(i / (k - 1)); });
     return d3.range(k).map(function (i) { return d3.interpolateRdBu(1 - i / (k - 1)); });
+  }
+
+  // ---- v0.8.1 classification -------------------------------------------
+  // Fisher-Jenks natural breaks (simple-statistics-style DP).  Returns the
+  // k-1 interior cut values, each the smallest member of its upper class,
+  // so d3.scaleThreshold assigns boundary values the class Jenks chose.
+  function jenksBreaks(vals, k) {
+    var d = vals.slice().sort(function (a, b) { return a - b; });
+    var n = d.length;
+    if (n === 0) return [];
+    if (k >= n) return d.slice(1);
+    var LC = [], VC = [], i, j;
+    for (i = 0; i < n + 1; i++) {
+      var lc = [], vc = [];
+      for (j = 0; j < k + 1; j++) { lc.push(0); vc.push(0); }
+      LC.push(lc); VC.push(vc);
+    }
+    for (j = 1; j < k + 1; j++) {
+      LC[1][j] = 1;
+      VC[1][j] = 0;
+      for (i = 2; i < n + 1; i++) VC[i][j] = Infinity;
+    }
+    var variance = 0;
+    for (var l = 2; l < n + 1; l++) {
+      var sum = 0, sumSq = 0, w = 0;
+      for (var m = 1; m < l + 1; m++) {
+        var lower = l - m + 1;
+        var val = d[lower - 1];
+        w++;
+        sum += val;
+        sumSq += val * val;
+        variance = sumSq - (sum * sum) / w;
+        if (lower !== 1) {
+          for (j = 2; j < k + 1; j++) {
+            if (VC[l][j] >= (variance + VC[lower - 1][j - 1])) {
+              LC[l][j] = lower;
+              VC[l][j] = variance + VC[lower - 1][j - 1];
+            }
+          }
+        }
+      }
+      LC[l][1] = 1;
+      VC[l][1] = variance;
+    }
+    var cuts = [], idx = n;
+    for (j = k; j > 1; j--) {
+      cuts.push(d[LC[idx][j] - 1]);
+      idx = LC[idx][j] - 1;
+    }
+    return cuts.reverse();
+  }
+
+  // Build a color/index scale for the requested classification.  The
+  // returned scale always exposes .quantiles() (the interior cuts) so the
+  // legend renderers work unchanged.  kind: quantile|jenks|equal|std;
+  // breaks: explicit ascending cutpoints (win over kind when present).
+  function classScale(vals, range, kind, breaks) {
+    kind = (kind || "quantile").toLowerCase();
+    var k = range.length, cuts = null, i;
+    if (breaks && breaks.length) {
+      cuts = breaks.slice(0, k - 1);
+    }
+    else if (kind === "equal") {
+      var lo = d3.min(vals), hi = d3.max(vals);
+      if (!(hi > lo)) { lo = (lo || 0) - 1; hi = (hi || 0) + 1; }
+      cuts = [];
+      for (i = 1; i < k; i++) cuts.push(lo + (hi - lo) * i / k);
+    }
+    else if (kind === "std") {
+      // k classes in 1-sd steps centered on the mean
+      var mu = d3.mean(vals), sd = d3.deviation(vals);
+      if (!sd) sd = 1;
+      cuts = [];
+      for (i = 1; i < k; i++) cuts.push(mu + sd * (i - k / 2));
+    }
+    else if (kind === "jenks") {
+      cuts = jenksBreaks(vals, k);
+    }
+    if (cuts === null) {
+      return d3.scaleQuantile(vals, range);
+    }
+    // Heavily tied data can yield duplicate cuts — keep strictly ascending.
+    var asc = [];
+    cuts.forEach(function (c) {
+      if (Number.isFinite(c) && (asc.length === 0 || c > asc[asc.length - 1])) asc.push(c);
+    });
+    var th = d3.scaleThreshold().domain(asc).range(range.slice(0, asc.length + 1));
+    th.quantiles = function () { return asc; };
+    return th;
   }
 
   function esc(s) {
@@ -128,6 +221,11 @@
     var hexStat = (meta.hexstat || "mean").toLowerCase();
     var pointSize = +meta.pointsize || 4;
     var basemap = !!meta.basemap;
+
+    // v0.8.1 classification: quantile (default) | jenks | equal | std,
+    // or explicit breaks (pipe-separated cutpoints; override the kind).
+    var classKind = (meta.classes || "quantile").toLowerCase();
+    var classBreaks = parseNumList(meta.breaksstr);
 
     var allowedModes = (meta.modes || "x").split("|").filter(Boolean);
     if (!hasYvar) allowedModes = allowedModes.filter(function (m) { return m === "x"; });
@@ -240,8 +338,8 @@
       };
 
       if (modeForPanel === "bivariate") {
-        palette.xScale = d3.scaleQuantile(xVals, d3.range(nBins));
-        palette.yScale = d3.scaleQuantile(yVals, d3.range(nBins));
+        palette.xScale = classScale(xVals, d3.range(nBins), classKind, null);
+        palette.yScale = classScale(yVals, d3.range(nBins), classKind, null);
         palette.colorFn = function (row) {
           if (!row || !Number.isFinite(+row[xVar]) || !Number.isFinite(+row[yVar])) return "#ccc";
           return biv[palette.yScale(+row[yVar]) + palette.xScale(+row[xVar]) * nBins];
@@ -250,9 +348,11 @@
       else if (modeForPanel === "x" || modeForPanel === "y") {
         var v = modeForPanel === "x" ? xVar : yVar;
         var vals = modeForPanel === "x" ? xVals : yVals;
-        var seq = seqScheme((meta.scheme || "blues").toLowerCase(), 7);
-        if (!Array.isArray(seq) || seq.length < 5) seq = d3.schemeBlues[7];
-        palette.scale = d3.scaleQuantile(vals, seq);
+        var kSeq = (classBreaks && classBreaks.length)
+          ? Math.max(3, Math.min(9, classBreaks.length + 1)) : 7;
+        var seq = seqScheme((meta.scheme || "blues").toLowerCase(), kSeq);
+        if (!Array.isArray(seq) || seq.length < 3) seq = d3.schemeBlues[kSeq];
+        palette.scale = classScale(vals, seq, classKind, classBreaks);
         palette.colorFn = function (row) {
           if (!row || !Number.isFinite(+row[v])) return "#ccc";
           return palette.scale(+row[v]);
@@ -415,9 +515,18 @@
               // Counter-scale overlay strokes and label text so they keep a
               // constant on-screen size while the map zooms underneath.
               var k = ev.transform.k;
-              panel.gOver.attr("stroke-width", OVERLAY_STROKE / k)
-                         .attr("font-size", (OVERLAY_FONT / k) + "px");
+              panel.gOver.attr("font-size", (OVERLAY_FONT / k) + "px");
+              panel.gOver.selectAll("g.overlay").each(function () {
+                var gg = d3.select(this);
+                gg.attr("stroke-width", (+gg.attr("data-w") || OVERLAY_STROKE) / k);
+                var dash = gg.attr("data-dash");
+                if (dash) {
+                  gg.attr("stroke-dasharray", dash.split(" ")
+                    .map(function (d0) { return +d0 / k; }).join(" "));
+                }
+              });
               panel.gLbl.attr("font-size", (labelSize / k) + "px");
+              updateScaleBar(panel, k);
             });
           panel.zoom = zoom;
           panel.svg.call(zoom);
@@ -432,6 +541,8 @@
           });
         });
       }
+
+      panels.forEach(drawFurniture);
     }
 
     // ---- Projection builder (v0.6.1) ------------------------------------
@@ -545,12 +656,15 @@
       var gOver   = gWrap.append("g").attr("class", "overlays");
       var gLbl    = gWrap.append("g").attr("class", "maplabels");
       var gLegend = svg.append("g").attr("class", "legend");
+      // Map furniture (scale bar, north arrow) sits OUTSIDE gWrap so it
+      // holds its position and size while the map pans/zooms beneath it.
+      var gFurn   = svg.append("g").attr("class", "furniture");
 
       return {
         mode: mode, svg: svg, w: w, h: h, margin: margin,
         pathGen: pathGen, projection: projection,
         gWrap: gWrap, gBase: gBase, gRaster: gRaster, gMap: gMap, gHex: gHex,
-        gPts: gPts, gOver: gOver, gLbl: gLbl, gLegend: gLegend
+        gPts: gPts, gOver: gOver, gLbl: gLbl, gLegend: gLegend, gFurn: gFurn
       };
     }
 
@@ -653,18 +767,28 @@
       // on-screen size instead of snapping back to the base values.
       var k = 1;
       try { k = d3.zoomTransform(panel.svg.node()).k || 1; } catch (e) {}
-      panel.gOver
-        .attr("stroke-width", OVERLAY_STROKE / k)
-        .attr("font-size", (OVERLAY_FONT / k) + "px");
+      panel.gOver.attr("font-size", (OVERLAY_FONT / k) + "px");
       overlays.forEach(function (ov) {
         if (state.layersOn["ov_" + ov.key] === false) return;
         var feats = overlayFeatures(ov);
         if (!feats.length) return;
-        var g = panel.gOver.append("g").attr("class", "overlay");
+        // v0.8.1 per-overlay styling: color / width / dash from the spec.
+        var col = ov.color || "#0f172a";
+        var w = +ov.width || OVERLAY_STROKE;
+        var dashBase = ov.dash === "dashed" ? "7 4"
+                     : (ov.dash === "dotted" ? "1.5 3" : null);
+        var g = panel.gOver.append("g").attr("class", "overlay")
+          .attr("data-w", w)
+          .attr("stroke-width", w / k);
+        if (dashBase) {
+          g.attr("data-dash", dashBase)
+           .attr("stroke-dasharray", dashBase.split(" ")
+              .map(function (d0) { return +d0 / k; }).join(" "));
+        }
         g.selectAll("path").data(feats).enter().append("path")
           .attr("d", panel.pathGen)
           .attr("fill", "none")
-          .attr("stroke", "#0f172a")
+          .attr("stroke", col)
           .attr("stroke-linejoin", "round")
           .attr("pointer-events", "none");
         // Group-name labels at polygon centroids (dissolved overlays only).
@@ -691,6 +815,8 @@
           g.append("text").attr("class", "ovlabel")
             .attr("x", c[0]).attr("y", c[1])
             .attr("text-anchor", "middle")
+            .attr("stroke-dasharray", "none")
+            .style("fill", col)
             .text(f.properties.__ovname);
         });
       });
@@ -858,8 +984,10 @@
       }
       var aggVals = bins.map(aggregate).filter(Number.isFinite);
 
-      var seq = seqScheme((meta.scheme || "blues").toLowerCase(), 7);
-      var scale = d3.scaleQuantile(aggVals, seq);
+      var kSeq = (classBreaks && classBreaks.length)
+        ? Math.max(3, Math.min(9, classBreaks.length + 1)) : 7;
+      var seq = seqScheme((meta.scheme || "blues").toLowerCase(), kSeq);
+      var scale = classScale(aggVals, seq, classKind, classBreaks);
 
       panel._palette.scale = scale;
       panel._palette.varLabel = (meta.xlabel || meta.xvar || "Value") + " (" + hexStat + ")";
@@ -905,6 +1033,63 @@
       var tx = panel.w / 2 - k * (x0 + x1) / 2;
       var ty = panel.h / 2 - k * (y0 + y1) / 2;
       panel.svg.call(panel.zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+    }
+
+    // ---- v0.8.1 map furniture: north arrow + miles scale bar -------------
+    function drawFurniture(panel) {
+      panel.gFurn.selectAll("*").remove();
+      panel.gScale = null;
+      if (meta.northarrow) {
+        var gn = panel.gFurn.append("g").attr("class", "northarrow")
+          .attr("transform", "translate(" + (panel.margin.left + 16) + "," + (panel.margin.top + 16) + ")");
+        gn.append("path")
+          .attr("d", "M0,10 L5,-9 L10,10 L5,5 Z")
+          .attr("transform", "translate(-5,-4)")
+          .attr("fill", "#334155")
+          .attr("stroke", "#ffffff").attr("stroke-width", 0.8);
+        gn.append("text").attr("x", 0).attr("y", 20)
+          .attr("text-anchor", "middle")
+          .attr("font-size", "10px").attr("font-weight", 600)
+          .attr("fill", "#334155")
+          .text("N");
+      }
+      if (meta.scalebar) {
+        panel.gScale = panel.gFurn.append("g").attr("class", "scalebar");
+        updateScaleBar(panel, 1);
+      }
+    }
+
+    function updateScaleBar(panel, zk) {
+      if (!panel.gScale) return;
+      panel.gScale.selectAll("*").remove();
+      if (typeof panel.projection.invert !== "function") return;
+      // Ground distance across 100px at the panel center, corrected for
+      // the current zoom scale, then rounded to a 1/2/5 x 10^n mileage.
+      var cx = panel.w / 2, cy = panel.h / 2;
+      var p1 = panel.projection.invert([cx - 50, cy]);
+      var p2 = panel.projection.invert([cx + 50, cy]);
+      if (!p1 || !p2) return;
+      var miPerPx = d3.geoDistance(p1, p2) * 6371 * 0.621371 / 100 / (zk || 1);
+      if (!Number.isFinite(miPerPx) || miPerPx <= 0) return;
+      var target = miPerPx * 110;
+      var pow = Math.pow(10, Math.floor(Math.log(target) / Math.LN10));
+      var niceMi = pow;
+      [2, 5, 10].forEach(function (mult) {
+        if (mult * pow <= target) niceMi = mult * pow;
+      });
+      var px = niceMi / miPerPx;
+      var lblTxt = (niceMi >= 1 ? d3.format(",.0f")(niceMi) : String(niceMi)) + " mi";
+      var g = panel.gScale
+        .attr("transform", "translate(" + (panel.margin.left + 8) + "," + (panel.h - 16) + ")");
+      g.append("rect").attr("x", -5).attr("y", -13)
+        .attr("width", px + 12 + lblTxt.length * 6.2).attr("height", 20)
+        .attr("fill", "#ffffff").attr("opacity", 0.75).attr("rx", 3);
+      g.append("path")
+        .attr("d", "M0,-4 L0,2 L" + px.toFixed(1) + ",2 L" + px.toFixed(1) + ",-4")
+        .attr("fill", "none").attr("stroke", "#334155").attr("stroke-width", 1.2);
+      g.append("text").attr("x", px + 6).attr("y", 2)
+        .attr("font-size", "10px").attr("fill", "#334155")
+        .text(lblTxt);
     }
 
     function drawLegend(panel, palette) {

@@ -103,6 +103,15 @@ program define sparkta2_chart, rclass
     local xvar : word 1 of `varlist'
     local yvar : word 2 of `varlist'
 
+    * v0.8.1: axis/legend labels default to the VARIABLE LABEL when unset,
+    * so charts read labels rather than raw varnames.
+    if `"`xlabel'"' == "" {
+        local xlabel : variable label `xvar'
+    }
+    if "`yvar'" != "" & `"`ylabel'"' == "" {
+        local ylabel : variable label `yvar'
+    }
+
     * Per-type required-input checks
     if "`engine_type'" == "line" {
         if `nvar' != 2 {

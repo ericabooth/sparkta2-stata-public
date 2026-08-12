@@ -201,9 +201,72 @@ capture sparkta2 poverty_rate, type(bar) dashtab(region4) export("`out'/x.html")
 assert _rc == 198
 
 *-----------------------------------------------------------------------------
+* 9. v0.8.1: classes()/breaks() classification, scalebar/northarrow,
+*    per-overlay styling, and variable-label legend defaults
+*-----------------------------------------------------------------------------
+use `counties', clear
+
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) classes(jenks) ///
+    scalebar northarrow overlays(region4 states)                             ///
+    overlaycolors("#D44500 #2B6CB0") overlaywidths(2 1) overlaydash(dashed solid) ///
+    title("v081-9 jenks + furniture + styled overlays")                      ///
+    export("`out'/v081_09_jenks.html") offline noopen
+
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) breaks(12 16 20 24) ///
+    title("v081-9b custom breaks") export("`out'/v081_09b_breaks.html") offline noopen
+
+* Payload spot-checks via Python (strings must land in the emitted HTML)
+local _p9  "`out'/v081_09_jenks.html"
+local _p9b "`out'/v081_09b_breaks.html"
+python:
+from sfi import Macro
+h = open(Macro.getLocal("_p9"), encoding="utf-8").read()
+assert '"classes":"jenks"' in h, "classes meta missing"
+assert '"scalebar":1' in h and '"northarrow":1' in h, "furniture meta missing"
+assert '"color":"#D44500"' in h and '"dash":"dashed"' in h and '"width":2' in h, "overlay style missing"
+assert '"xlabel":"Poverty rate (%)"' in h, "variable-label default missing"
+h2 = open(Macro.getLocal("_p9b"), encoding="utf-8").read()
+assert '"breaksstr":"12|16|20|24"' in h2, "breaks meta missing"
+end
+display "V081 PAYLOAD CHECKS OK"
+
+* v0.8.1 error paths
+capture sparkta2 poverty_rate, id(fips) type(choropleth) classes(fisher) ///
+    export("`out'/nope1.html") offline noopen
+assert _rc == 198
+capture sparkta2 poverty_rate uninsured_rate, id(fips) type(bivariate) breaks(12 16) ///
+    export("`out'/nope2.html") offline noopen
+assert _rc == 198
+capture sparkta2 poverty_rate, id(fips) type(choropleth) overlays(region4) ///
+    overlaydash(wavy) export("`out'/nope3.html") offline noopen
+assert _rc == 198
+capture sparkta2 poverty_rate, id(fips) type(choropleth) overlaycolors(red) ///
+    export("`out'/nope4.html") offline noopen
+assert _rc == 198
+
+*-----------------------------------------------------------------------------
+* 10. v0.8.1: spaced-paths regression (the Windows / cloud-drive report) --
+*     assets found in a directory WITH SPACES, export into one too.  The
+*     Mata byte-splice in sparkta2_appendfile must handle both.
+*-----------------------------------------------------------------------------
+capture mkdir "`out'/space assets"
+capture mkdir "`out'/space output"
+foreach f in sparkta2_engine.js d3.min.js topojson-client.min.js d3-hexbin.min.js texas_counties.topojson {
+    quietly findfile `f'
+    quietly copy "`r(fn)'" "`out'/space assets/`f'", replace
+}
+adopath ++ "`out'/space assets"
+use `counties', clear
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth)   ///
+    title("v081-10 spaced paths")                               ///
+    export("`out'/space output/out with space.html") offline noopen
+quietly checksum "`out'/space output/out with space.html"
+assert r(filelen) > 800000
+
+*-----------------------------------------------------------------------------
 * Payload sanity: every output contains the tabs payload and bootstrap
 *-----------------------------------------------------------------------------
-foreach f in v080_01_plain v080_02_overlays v080_03_dashtab v080_04_multigeo v080_05_raster {
+foreach f in v080_01_plain v080_02_overlays v080_03_dashtab v080_04_multigeo v080_05_raster v081_09_jenks {
     quietly checksum "`out'/`f'.html"
     assert r(filelen) > 300000
 }
