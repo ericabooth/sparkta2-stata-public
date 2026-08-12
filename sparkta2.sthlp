@@ -987,18 +987,18 @@ very long labels you want cleanly truncated for grid embeds
 
 {dlgtab:9n. Everything together — tabs x overlays x labels x filters (v0.8.0)}
 
-{phang}{it:The v0.8.0 layers compose with the existing interactivity: one call combining}{cmd: dashtab()}{it:, a dissolved region overlay, a sparse "key counties" highlight overlay, name labels, filters, sliders, search, and the Export menu.  Each tab re-renders the full stack.}{p_end}
+{phang}{it:The v0.8.0 layers compose with the existing interactivity: one call combining}{cmd: dashtab()}{it: (here switching county values vs region averages collapsed onto the same county geometry), a dissolved region overlay, a sparse "key counties" highlight overlay, name labels, filters, sliders, search, and the Export menu pinned bottom-right via}{cmd: downloadpos(below)}{it:.  Each tab re-renders the full stack.}{p_end}
 
-{phang}{cmd}generate byte half = fips >= 48250{p_end}
-{phang}{cmd}label define halfL 0 "West" 1 "East"{p_end}
-{phang}{cmd}label values half halfL{p_end}
+{phang}{cmd}* level 1 = county values; level 2 = the region MEANS repeated{p_end}
+{phang}{cmd}* across each region's counties (same ids, coarser signal){p_end}
+{phang}{cmd}collapse (mean) pov_reg = poverty_rate, by(region) {it:...then merge + stack long}{p_end}
 {phang}{cmd}generate str28 keystudy = ""{p_end}
 {phang}{cmd}replace keystudy = "Key study counties" if inlist(fips, 48201, 48113, 48439){p_end}
 {phang}{cmd}sparkta2 poverty_rate uninsured_rate, id(fips) name(county)    ///{p_end}
-{phang}{cmd}    type(bivariate) dashtab(half) overlays(region keystudy)    ///{p_end}
+{phang}{cmd}    type(bivariate) dashtab(level) overlays(region keystudy)   ///{p_end}
 {phang}{cmd}    maplabels labelsize(6) filters(region)                     ///{p_end}
 {phang}{cmd}    sliders(poverty_rate) search swapbutton download datatable ///{p_end}
-{phang}{cmd}    export(kitchen_sink.html) offline{p_end}
+{phang}{cmd}    downloadpos(below) export(kitchen_sink.html) offline{p_end}
 
 {phang}{it:dashtab() also works as a measure switcher: stack two measures long (one}{cmd: value}{it: column, a labelled}{cmd: measure}{it: variable) and}{cmd: dashtab(measure) dashtabstyle(buttons)}{it: flips between them — composable with}{cmd: rasterimage()}{it: and overlays.}{p_end}
 
