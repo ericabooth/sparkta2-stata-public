@@ -668,9 +668,25 @@
           .attr("stroke-linejoin", "round")
           .attr("pointer-events", "none");
         // Group-name labels at polygon centroids (dissolved overlays only).
+        // A multi-part dissolve (a region with islands, or a scattered
+        // highlight set like "key study counties") gets its label at the
+        // centroid of its LARGEST part — the multi-centroid often lands in
+        // the empty space between parts.
         feats.forEach(function (f) {
           if (!f.properties || !f.properties.__ovname) return;
-          var c = panel.pathGen.centroid(f);
+          var target = f;
+          var geom = f.geometry;
+          if (geom && geom.type === "MultiPolygon" && geom.coordinates.length > 1) {
+            var best = null, bestA = -1;
+            geom.coordinates.forEach(function (coords) {
+              var part = { type: "Feature", properties: {},
+                           geometry: { type: "Polygon", coordinates: coords } };
+              var a = panel.pathGen.area(part);
+              if (a > bestA) { bestA = a; best = part; }
+            });
+            if (best) target = best;
+          }
+          var c = panel.pathGen.centroid(target);
           if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return;
           g.append("text").attr("class", "ovlabel")
             .attr("x", c[0]).attr("y", c[1])

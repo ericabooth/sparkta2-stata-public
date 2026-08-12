@@ -161,6 +161,24 @@ Map {cmd:type()} values:
 {synopt :{cmd:parallels(}{it:p1 p2}{cmd:)}}override Albers standard parallels in degrees{p_end}
 {synopt :{cmd:center(}{it:lon lat}{cmd:)}}override projection center in degrees{p_end}
 
+{syntab :Native chart types only (donut, bar2, line2, divbar, barrace)}
+{synopt :{cmd:name(}{it:varname}{cmd:)}}category (bar2, donut, barrace) or item ({cmd:divbar}) label variable{p_end}
+{synopt :{cmd:over(}{it:varname}{cmd:)}}grouping variable: side-by-side groups for {cmd:bar2}, series for {cmd:line2}{p_end}
+{synopt :{cmd:horizontal}}horizontal bars ({cmd:bar2}){p_end}
+{synopt :{cmd:stacked}}stack the {cmd:over()} groups instead of placing them side by side ({cmd:bar2}){p_end}
+{synopt :{cmd:normalize}}scale each stack to 100% ({cmd:bar2} with {cmd:stacked}){p_end}
+{synopt :{cmd:directlabels}}print the value on each bar or slice.  Works on every bar variant (single, grouped, and stacked; horizontal and vertical), on {cmd:donut}, and on {cmd:divbar}, where it is on by default.  Stacked and diverging segments get a centred, contrast-aware label and segments too narrow to hold one are skipped, so the value stays available in the tooltip{p_end}
+{synopt :{cmd:innerradius(}{it:#}{cmd:)}}donut hole as a fraction of the outer radius; default 0.55{p_end}
+{synopt :{cmd:sorted(}{it:string}{cmd:)}}{cmd:ascending}{c |}{cmd:descending}{c |}{cmd:category} ordering of categories{p_end}
+{synopt :{cmd:level(}{it:varname}{cmd:)}}response-level variable ({cmd:divbar}; required){p_end}
+{synopt :{cmd:levelorder(}{it:a}{c |}{it:b}{c |}{it:...}{cmd:)}}explicit response order, pipe-separated ({cmd:divbar}){p_end}
+{synopt :{cmd:centerlevel(}{it:string}{cmd:)}}response level the diverging baseline is centred on ({cmd:divbar}){p_end}
+{synopt :{cmd:suppressaxis}}drop the bottom axis ({cmd:divbar}; on by default there){p_end}
+{synopt :{cmd:time(}{it:varname}{cmd:)}}time variable ({cmd:barrace}; required){p_end}
+{synopt :{cmd:top(}{it:#}{cmd:)}}categories shown per frame ({cmd:barrace}); default 12{p_end}
+{synopt :{cmd:fps(}{it:#}{cmd:)}}frames per second ({cmd:barrace}); default 12{p_end}
+{synopt :{cmd:duration(}{it:#}{cmd:)}}total animation seconds ({cmd:barrace}); default 25{p_end}
+
 {syntab :Higher-order tabs (v0.8.0)}
 {synopt :{cmd:dashtab(}{it:varname}{cmd:)}}one full map per level of {it:varname}, with a tab bar above the output; string or labeled-numeric, 2-10 levels ({cmd:levelsof} order); native types only{p_end}
 {synopt :{cmd:dashtabgeo(}{it:a}{c |}{it:b}{c |}{it:...}{cmd:)}}per-tab {cmd:geo()}, pipe-separated in {cmd:levelsof} order; empty entries fall back to {cmd:geo()}{p_end}
@@ -491,7 +509,20 @@ with region names on top of a county choropleth.  The checkbox label is
 the variable label.{p_end}
 
 {phang2}o  the {bf:name of another object} in the TopoJSON ({cmd:states},
-{cmd:nation}, ...), drawn as a boundary mesh.{p_end}
+{cmd:nation}, ...), drawn as a boundary mesh.  Matching is exact: a token
+only counts as a variable when a variable of exactly that name exists
+(abbreviations do not capture it).{p_end}
+
+{pstd}
+{bf:Highlight layers.}  A dissolve variable may be {bf:sparse}: rows with
+an empty (or missing) value belong to no group, so a variable that is
+filled in for only a handful of features becomes a toggleable
+{it:spotlight} -- e.g.
+{cmd:replace keystudy = "Key study counties" if inlist(fips, 48201, 48113, 48439)}
+then {cmd:overlays(keystudy)} outlines just those counties.  When a
+dissolved group has several disconnected parts (a scattered highlight
+set, a region with islands), its label is placed at the centroid of the
+{bf:largest} part rather than the multi-part centroid.
 
 {pstd}
 Overlays require a TopoJSON input (arcs); GeoJSON FeatureCollection
@@ -952,6 +983,24 @@ very long labels you want cleanly truncated for grid embeds
 
 {phang}{cmd}sparkta2_dashboard, files("d1.html d2.html")                    ///{p_end}
 {phang}{cmd}    titles("Districts|Regions") tabs export(dash.html){p_end}
+
+
+{dlgtab:9n. Everything together — tabs x overlays x labels x filters (v0.8.0)}
+
+{phang}{it:The v0.8.0 layers compose with the existing interactivity: one call combining}{cmd: dashtab()}{it:, a dissolved region overlay, a sparse "key counties" highlight overlay, name labels, filters, sliders, search, and the Export menu.  Each tab re-renders the full stack.}{p_end}
+
+{phang}{cmd}generate byte half = fips >= 48250{p_end}
+{phang}{cmd}label define halfL 0 "West" 1 "East"{p_end}
+{phang}{cmd}label values half halfL{p_end}
+{phang}{cmd}generate str28 keystudy = ""{p_end}
+{phang}{cmd}replace keystudy = "Key study counties" if inlist(fips, 48201, 48113, 48439){p_end}
+{phang}{cmd}sparkta2 poverty_rate uninsured_rate, id(fips) name(county)    ///{p_end}
+{phang}{cmd}    type(bivariate) dashtab(half) overlays(region keystudy)    ///{p_end}
+{phang}{cmd}    maplabels labelsize(6) filters(region)                     ///{p_end}
+{phang}{cmd}    sliders(poverty_rate) search swapbutton download datatable ///{p_end}
+{phang}{cmd}    export(kitchen_sink.html) offline{p_end}
+
+{phang}{it:dashtab() also works as a measure switcher: stack two measures long (one}{cmd: value}{it: column, a labelled}{cmd: measure}{it: variable) and}{cmd: dashtab(measure) dashtabstyle(buttons)}{it: flips between them — composable with}{cmd: rasterimage()}{it: and overlays.}{p_end}
 
 
 {dlgtab:10. Chart pass-through to sparkta}

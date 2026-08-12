@@ -53,10 +53,16 @@ assert r(n_tabs) == 1
 assert r(n_rows) == 254
 
 *-----------------------------------------------------------------------------
-* 2. overlays(): dissolve-by-variable + topo-object mesh + maplabels
+* 2. overlays(): dissolve-by-variable + topo-object mesh + maplabels,
+*    plus a SPARSE highlight variable (empty for most rows -> only the
+*    flagged counties get dissolved outlines; label sits on largest part)
 *-----------------------------------------------------------------------------
+generate str28 keyc = ""
+replace keyc = "Key study counties (demo)" ///
+    if inlist(fips, 48201, 48113, 48439, 48029, 48453)
+label variable keyc "Key study counties (demo)"
 sparkta2 poverty_rate, id(fips) name(county) type(choropleth) ///
-    overlays(region4 states) maplabels labelsize(7) download datatable ///
+    overlays(region4 states keyc) maplabels labelsize(7) download datatable ///
     title("v080-2 overlays + labels") export("`out'/v080_02_overlays.html") offline noopen
 
 *-----------------------------------------------------------------------------
