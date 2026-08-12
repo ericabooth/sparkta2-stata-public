@@ -62,7 +62,7 @@ Two bundled Texas geographies: 254 counties (with 56 US states + nation as backd
 
 ![Jenks-classified county choropleth with variable-label legend, north arrow, zoom-aware miles scale bar, and independently styled overlay layers (navy regions, gray state lines, dashed orange key-county spotlight)](assets/sparkta2_v081_preview.png)
 
-*One frame, most of v0.8.1: `classes(jenks)` cuts in the legend, which is now titled by the variable label; north arrow and a zoom-aware miles scale bar; three overlay layers styled independently via `overlaycolors()/overlaywidths()/overlaydash()`; Export pinned bottom-right with `downloadpos(below)`.*
+*One frame, most of v0.8.1–v0.8.2: `classes(jenks)` cuts in the legend, which is now titled by the variable label; north arrow and a zoom-aware miles scale bar; three overlay layers styled independently via `overlaycolors()/overlaywidths()/overlaydash()`; slate county borders via `linecolor()/linewidth()` over a `basemapcolor()`-styled backdrop (v0.8.2); Export pinned bottom-right with `downloadpos(below)`.*
 
 #### Classification control — `classes()` and `breaks()`
 
