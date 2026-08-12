@@ -1,5 +1,9 @@
-*! sparkta2_map v0.8.1  2026-08-12
+*! sparkta2_map v0.8.2  2026-08-12
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
+*!
+*! v0.8.2: linecolor()/linewidth() restyle the focused-layer feature
+*!   borders; basemapcolor()/basemapwidth() restyle the backdrop outline.
+*!   Defaults reproduce the long-standing look exactly.
 *!
 *! v0.8.1 additions:
 *!   - classes(quantile|jenks|equal|std) + breaks(numlist): choropleth /
@@ -103,6 +107,10 @@ program define sparkta2_map, rclass
         SCHEME(string)                                     ///  rdbu | bupu | gnbu | puor | blues | reds | greens | viridis | ...
         CLASSes(string)                                    ///  quantile (default) | jenks | equal | std
         BREAKs(numlist ascending min=2 max=8)              ///  explicit cutpoints (single-measure classifications)
+        LINECOLor(string)                                  ///  focused-layer border color (CSS color; default white)
+        LINEWidth(real 0.45)                               ///  focused-layer border width in svg px
+        BASEMAPCOLor(string)                               ///  basemap outline color (default #cbd5e1)
+        BASEMAPWidth(real 0.6)                             ///  basemap outline width in svg px
         SCALEBar                                           ///  miles scale bar, bottom-left (zoom-aware)
         NORTHArrow                                         ///  north arrow, top-left
         TITLE(string) SUBtitle(string) NOTE(string)        ///
@@ -234,6 +242,32 @@ program define sparkta2_map, rclass
     }
     local is_scalebar   = cond("`scalebar'"   != "", 1, 0)
     local is_northarrow = cond("`northarrow'" != "", 1, 0)
+
+    * ---- v0.8.2 base boundary styling ----------------------------------
+    * linecolor()/linewidth() restyle the focused-layer feature borders
+    * (the thin lines between counties); basemapcolor()/basemapwidth()
+    * restyle the faded backdrop outline.  Defaults reproduce the
+    * long-standing look exactly (white .45px / #cbd5e1 .6px).
+    if "`linecolor'" == "" local linecolor "#ffffff"
+    local linecolor : subinstr local linecolor `"""' "", all
+    local linecolor : subinstr local linecolor `"\"' "", all
+    if `linewidth' <= 0 {
+        display as error "sparkta2: linewidth() must be > 0"
+        exit 198
+    }
+    local _lw_str : display %9.0g `linewidth'
+    local _lw_str = strtrim("`_lw_str'")
+    if substr("`_lw_str'", 1, 1) == "." local _lw_str "0`_lw_str'"
+    if "`basemapcolor'" == "" local basemapcolor "#cbd5e1"
+    local basemapcolor : subinstr local basemapcolor `"""' "", all
+    local basemapcolor : subinstr local basemapcolor `"\"' "", all
+    if `basemapwidth' <= 0 {
+        display as error "sparkta2: basemapwidth() must be > 0"
+        exit 198
+    }
+    local _bmw_str : display %9.0g `basemapwidth'
+    local _bmw_str = strtrim("`_bmw_str'")
+    if substr("`_bmw_str'", 1, 1) == "." local _bmw_str "0`_bmw_str'"
 
     * ---- v0.8.1 label defaults: fall back to the VARIABLE LABEL before
     * ---- the bare varname, so legends / mode buttons / tooltips read well.
@@ -1016,10 +1050,12 @@ program define sparkta2_map, rclass
         parallelsstr("`_par_str'") centerstr("`_ctr_str'")  ///
         classes("`classes'") breaksstr("`_brk_str'")        ///
         isscalebar(`is_scalebar') isnortharrow(`is_northarrow') ///
+        linecolor("`linecolor'") linewidthstr("`_lw_str'")  ///
+        basemapcolor("`basemapcolor'") basemapwidthstr("`_bmw_str'") ///
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.8.1]  `type' map written:"
+    display as text _n "[sparkta2 v0.8.2]  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_total'  Geo: `_tabgeos'  Scheme: `scheme'  Mode: `mode'"
     if `_ntabs' > 1 {

@@ -679,8 +679,8 @@
         panel.gBase.selectAll("path").data(basemapFeatures).enter().append("path")
           .attr("d", panel.pathGen)
           .attr("fill", "#eef2f7")
-          .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 0.6)
+          .attr("stroke", meta.basemapcolor || "#cbd5e1")
+          .attr("stroke-width", +meta.basemapwidth || 0.6)
           .attr("pointer-events", "none");
       }
 

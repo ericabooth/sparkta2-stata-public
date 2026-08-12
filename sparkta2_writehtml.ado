@@ -42,7 +42,13 @@ program define sparkta2_writehtml
          PARALLELSstr(string) CENTERstr(string)                             ///
          CLASSes(string) BREAKSSTR(string)                                  ///
          ISSCALEBar(integer 0) ISNORTHArrow(integer 0)                      ///
+         LINECOLOR(string) LINEWIDTHSTR(string)                             ///
+         BASEMAPCOLOR(string) BASEMAPWIDTHSTR(string)                       ///
          ISLABels(integer 0) LABELSIZE(integer 9)]
+    if "`linecolor'"       == "" local linecolor "#ffffff"
+    if "`linewidthstr'"    == "" local linewidthstr "0.45"
+    if "`basemapcolor'"    == "" local basemapcolor "#cbd5e1"
+    if "`basemapwidthstr'" == "" local basemapwidthstr "0.6"
     if "`downloadpos'" == "" local downloadpos "side"
     if "`tabstyle'"    == "" local tabstyle "tabs"
 
@@ -127,7 +133,7 @@ program define sparkta2_writehtml
     file write `fh' `"#panels.active .panel h4{margin:0 0 6px;font-size:.95rem;color:var(--ink);font-weight:600;}"' _n
     file write `fh' `"#panels.active .panel svg{display:block;width:100%;height:auto;}"' _n
     file write `fh' `".legend text{font:12px sans-serif;fill:#334155;}"' _n
-    file write `fh' `".region{stroke:#fff;stroke-width:.45px;}"' _n
+    file write `fh' `".region{stroke:`linecolor';stroke-width:`linewidthstr'px;}"' _n
     file write `fh' `".region.dim{fill:#f1f5f9 !important;}"' _n
     file write `fh' `".region.hl{stroke:#0f172a;stroke-width:1.3px;}"' _n
     file write `fh' `"#tooltip{position:absolute;pointer-events:none;background:rgba(15,23,42,.94);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;opacity:0;transition:opacity .12s;max-width:280px;z-index:30;box-shadow:0 4px 10px rgba(0,0,0,.18);}"' _n
@@ -287,6 +293,7 @@ program define sparkta2_writehtml
         file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
         file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
         file write `fh' `""classes":"`classes'","breaksstr":"`breaksstr'","scalebar":`isscalebar',"northarrow":`isnortharrow',"' _n
+        file write `fh' `""basemapcolor":"`basemapcolor'","basemapwidth":`basemapwidthstr',"' _n
         file write `fh' `""zoom":`iszoom',"search":`issearch',"basemap":`isbasemap',"zoomto":"`zoomto'","' _n
         file write `fh' `""layer":"`_tlayer`_t''","geo":"`_tgeo`_t''","idwidth":`_tidw`_t'',"' _n
         file write `fh' `""hexradius":`hexradius',"hexstat":"`hexstat'","pointsize":`pointsize',"' _n

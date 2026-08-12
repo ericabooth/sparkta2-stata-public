@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.1  12aug2026}{...}
+{* *! version 0.8.2  12aug2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.1):
+{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.2):
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -53,6 +53,16 @@ a tabbed page layout -- the composition path for sparkta pass-through
 charts, which cannot use native {cmd:dashtab()}.  See
 {it:Higher-order tabs, overlays, and raster underlays (v0.8.0)} and
 examples 9k-9m below.
+
+{pstd}
+{bf:New in v0.8.2.}  The base boundaries are styleable too:
+{cmd:linecolor()} and {cmd:linewidth()} restyle the focused-layer feature
+borders (the thin lines between counties), and {cmd:basemapcolor()} /
+{cmd:basemapwidth()} restyle the faded {cmd:basemap} outline.  Any CSS
+color works; defaults reproduce the long-standing look exactly (white
+0.45px borders, #cbd5e1 0.6px basemap).  Together with the v0.8.1
+overlay styling options, every line on a sparkta2 map is now set from
+the Stata command line.
 
 {pstd}
 {bf:New in v0.8.1.}  Map classification is now selectable:
@@ -157,6 +167,10 @@ Map {cmd:type()} values:
 {synopt :{cmd:classes(}quantile{c |}jenks{c |}equal{c |}std{cmd:)}}how choropleth/bivariate/hexbin values are binned (v0.8.1); default {bf:quantile} (unchanged from every earlier version). {bf:jenks} = Fisher-Jenks natural breaks; {bf:equal} = equal intervals over [min,max]; {bf:std} = one-standard-deviation steps centered on the mean. Applies to the bivariate x/y axis scales, the x/y single-measure modes, and hexbin aggregates; the diff and ratio modes keep their symmetric diverging scales regardless.{p_end}
 {synopt :{cmd:breaks(}{it:numlist}{cmd:)}}2 to 8 explicit ascending cutpoints for single-measure classifications -- choropleth x/y modes and hexbin (v0.8.1). Number of classes = number of cuts + 1. Cannot be combined with {cmd:type(bivariate)} (r(198): use {cmd:classes()} there) nor with a non-quantile {cmd:classes()} (r(198): specify one or the other). Legend rows show the cut values.{p_end}
 {synopt :{cmd:basemap}}draw a faded states/nation outline behind the focused features (background-map style){p_end}
+{synopt :{cmd:linecolor(}{it:color}{cmd:)}}focused-layer border color (any CSS color); default white (v0.8.2){p_end}
+{synopt :{cmd:linewidth(}{it:#}{cmd:)}}focused-layer border width in SVG px; default 0.45 (v0.8.2){p_end}
+{synopt :{cmd:basemapcolor(}{it:color}{cmd:)}}basemap outline color; default #cbd5e1 (v0.8.2){p_end}
+{synopt :{cmd:basemapwidth(}{it:#}{cmd:)}}basemap outline width in SVG px; default 0.6 (v0.8.2){p_end}
 {synopt :{cmd:hexradius(}{it:#}{cmd:)}}hexagon radius in SVG units; default 18{p_end}
 {synopt :{cmd:hexstat(}{it:string}{cmd:)}}hexbin aggregate: {bf:mean} (default) | {bf:sum} | {bf:median} | {bf:count} | {bf:min} | {bf:max}{p_end}
 {synopt :{cmd:pointsize(}{it:#}{cmd:)}}circle radius for {cmd:type(points)}; default 4{p_end}

@@ -230,6 +230,35 @@ assert '"breaksstr":"12|16|20|24"' in h2, "breaks meta missing"
 end
 display "V081 PAYLOAD CHECKS OK"
 
+*-----------------------------------------------------------------------------
+* 9c. v0.8.2: base boundary styling -- focused-layer border color/width via
+*     the page CSS, basemap outline color/width via the engine
+*-----------------------------------------------------------------------------
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) basemap ///
+    linecolor("#1B2D55") linewidth(0.8) basemapcolor("#94a3b8") basemapwidth(1.1) ///
+    title("v082-9c boundary styling") export("`out'/v082_09c_lines.html") offline noopen
+
+local _p9c "`out'/v082_09c_lines.html"
+python:
+from sfi import Macro
+h3 = open(Macro.getLocal("_p9c"), encoding="utf-8").read()
+assert ".region{stroke:#1B2D55;stroke-width:0.8px;}" in h3, "linecolor/linewidth CSS missing"
+assert '"basemapcolor":"#94a3b8"' in h3 and '"basemapwidth":1.1' in h3, "basemap style meta missing"
+end
+display "V082 BOUNDARY CHECKS OK"
+
+* defaults regression: an unstyled map must keep the long-standing look
+local _p1 "`out'/v080_01_plain.html"
+python:
+from sfi import Macro
+h4 = open(Macro.getLocal("_p1"), encoding="utf-8").read()
+assert ".region{stroke:#ffffff;stroke-width:0.45px;}" in h4, "default border CSS drifted"
+end
+
+capture sparkta2 poverty_rate, id(fips) type(choropleth) linewidth(0) ///
+    export("`out'/nope5.html") offline noopen
+assert _rc == 198
+
 * v0.8.1 error paths
 capture sparkta2 poverty_rate, id(fips) type(choropleth) classes(fisher) ///
     export("`out'/nope1.html") offline noopen

@@ -12,6 +12,9 @@ d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
 d The tx2036style option applies Texas 2036 brand colors and Montserrat.
 d
+d New in v0.8.2: linecolor()/linewidth() + basemapcolor()/basemapwidth()
+d restyle the base feature borders and the backdrop outline.
+d
 d New in v0.8.1: classes(quantile|jenks|equal|std) + breaks() classification
 d control; legends and axes default to variable labels; scalebar + northarrow
 d map furniture; per-overlay colors/widths/dash; and the asset splice moved

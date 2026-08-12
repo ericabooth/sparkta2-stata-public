@@ -1,5 +1,11 @@
-*! sparkta2 v0.8.0  2026-08-11
+*! sparkta2 v0.8.2  2026-08-12
 *! sparkta + interactive choropleth maps + native D3 charts in one command.
+*!
+*! New in 0.8.2: linecolor()/linewidth() + basemapcolor()/basemapwidth()
+*!   restyle the base feature borders and the backdrop outline (maps).
+*! New in 0.8.1: classes()/breaks() classification; variable-label legend
+*!   defaults; scalebar + northarrow; overlaycolors()/overlaywidths()/
+*!   overlaydash(); Mata asset splice (Windows spaced-path fix).
 *!
 *! Dispatcher:
 *!   type(map|bivariate|choropleth|hexbin|points)     -> sparkta2_map   (D3 map engine)
@@ -66,7 +72,7 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.8.1"
+    local sparkta2_version "0.8.2"
     display as text "  [sparkta2 v`sparkta2_version']"
 
     * Peek at user-supplied type() without consuming any args.
