@@ -900,14 +900,34 @@
       var xs = d3.scaleLinear()
         .domain(d3.extent(data, function (d) { return +d.y; }))
         .nice().range([0, iw]);
+      // Vertical scale.  Previously hardcoded to [0, max], which silently
+      // clipped every negative point below the plot floor: a signed series
+      // (battery charging, net interchange, a change-from-baseline measure)
+      // rendered as though its negative half did not exist.  Anchor at zero
+      // while the data stay one side of it, so an all-positive series keeps
+      // the zero baseline it has always had, and widen across zero only when
+      // the data actually cross.
+      var yExt = d3.extent(data, function (d) { return +d.x; });
+      var yLo  = Math.min(0, yExt[0] === undefined ? 0 : +yExt[0]);
+      var yHi  = Math.max(0, yExt[1] === undefined ? 1 : +yExt[1]);
+      if (yLo === yHi) yHi = yLo + 1;   // flat series: keep a drawable range
       var ys = d3.scaleLinear()
-        .domain([0, d3.max(data, function (d) { return +d.x; })])
+        .domain([yLo, yHi])
         .nice().range([ih, 0]);
 
       g.append("g").attr("class", "axis").attr("transform", "translate(0," + ih + ")")
         .call(d3.axisBottom(xs).ticks(7));
       g.append("g").attr("class", "axis")
         .call(d3.axisLeft(ys).ticks(6));
+
+      // With a signed series the sign is the finding, so mark the zero line.
+      if (yLo < 0 && yHi > 0) {
+        g.append("line").attr("class", "zeroline")
+          .attr("x1", 0).attr("x2", iw)
+          .attr("y1", ys(0)).attr("y2", ys(0))
+          .attr("stroke", "#8a8a8a").attr("stroke-width", 1)
+          .attr("shape-rendering", "crispEdges");
+      }
 
       var lineGen = d3.line()
         .x(function (d) { return xs(+d.y); })
@@ -932,8 +952,12 @@
           .on("mousemove", function (ev, d) {
             var lines = [];
             if (hasSeries) lines.push("<strong>" + esc(d.g) + "</strong>");
-            lines.push((meta.xvar || "x") + ": " + fmt(+d.y));
-            lines.push((meta.yvar || meta.xlabel || "y") + ": " + fmt(+d.x));
+            // d.y is the horizontal value and d.x the plotted measure, so
+            // each row takes its OWN variable's label.  These two lines used
+            // to carry the opposite axis's name, making a hover read as if
+            // the measure and the axis had swapped identities.
+            lines.push((meta.ylabel || meta.yvar || "y") + ": " + fmt(+d.y));
+            lines.push((meta.xlabel || meta.xvar || "x") + ": " + fmt(+d.x));
             appendTipvars(d, lines);
             showTip(lines.join("<br/>"), ev);
           }).on("mouseleave", hideTip);
