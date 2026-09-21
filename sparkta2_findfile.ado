@@ -87,7 +87,7 @@ program define sparkta2_findfile, rclass
     * missed are fetched, into sysdir PLUS/s/sparkta2/ for reuse.
     local remote_base "$sparkta2_remote_base"
     if "`remote_base'" == "" {
-        local remote_base "https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/"
+        local remote_base "https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/"
     }
     local anymiss = (`wantmap' & "`topopath'" == "")
     foreach pair of local pairs {
@@ -132,10 +132,10 @@ program define sparkta2_findfile, rclass
     if `short' {
         display as error "sparkta2: required support files not found locally and could not be downloaded."
         display as error "  Either:"
-        display as error `"    (a) net install sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/") replace force"'
+        display as error `"    (a) net install sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/") replace force"'
         display as error `"        (sparkta2_findfile will auto-download the JS / TopoJSON on first use)"'
-        display as error `"    (b) net get sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/")"'
-        display as error `"    (c) clone https://github.com/texas-2036/sparkta2-stata-public locally and adopath ++ "<clone dir>""'
+        display as error `"    (b) net get sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/")"'
+        display as error `"    (c) clone https://github.com/ericabooth/sparkta2-stata-public locally and adopath ++ "<clone dir>""'
         if `wantmap' & "`topopath'" == "" display as error "    - missing: `topofile_a' (or `topofile_b')"
         if `wantmap' & "`engpath'"  == "" display as error "    - missing: `engfile'"
         if "`d3path'" == ""               display as error "    - missing: `d3file'"

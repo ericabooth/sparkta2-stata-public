@@ -1,4 +1,12 @@
-*! sparkta2 v0.8.2  2026-08-12
+*! sparkta2 v0.8.3  2026-09-21
+*!
+*! New in 0.8.3: line2 renders series that cross zero -- the y-axis now
+*!   spans the actual data range instead of starting at zero, a zero line
+*!   is drawn when the series has both signs, and tooltip rows are
+*!   labelled from ylabel()/xlabel().  Repository moved to
+*!   github.com/ericabooth/sparkta2-stata-public.
+*!
+*! Previously 0.8.2  2026-08-12
 *! sparkta + interactive choropleth maps + native D3 charts in one command.
 *!
 *! New in 0.8.2: linecolor()/linewidth() + basemapcolor()/basemapwidth()

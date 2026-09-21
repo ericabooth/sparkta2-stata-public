@@ -12,6 +12,10 @@ d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
 d The tx2036style option applies Texas 2036 brand colors and Montserrat.
 d
+d New in v0.8.3: line2 renders series that cross zero (axis spans the
+d real data range, zero line drawn, tooltip rows labelled from
+d ylabel()/xlabel()).  Repository moved to github.com/ericabooth.
+d
 d New in v0.8.2: linecolor()/linewidth() + basemapcolor()/basemapwidth()
 d restyle the base feature borders and the backdrop outline.
 d
@@ -43,7 +47,7 @@ d
 d Author: Eric A. Booth, Sr Researcher, Texas 2036
 d Support: eric.a.booth@gmail.com
 d
-d Distribution-Date: 20260812
+d Distribution-Date: 20260921
 d
 f sparkta2.ado
 f sparkta2_appendfile.ado

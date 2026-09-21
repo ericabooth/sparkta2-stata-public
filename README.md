@@ -186,7 +186,7 @@ Design notes and honest limitations (the "raster complications report"):
 ## Install
 
 ```stata
-net install sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/") replace force
+net install sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/") replace force
 discard
 which sparkta2
 help sparkta2
@@ -197,7 +197,7 @@ Note that Stata's `net install` only copies recognised extensions (`.ado`, `.sth
 To place the assets yourself instead of waiting for the first-call download — on an air-gapped machine, say, or to pre-seed a shared install — `net get` them into the current directory:
 
 ```stata
-net get sparkta2, from("https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/")
+net get sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/")
 ```
 
 ### For chart pass-through, also install `sparkta`
@@ -213,7 +213,7 @@ Without `sparkta`, the map types (`bivariate`, `choropleth`, `hexbin`, `points`,
 ```stata
 which sparkta2
 help sparkta2
-do https://raw.githubusercontent.com/texas-2036/sparkta2-stata-public/main/test_helpfile_examples.do
+do https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/test_helpfile_examples.do
 ```
 
 The third command runs all 10 examples that appear in `help sparkta2` and writes the HTML output to `sparkta2_helpfile_out/` in your cwd.
