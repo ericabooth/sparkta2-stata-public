@@ -1,4 +1,12 @@
-*! sparkta2 v0.8.3  2026-09-21
+*! sparkta2 v0.8.4  2026-09-21
+*!
+*! New in 0.8.4 (line2): axis titles are drawn from xlabel()/ylabel(), which
+*!   previously reached the engine but were used only in the hover tooltip, so
+*!   a chart that named both axes still rendered them unlabelled.  Numeric tick
+*!   labels drop the locale group separator, so a year reads 2022 rather than
+*!   2,022.
+*!
+*! Previously 0.8.3  2026-09-21
 *!
 *! New in 0.8.3: line2 renders series that cross zero -- the y-axis now
 *!   spans the actual data range instead of starting at zero, a zero line

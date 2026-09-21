@@ -13,7 +13,7 @@ Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Si
 
 Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choropleth](https://observablehq.com/@d3/bivariate-choropleth), [mbostock/methods-of-comparison-compared](https://observablehq.com/@mbostock/methods-of-comparison-compared), [d3/zoom-to-bounding-box](https://observablehq.com/@d3/zoom-to-bounding-box)) and the D3 Graph Gallery ([hexbin map](https://d3-graph-gallery.com/graph/hexbinmap_geo_label.html), [background map](https://d3-graph-gallery.com/graph/backgroundmap_country.html)). `d3-hexbin` v0.2.2 is bundled (MIT, © Mike Bostock).
 
-<img width="720" alt="Bivariate choropleth of 254 Texas counties: poverty rate against uninsured rate, with the 3x3 bivariate legend, filters and search panel" src="assets/01_bivariate_choropleth.png" />
+<img width="900" alt="Bivariate choropleth of 254 Texas counties: poverty rate against uninsured rate, with the 3x3 bivariate legend, filters and search panel" src="assets/01_bivariate_choropleth.png" />
 
 
 ## Status
@@ -55,7 +55,7 @@ Also in v0.8.0: `sparkta2_dashboard, tabs` (tabbed instead of long-scroll compos
 
 Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,016 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
 
-<img width="760" alt="All 1,016 Texas school districts from the bundled NCES EDGE geography, shaded bivariately by FRPL eligibility against students per teacher" src="assets/02_school_districts.png" />
+<img width="900" alt="All 1,016 Texas school districts from the bundled NCES EDGE geography, shaded bivariately by FRPL eligibility against students per teacher" src="assets/02_school_districts.png" />
 
 
 ### What's new in v0.8.1 (2026-08-12)
@@ -181,7 +181,7 @@ Design notes and honest limitations (the "raster complications report"):
 
 
 
-<img width="720" alt="Hexbin aggregation of Texas counties, shading each hex by the mean poverty rate of the counties it covers" src="assets/03_hexbin.png" />
+<img width="900" alt="Hexbin aggregation of Texas counties, shading each hex by the mean poverty rate of the counties it covers" src="assets/03_hexbin.png" />
 
 ## Install
 
@@ -565,7 +565,7 @@ sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML 
 MIT for `sparkta2`. `sparkta` is MIT-licensed by Fahad Mirza (refer to that repo for the canonical license). `d3-hexbin` is MIT-licensed by Mike Bostock.
 
 
-<img width="760" alt="A sparkta2-native line2 chart of three series over time, drawn by the bundled D3 chart engine" src="assets/04_line2_chart.png" />
+<img width="900" alt="A sparkta2-native line2 chart of three series over time, drawn by the bundled D3 chart engine" src="assets/04_line2_chart.png" />
 
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/

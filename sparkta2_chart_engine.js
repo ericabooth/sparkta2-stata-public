@@ -57,6 +57,18 @@
     if (v == null || !Number.isFinite(+v)) return "N/A";
     return d3.format(".1f")(+v) + "%";
   }
+  // Tick labels for a numeric axis.  d3's default applies the locale group
+  // separator, so a year came out as "2,022".  A year is the commonest
+  // numeric x in this package, and a separator helps nobody below five
+  // digits, so whole numbers in that range print plain.
+  function axisNumFmt(scale) {
+    var d = scale.domain();
+    var whole = d.every(function (v) {
+      return Number.isFinite(+v) && Math.abs((+v) % 1) < 1e-9;
+    });
+    var big = d.some(function (v) { return Math.abs(+v) >= 100000; });
+    return (whole && !big) ? d3.format("d") : null;
+  }
   function luminance(hex) {
     // Convert #rrggbb to relative luminance for label-contrast picking.
     var m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
@@ -868,7 +880,9 @@
     // -----------------------------------------------------------------
     function renderLine() {
       svg.selectAll("*").remove();
-      var margin = { top: 24, right: 24, bottom: 44, left: 60 };
+      // bottom/left carry the axis titles added below, so they are deeper
+      // than the tick labels alone would need.
+      var margin = { top: 24, right: 24, bottom: 64, left: 78 };
       var iw = W - margin.left - margin.right;
       var ih = H - margin.top  - margin.bottom;
       var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -916,9 +930,31 @@
         .nice().range([ih, 0]);
 
       g.append("g").attr("class", "axis").attr("transform", "translate(0," + ih + ")")
-        .call(d3.axisBottom(xs).ticks(7));
+        .call(d3.axisBottom(xs).ticks(7).tickFormat(axisNumFmt(xs)));
       g.append("g").attr("class", "axis")
-        .call(d3.axisLeft(ys).ticks(6));
+        .call(d3.axisLeft(ys).ticks(6).tickFormat(axisNumFmt(ys)));
+
+      // Axis titles.  xlabel()/ylabel() previously reached the engine but were
+      // only ever used in the hover tooltip, so a chart that named both axes
+      // in Stata still rendered with two unlabelled axes.  Fall back to the
+      // variable name so an axis is never nameless.
+      var xTitle = meta.xlabel || meta.yvar || "";
+      var yTitle = meta.ylabel || meta.xvar || "";
+      if (xTitle) {
+        g.append("text").attr("class", "axis-title")
+          .attr("x", iw / 2).attr("y", ih + 46)
+          .attr("text-anchor", "middle")
+          .style("font-size", "12px").style("fill", "#334155")
+          .text(xTitle);
+      }
+      if (yTitle) {
+        g.append("text").attr("class", "axis-title")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -ih / 2).attr("y", -60)
+          .attr("text-anchor", "middle")
+          .style("font-size", "12px").style("fill", "#334155")
+          .text(yTitle);
+      }
 
       // With a signed series the sign is the finding, so mark the zero line.
       if (yLo < 0 && yHi > 0) {
