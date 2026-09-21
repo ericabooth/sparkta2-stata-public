@@ -194,7 +194,7 @@ Map {cmd:type()} values:
 {synopt :{cmd:zoomto(}{it:idlist}{cmd:)}}auto-zoom to the bounding box of these ids on load{p_end}
 {synopt :{cmd:nozoom}}disable pan, zoom, and click-to-zoom{p_end}
 {synopt :{cmd:swapbutton}}include a "Swap axes" button (bivariate / diff / ratio){p_end}
-{synopt :{cmd:download}}include an "Export {c -(}" menu (PNG, SVG, Print to PDF){p_end}
+{synopt :{cmd:download}}include an "Export" menu (PNG, SVG, Print to PDF){p_end}
 {synopt :{cmd:downloadpos(}{it:string}{cmd:)}}{cmd:side}|{cmd:below}|{cmd:none} -- Export menu placement (v0.7.2){p_end}
 {synopt :{cmd:datatable}}add "Download CSV" + "View data table" to the Export menu{p_end}
 {synopt :{cmd:animate}}fade map features in when the chart scrolls into view{p_end}
@@ -282,7 +282,7 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{it:default (no} {cmd:nozoom}{it:)}}Mouse wheel zooms in/out. Drag pans. {bf:Clicking a feature} zooms the map to that feature's bounding box. {bf:Double-clicking} the map resets to the initial view. A {bf:Reset zoom} button appears in the controls panel.{p_end}
 {synopt :{cmd:nozoom}}All of the above are disabled — the map renders statically. Use for slide exports.{p_end}
 {synopt :{cmd:swapbutton}}A "Swap axes (X ⇄ Y)" button appears. Clicking flips the variable assignment for bivariate/diff/ratio.{p_end}
-{synopt :{cmd:download}}An "Export {c -(}" dropdown appears with {bf:Download PNG} (full SVG rasterised, all panels at 2x), {bf:Download SVG} (live SVG with inlined CSS), and {bf:Print to PDF{c 133}} (opens the browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).{p_end}
+{synopt :{cmd:download}}An "Export" dropdown appears with {bf:Download PNG} (full SVG rasterised, all panels at 2x), {bf:Download SVG} (live SVG with inlined CSS), and {bf:Print to PDF{c 133}} (opens the browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).{p_end}
 {synopt :{cmd:datatable}}Extends the Export menu with {bf:Download CSV} (every row currently embedded, including {cmd:tooltipvars()}, with the original Stata variable names) and {bf:View data table} (a collapsible scrollable HTML table beneath the chart showing the rows that pass the active filters/sliders/search; capped at 500 visible rows for performance — use CSV for the full set).{p_end}
 {synopt :{cmd:animate}}On first paint, the map is invisible; an IntersectionObserver fires when the chart scrolls into view and the features fade in over ~450ms with a small per-feature stagger. One-shot — does not re-trigger on subsequent scrolls.{p_end}
 {synopt :{cmd:downloadpos()}}Places the Export menu either in the side controls panel ({cmd:side}, default), in a right-aligned footer below the chart ({cmd:below}), or hides it entirely ({cmd:none}).  When set to {cmd:below} and there are no other controls (no filters, sliders, modes, search), the side panel collapses entirely so the page doesn't reserve the 240px sidebar.{p_end}
@@ -1129,7 +1129,7 @@ register. A runnable proof-of-concept lives at
 {pstd}
 {bf:Auto-resize protocol (v0.7.7).}  Every sparkta2-native HTML page embeds
 a small inline {cmd:<script>} that calls
-{cmd}window.parent.postMessage({c -(}type:'sparkta2-resize', height: H{c )-}, '*'){txt}
+{cmd}window.parent.postMessage({c 123}type:'sparkta2-resize', height: H{c 125}, '*'){txt}
 on load / window resize / DOM mutation, where H is the rendered content
 height in pixels.  Parent pages ({cmd:sparkta2_dashboard} wrappers and the
 companion webdoc2 demo) ship a listener that grows each iframe to fit its
