@@ -81,6 +81,19 @@ before) -- so legends, mode-toggle buttons, and tooltips read
 native chart types' axis labels.  See example 9o below.
 
 {pstd}
+{bf:line2 axis order (read this before a line chart).}  For
+{cmd:type(line2)} the varlist is {it:y x} -- name the {bf:vertical}
+(measure) variable {bf:first} and the {bf:horizontal} variable
+{bf:second}, e.g. {cmd:sparkta2 generation month, type(line2)} draws
+generation up the vertical axis against month across the horizontal.
+{cmd:xlabel()} titles the horizontal axis and {cmd:ylabel()} the
+vertical, matching the on-screen axes rather than the varlist position.
+Through v0.8.4 the {bf:default} labels for a line chart were assigned to
+the wrong axes when the caller did not set them explicitly (an explicit
+{cmd:xlabel()}/{cmd:ylabel()} was always placed correctly); v0.8.5 fixes
+the defaults so a line chart is correctly titled with or without them.
+
+{pstd}
 {bf:Robustness (v0.8.1).}  v0.8.1 removed the package's only shell
 dependency -- embedded assets are now spliced byte-for-byte in Mata
 rather than via the OS shell, which fixes two Windows failures reported
@@ -247,8 +260,8 @@ Map {cmd:type()} values:
 {synopt :{cmd:title(}{it:string}{cmd:)}}{p_end}
 {synopt :{cmd:subtitle(}{it:string}{cmd:)}}{p_end}
 {synopt :{cmd:note(}{it:string}{cmd:)}}{p_end}
-{synopt :{cmd:xlabel(}{it:string}{cmd:)}}x-measure / x-axis label. Default (v0.8.1): the variable label of the mapped variable, then the varname -- used in legends, mode-toggle buttons, tooltips, and native chart axes.{p_end}
-{synopt :{cmd:ylabel(}{it:string}{cmd:)}}y-measure / y-axis label; same variable-label default (v0.8.1).{p_end}
+{synopt :{cmd:xlabel(}{it:string}{cmd:)}}label for the {bf:horizontal} axis (and the x-measure in legends/tooltips). Default (v0.8.1): the variable label of the variable actually on that axis, then the varname -- used in legends, mode-toggle buttons, tooltips, and native chart axes. For {cmd:line2} the varlist is {it:y x} (see below), so the horizontal axis is the {bf:second} variable and {cmd:xlabel()} defaults from it (fixed v0.8.5).{p_end}
+{synopt :{cmd:ylabel(}{it:string}{cmd:)}}label for the {bf:vertical} axis (and the y-measure); same variable-label default. For {cmd:line2} the vertical axis is the {bf:first} variable, so {cmd:ylabel()} defaults from it (fixed v0.8.5).{p_end}
 {synopt :{cmd:export(}{it:path}{cmd:)}}output HTML path{p_end}
 {synopt :{cmd:offline}}embed D3 + topojson-client + d3-hexbin inline (no CDN at runtime){p_end}
 {synopt :{cmd:noopen}}do not auto-open the result in the default browser{p_end}

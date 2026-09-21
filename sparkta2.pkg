@@ -12,6 +12,11 @@ d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
 d The tx2036style option applies Texas 2036 brand colors and Montserrat.
 d
+d New in v0.8.5: line2 default axis titles fixed. A line chart that let
+d xlabel()/ylabel() default put them on the wrong axes (the varlist is
+d y x, so the horizontal axis is the second variable); explicit labels
+d were always correct. See the line2 axis-order note in the help file.
+d
 d New in v0.8.3: line2 renders series that cross zero (axis spans the
 d real data range, zero line drawn, tooltip rows labelled from
 d ylabel()/xlabel()).  Repository moved to github.com/ericabooth.

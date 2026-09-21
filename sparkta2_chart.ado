@@ -105,11 +105,23 @@ program define sparkta2_chart, rclass
 
     * v0.8.1: axis/legend labels default to the VARIABLE LABEL when unset,
     * so charts read labels rather than raw varnames.
+    *
+    * v0.8.5 (2026-09-21): default to the label of the variable ACTUALLY ON THAT
+    * AXIS. xlabel titles the horizontal axis, ylabel the vertical. For every
+    * chart type except the line chart, the first varlist word (xvar) is on the
+    * horizontal axis, so xlabel defaults from xvar. The LINE renderer is the
+    * exception: it plots the second word (yvar) on the horizontal axis and the
+    * first (xvar) on the vertical (see renderLine in the engine). Before this
+    * fix a line chart that let both labels default rendered them on the wrong
+    * axes; an explicit xlabel()/ylabel() was always honoured correctly and is
+    * unaffected. cond() picks the on-axis variable without an if/else block.
     if `"`xlabel'"' == "" {
-        local xlabel : variable label `xvar'
+        local _hvar = cond("`engine_type'" == "line", "`yvar'", "`xvar'")
+        local xlabel : variable label `_hvar'
     }
     if "`yvar'" != "" & `"`ylabel'"' == "" {
-        local ylabel : variable label `yvar'
+        local _vvar = cond("`engine_type'" == "line", "`xvar'", "`yvar'")
+        local ylabel : variable label `_vvar'
     }
 
     * Per-type required-input checks

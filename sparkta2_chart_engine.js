@@ -936,10 +936,14 @@
       g.append("g").attr("class", "axis")
         .call(d3.axisLeft(ys).ticks(6).tickFormat(axisNumFmt(ys)));
 
-      // Axis titles.  xlabel()/ylabel() previously reached the engine but were
-      // only ever used in the hover tooltip, so a chart that named both axes
-      // in Stata still rendered with two unlabelled axes.  Fall back to the
-      // variable name so an axis is never nameless.
+      // Axis titles.  xlabel() titles the HORIZONTAL axis and ylabel() the
+      // VERTICAL axis (the convention callers use when they set them by hand).
+      // If a label is unset, fall back to the variable actually on that axis:
+      // the horizontal axis plots d.y (the second varlist word, yvar) and the
+      // vertical axis plots d.x (the first word, xvar) -- see the line
+      // generator below, .x(xs(d.y)) / .y(ys(d.x)).  The ado is responsible for
+      // defaulting xlabel/ylabel to the right variable's label for a line
+      // chart; see sparkta2_chart.ado.
       var xTitle = meta.xlabel || meta.yvar || "";
       var yTitle = meta.ylabel || meta.xvar || "";
       if (xTitle) {
