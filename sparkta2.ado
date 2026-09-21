@@ -80,8 +80,8 @@
 program define sparkta2
     version 17.0
 
-    local sparkta2_version "0.8.3"
-    display as text "  [sparkta2 v`sparkta2_version']"
+    sparkta2_version
+    display as text "  [sparkta2 v`r(version)']"
 
     * Peek at user-supplied type() without consuming any args.
     * If it's a map type, dispatch to sparkta2_map. Otherwise forward to sparkta.

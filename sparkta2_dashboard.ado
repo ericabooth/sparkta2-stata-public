@@ -186,7 +186,9 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"</section>"' _n
     }
 
-    file write `fh' `"<footer>Built with sparkta2 v0.8.3 — each section is an independent interactive map / chart.</footer>"' _n
+    sparkta2_version
+    local s2ver `"`r(version)'"'
+    file write `fh' `"<footer>Built with sparkta2 v`s2ver' — each section is an independent interactive map / chart.</footer>"' _n
     * Auto-resize listener: every embedded sparkta2 page posts its content
     * height back to the parent; we grow the matching iframe to fit.
     file write `fh' `"<script>"' _n

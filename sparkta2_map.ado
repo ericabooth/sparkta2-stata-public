@@ -1055,7 +1055,8 @@ program define sparkta2_map, rclass
         bins(`bins')                                         ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.8.3]  `type' map written:"
+    sparkta2_version
+    display as text _n "[sparkta2 v`r(version)']  `type' map written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_total'  Geo: `_tabgeos'  Scheme: `scheme'  Mode: `mode'"
     if `_ntabs' > 1 {

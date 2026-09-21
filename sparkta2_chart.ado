@@ -495,7 +495,8 @@ program define sparkta2_chart, rclass
         wraplabel("`wraplabel'") gutterwidth(`gutterwidth')          ///
         width(`width') height(`height')
 
-    display as text _n "[sparkta2 v0.8.3]  `type' chart written:"
+    sparkta2_version
+    display as text _n "[sparkta2 v`r(version)']  `type' chart written:"
     display as text `"  {browse "`export'":`export'}"'
     display as text "  Rows: `_rows_total'  Scheme: `scheme'"
     if `_ntabs' > 1 {

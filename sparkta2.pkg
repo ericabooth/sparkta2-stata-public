@@ -59,6 +59,7 @@ f sparkta2_findfile.ado
 f sparkta2_map.ado
 f sparkta2_open.ado
 f sparkta2_streamfile.ado
+f sparkta2_version.ado
 f sparkta2_writehtml.ado
 f sparkta2.sthlp
 f sparkta2_engine.js
