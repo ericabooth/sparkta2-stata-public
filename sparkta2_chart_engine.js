@@ -63,11 +63,13 @@
   // digits, so whole numbers in that range print plain.
   function axisNumFmt(scale) {
     var d = scale.domain();
-    var whole = d.every(function (v) {
-      return Number.isFinite(+v) && Math.abs((+v) % 1) < 1e-9;
-    });
-    var big = d.some(function (v) { return Math.abs(+v) >= 100000; });
-    return (whole && !big) ? d3.format("d") : null;
+    // Above five digits a separator genuinely helps, so leave those alone.
+    if (d.some(function (v) { return Math.abs(+v) >= 100000; })) return null;
+    // Decide per tick, not per domain: a decimal-year axis has a fractional
+    // domain but d3 still picks whole-number ticks, and those must read 2022.
+    return function (v) {
+      return (Math.abs((+v) % 1) < 1e-9) ? d3.format("d")(+v) : d3.format(".2~f")(+v);
+    };
   }
   function luminance(hex) {
     // Convert #rrggbb to relative luminance for label-contrast picking.
