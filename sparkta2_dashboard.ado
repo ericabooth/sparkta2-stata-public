@@ -74,6 +74,11 @@ program define sparkta2_dashboard, rclass
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
+    * Give embedded pages a build-specific query string. This prevents a
+    * browser from retaining an earlier map after its HTML file is rebuilt.
+    local _cachedate = subinstr("`c(current_date)'", " ", "", .)
+    local _cachetime = subinstr("`c(current_time)'", ":", "", .)
+    local _cachetag "`_cachedate'`_cachetime'"
 
     local esc_title : subinstr local title `"&"' `"&amp;"', all
     local esc_title : subinstr local esc_title `"<"' `"&lt;"', all
@@ -182,7 +187,7 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"  <h2><span class="num">`_i'.</span>`_tname'<span class="src">`_basename'</span></h2>"' _n
         * scrolling="no" + auto-resize listener below means the iframe grows
         * to fit its content; the height attr is just an initial guess.
-        file write `fh' `"  <iframe src="`_basename'" height="`_height'" scrolling="no" loading="lazy"></iframe>"' _n
+        file write `fh' `"  <iframe src="`_basename'?v=`_cachetag'" height="`_height'" scrolling="no" loading="lazy"></iframe>"' _n
         file write `fh' `"</section>"' _n
     }
 

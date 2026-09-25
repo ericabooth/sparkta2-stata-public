@@ -326,6 +326,13 @@
       var yVar = state.swap ? "x" : "y";
       var xVals = activeRows.map(function (d) { return +d[xVar]; }).filter(Number.isFinite);
       var yVals = hasYvar ? activeRows.map(function (d) { return +d[yVar]; }).filter(Number.isFinite) : [];
+      // Capacity maps have many valid zeroes. Excluding zeroes from the
+      // break calculation preserves the contrast among counties that have
+      // capacity while zero-capacity counties receive a neutral fill below.
+      var xPositive = xVals.filter(function (v) { return v > 0; });
+      var yPositive = yVals.filter(function (v) { return v > 0; });
+      if (!xPositive.length) xPositive = xVals;
+      if (!yPositive.length) yPositive = yVals;
 
       var xLab = state.swap ? (meta.ylabel || meta.yvar || "Y") : (meta.xlabel || meta.xvar || "X");
       var yLab = state.swap ? (meta.xlabel || meta.xvar || "X") : (meta.ylabel || meta.yvar || "Y");
@@ -338,16 +345,21 @@
       };
 
       if (modeForPanel === "bivariate") {
-        palette.xScale = classScale(xVals, d3.range(nBins), classKind, null);
-        palette.yScale = classScale(yVals, d3.range(nBins), classKind, null);
+        palette.xScale = classScale(xPositive, d3.range(nBins), classKind, null);
+        palette.yScale = classScale(yPositive, d3.range(nBins), classKind, null);
         palette.colorFn = function (row) {
           if (!row || !Number.isFinite(+row[xVar]) || !Number.isFinite(+row[yVar])) return "#ccc";
+          // A county with no installed capacity in either comparison period is
+          // substantively different from a county in the lowest nonzero bin.
+          // Draw that common case neutrally so bivariate maps make the
+          // counties with recorded capacity visible.
+          if (+row[xVar] === 0 && +row[yVar] === 0) return "#e2e8f0";
           return biv[palette.yScale(+row[yVar]) + palette.xScale(+row[xVar]) * nBins];
         };
       }
       else if (modeForPanel === "x" || modeForPanel === "y") {
         var v = modeForPanel === "x" ? xVar : yVar;
-        var vals = modeForPanel === "x" ? xVals : yVals;
+        var vals = modeForPanel === "x" ? xPositive : yPositive;
         var kSeq = (classBreaks && classBreaks.length)
           ? Math.max(3, Math.min(9, classBreaks.length + 1)) : 7;
         var seq = seqScheme((meta.scheme || "blues").toLowerCase(), kSeq);
@@ -355,6 +367,7 @@
         palette.scale = classScale(vals, seq, classKind, classBreaks);
         palette.colorFn = function (row) {
           if (!row || !Number.isFinite(+row[v])) return "#ccc";
+          if (+row[v] === 0) return "#e2e8f0";
           return palette.scale(+row[v]);
         };
         palette.varLabel = modeForPanel === "x" ? xLab : yLab;
@@ -1118,9 +1131,15 @@
         panel.gLegend.append("text")
           .attr("transform", "translate(" + (nBins * k + 12) + "," + (nBins * k) + ") rotate(-90)")
           .text(palette.yLab + " →");
+        panel.gLegend.append("rect")
+          .attr("x", 0).attr("y", nBins * k + 24)
+          .attr("width", 10).attr("height", 10).attr("fill", "#e2e8f0");
+        panel.gLegend.append("text").attr("x", 15).attr("y", nBins * k + 33)
+          .text("No capacity in either year");
       }
       else if (palette.mode === "x" || palette.mode === "y") {
         drawSeqLegend(panel, palette.scale, palette.varLabel);
+        drawZeroCapacityKey(panel, 160);
       }
       else if (palette.mode === "diff") {
         var title = palette.comparable
@@ -1150,6 +1169,14 @@
         else lbl = fmt(quantiles[i - 1]) + " – " + fmt(quantiles[i]);
         panel.gLegend.append("text").attr("x", bw + 6).attr("y", i * bh + bh / 2 + 4).text(lbl);
       });
+    }
+
+    function drawZeroCapacityKey(panel, y) {
+      panel.gLegend.append("rect")
+        .attr("x", 0).attr("y", y)
+        .attr("width", 10).attr("height", 10).attr("fill", "#e2e8f0");
+      panel.gLegend.append("text").attr("x", 15).attr("y", y + 9)
+        .text("No capacity");
     }
 
     function drawDivLegend(panel, scale, label) {
