@@ -1,4 +1,9 @@
-*! sparkta2 v0.8.4  2026-09-21
+*! sparkta2 v0.8.6  2026-11-08
+*!
+*! New in 0.8.6: option names read the same on every Stata version (older
+*!   Stata rejected tx2036style; see the chart/map/writehtml headers).
+*!
+*! Previously 0.8.5  (line2 default axis labels on the correct axes)
 *!
 *! New in 0.8.4 (line2): axis titles are drawn from xlabel()/ylabel(), which
 *!   previously reached the engine but were used only in the hover tooltip, so

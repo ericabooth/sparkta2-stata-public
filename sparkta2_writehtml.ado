@@ -1,4 +1,8 @@
-*! sparkta2_writehtml v0.8.0  2026-08-11
+*! sparkta2_writehtml v0.8.6  2026-11-08
+*! v0.8.6 2026-11-08: option names now read the same on every Stata version.
+*!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
+*!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
+*!   failed with "option ... required"; the tails are now lowercase.
 *! Assemble the final self-contained HTML for a sparkta2 map.
 *!
 *! v0.8.0: unified tab payload.  The page always carries
@@ -17,7 +21,7 @@
 *!   collapsible data-table container, and print-only stylesheet.
 program define sparkta2_writehtml
     version 17.0
-    syntax , ENGPATH(string) D3PATH(string) TCPATH(string)                   ///
+    syntax , ENGPATH(string) D3path(string) TCPATH(string)                   ///
         EXPORT(string) ISOFFline(integer)                                    ///
         TYPE(string) SCHEME(string) TITLE(string)                            ///
         XVAR(string)                                                         ///
@@ -37,7 +41,7 @@ program define sparkta2_writehtml
          YVAR(string) ZOOMTo(string) HEXStat(string)                        ///
          LATvar(string) LONvar(string)                                      ///
          ISDATAtable(integer 0) ISANImate(integer 0)                        ///
-         ISTX2036Style(integer 0) DOWNLOADPos(string)                       ///
+         ISTX2036style(integer 0) DOWNLOADPos(string)                       ///
          PROJection(string) ROTATestr(string)                               ///
          PARALLELSstr(string) CENTERstr(string)                             ///
          CLASSes(string) BREAKSSTR(string)                                  ///

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.2  12aug2026}{...}
+{* *! version 0.8.6  08nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}

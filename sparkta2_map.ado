@@ -1,4 +1,8 @@
-*! sparkta2_map v0.8.2  2026-08-12
+*! sparkta2_map v0.8.6  2026-11-08
+*! v0.8.6 2026-11-08: option names now read the same on every Stata version.
+*!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
+*!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
+*!   failed with "option ... required"; the tails are now lowercase.
 *! Choropleth / bivariate / hexbin / points map renderer for sparkta2.
 *!
 *! v0.8.2: linecolor()/linewidth() restyle the focused-layer feature
@@ -130,7 +134,7 @@ program define sparkta2_map, rclass
         DOWNLOADPos(string)                                ///  side (default) | below | none -- Export menu placement
         DATATable                                          ///  add CSV download + collapsible data-table view
         ANIMate                                            ///  fade features in when chart scrolls into view
-        TX2036STyle                                        ///  Texas 2036 brand + Montserrat font
+        TX2036style                                        ///  Texas 2036 brand + Montserrat font
         PROJection(string)                                 ///  albers_usa | albers_tx | albers | mercator
         ROtate(numlist max=2 min=1)                        ///  projection rotation, degrees: lambda [phi]
         PARallels(numlist max=2 min=2)                     ///  two Albers standard parallels, degrees

@@ -1,4 +1,8 @@
-*! sparkta2_chart_writehtml v0.8.0  2026-08-11
+*! sparkta2_chart_writehtml v0.8.6  2026-11-08
+*! v0.8.6 2026-11-08: option names now read the same on every Stata version.
+*!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
+*!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
+*!   failed with "option ... required"; the tails are now lowercase.
 *! Assemble the self-contained HTML for a sparkta2 native chart
 *! (donut | bar | line | divbar | barrace).
 *!
@@ -18,7 +22,7 @@
 
 program define sparkta2_chart_writehtml
     version 17.0
-    syntax , ENGPATH(string) D3PATH(string)                              ///
+    syntax , ENGPATH(string) D3path(string)                              ///
         NTABS(integer)                                                   ///
         TABROWJSONS(string) TIPJSON(string)                              ///
         EXPORT(string) ISOFFline(integer)                                ///
@@ -30,7 +34,7 @@ program define sparkta2_chart_writehtml
         INNERradius(real) TOP(integer) FPS(integer)                      ///
         DURation(real)                                                   ///
         ISDOWNload(integer) ISDATAtable(integer) ISANImate(integer)      ///
-        ISTX2036Style(integer) DOWNLOADPos(string)                       ///
+        ISTX2036style(integer) DOWNLOADPos(string)                       ///
         WIDTH(integer) HEIGHT(integer)                                   ///
         [ TABLABELS(string) TABSTYle(string)                             ///
           SUBtitle(string) NOTE(string)                                  ///

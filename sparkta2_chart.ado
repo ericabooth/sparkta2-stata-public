@@ -1,4 +1,8 @@
-*! sparkta2_chart v0.8.0  2026-08-11
+*! sparkta2_chart v0.8.6  2026-11-08
+*! v0.8.6 2026-11-08: option names now read the same on every Stata version.
+*!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
+*!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
+*!   failed with "option ... required"; the tails are now lowercase.
 *! D3-native non-map chart types for sparkta2.
 *!
 *! v0.8.0: dashtab(varname) — higher-order tabs, mirroring the map side.
@@ -74,7 +78,7 @@ program define sparkta2_chart, rclass
         XLABel(string) YLABel(string)                                ///
         DOWNload DATATable ANIMate                                   ///  v0.6.0 features
         DOWNLOADPos(string)                                          ///  side (default) | below | none
-        TX2036STyle                                                  ///  Texas 2036 brand + Montserrat
+        TX2036style                                                  ///  Texas 2036 brand + Montserrat
         WRAPlabel(string)                                            ///  auto (default) | on | off -- category-label wrap policy
         GUTTERwidth(integer 0)                                       ///  left-margin width in px for category labels (0 = use default)
         WIDTH(integer 980) HEIGHT(integer 644)                       ///

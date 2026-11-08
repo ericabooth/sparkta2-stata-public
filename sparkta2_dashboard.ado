@@ -1,4 +1,8 @@
-*! sparkta2_dashboard v0.8.0  2026-08-11
+*! sparkta2_dashboard v0.8.6  2026-11-08
+*! v0.8.6 2026-11-08: option names now read the same on every Stata version.
+*!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
+*!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
+*!   failed with "option ... required"; the tails are now lowercase.
 *! Compose a scrollable single-page dashboard that embeds a list of
 *! sparkta2 map / chart HTML files via <iframe>. Each section is
 *! self-contained; filters/zoom/etc. work independently per iframe.
@@ -34,7 +38,7 @@ program define sparkta2_dashboard, rclass
     version 17.0
 
     syntax , FILES(string) EXPORT(string) [TITLE(string) SUBtitle(string) ///
-        TITLES(string) HEIGHTS(string) NOOPEN TX2036STyle TABS]
+        TITLES(string) HEIGHTS(string) NOOPEN TX2036style TABS]
 
     local is_tx2036st = cond("`tx2036style'" != "", 1, 0)
     local is_tabs = cond("`tabs'" != "", 1, 0)
