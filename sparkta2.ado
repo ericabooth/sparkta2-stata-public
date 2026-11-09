@@ -1,4 +1,8 @@
-*! sparkta2 v0.8.6  2026-11-08
+*! sparkta2 v0.8.7  2026-11-09
+*!
+*! New in 0.8.7: map zero handling is opt-in (zeroneutral, zerolabel());
+*!   named d3 schemes interpolate past 9 classes, so barrace and large
+*!   donuts/over() groups no longer render blank.
 *!
 *! New in 0.8.6: option names read the same on every Stata version (older
 *!   Stata rejected tx2036style; see the chart/map/writehtml headers).

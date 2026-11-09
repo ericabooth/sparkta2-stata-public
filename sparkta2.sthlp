@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.6  08nov2026}{...}
+{* *! version 0.8.7  09nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -212,6 +212,8 @@ Map {cmd:type()} values:
 {synopt :{cmd:datatable}}add "Download CSV" + "View data table" to the Export menu{p_end}
 {synopt :{cmd:animate}}fade map features in when the chart scrolls into view{p_end}
 {synopt :{cmd:tx2036style}}Texas 2036 brand + Montserrat font (v0.7.2; requires online for Google Fonts){p_end}
+{synopt :{cmd:zeroneutral}}maps: draw exact zeros in neutral grey and leave them out of the class breaks, for variables where zero means "none" (v0.8.7; off by default){p_end}
+{synopt :{cmd:zerolabel(}{it:string}{cmd:)}}legend text for those zeros; default {cmd:Zero} ({cmd:Zero in both} on bivariate maps){p_end}
 {synopt :{cmd:wraplabel(}{it:string}{cmd:)}}{cmd:auto}|{cmd:on}|{cmd:off} -- category-label wrap policy (v0.7.3; for {cmd:bar2}/{cmd:divbar}){p_end}
 {synopt :{cmd:gutterwidth(}{it:#}{cmd:)}}explicit left-margin width in px for horizontal category labels (v0.7.3){p_end}
 {synopt :{cmd:projection(}{it:string}{cmd:)}}{cmd:albers_usa}|{cmd:albers_tx}|{cmd:albers}|{cmd:mercator}; default is auto by {cmd:geo()}{p_end}

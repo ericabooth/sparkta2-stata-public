@@ -47,12 +47,19 @@
       oranges: d3.schemeOranges, purples: d3.schemePurples, greys: d3.schemeGreys
     };
     if (map[name] && map[name][k]) return map[name][k];
+    // d3's ready-made schemes only cover 3-9 classes; interpolate outside that
+    // range instead of returning undefined (which left charts blank).
+    var interp = {
+      blues: d3.interpolateBlues, reds: d3.interpolateReds, greens: d3.interpolateGreens,
+      oranges: d3.interpolateOranges, purples: d3.interpolatePurples, greys: d3.interpolateGreys
+    };
+    if (interp[name]) return d3.quantize(function (t) { return interp[name](0.15 + 0.85 * t); }, k);
     if (name === "viridis") return d3.range(k).map(function (i) { return d3.interpolateViridis(i / (k - 1)); });
     if (name === "magma")   return d3.range(k).map(function (i) { return d3.interpolateMagma(i / (k - 1)); });
     if (name === "inferno") return d3.range(k).map(function (i) { return d3.interpolateInferno(i / (k - 1)); });
     if (name === "plasma")  return d3.range(k).map(function (i) { return d3.interpolatePlasma(i / (k - 1)); });
     if (name === "cividis") return d3.range(k).map(function (i) { return d3.interpolateCividis(i / (k - 1)); });
-    return d3.schemeBlues[k];
+    return d3.schemeBlues[k] || d3.quantize(function (t) { return d3.interpolateBlues(0.15 + 0.85 * t); }, k);
   }
 
   function divScheme(name, k) {
@@ -326,11 +333,13 @@
       var yVar = state.swap ? "x" : "y";
       var xVals = activeRows.map(function (d) { return +d[xVar]; }).filter(Number.isFinite);
       var yVals = hasYvar ? activeRows.map(function (d) { return +d[yVar]; }).filter(Number.isFinite) : [];
-      // Capacity maps have many valid zeroes. Excluding zeroes from the
-      // break calculation preserves the contrast among counties that have
-      // capacity while zero-capacity counties receive a neutral fill below.
-      var xPositive = xVals.filter(function (v) { return v > 0; });
-      var yPositive = yVals.filter(function (v) { return v > 0; });
+      // zeroneutral (opt-in): for maps where an exact zero means "none"
+      // (installed capacity, say), break classes on the positive values and
+      // draw zeros in a neutral grey with their own legend key.  Off by
+      // default, so negative values and real zeros are classified normally.
+      var zeroNeutral = !!meta.zeroneutral;
+      var xPositive = zeroNeutral ? xVals.filter(function (v) { return v > 0; }) : xVals;
+      var yPositive = zeroNeutral ? yVals.filter(function (v) { return v > 0; }) : yVals;
       if (!xPositive.length) xPositive = xVals;
       if (!yPositive.length) yPositive = yVals;
 
@@ -353,7 +362,7 @@
           // substantively different from a county in the lowest nonzero bin.
           // Draw that common case neutrally so bivariate maps make the
           // counties with recorded capacity visible.
-          if (+row[xVar] === 0 && +row[yVar] === 0) return "#e2e8f0";
+          if (zeroNeutral && +row[xVar] === 0 && +row[yVar] === 0) return "#e2e8f0";
           return biv[palette.yScale(+row[yVar]) + palette.xScale(+row[xVar]) * nBins];
         };
       }
@@ -367,7 +376,7 @@
         palette.scale = classScale(vals, seq, classKind, classBreaks);
         palette.colorFn = function (row) {
           if (!row || !Number.isFinite(+row[v])) return "#ccc";
-          if (+row[v] === 0) return "#e2e8f0";
+          if (zeroNeutral && +row[v] === 0) return "#e2e8f0";
           return palette.scale(+row[v]);
         };
         palette.varLabel = modeForPanel === "x" ? xLab : yLab;
@@ -1131,15 +1140,17 @@
         panel.gLegend.append("text")
           .attr("transform", "translate(" + (nBins * k + 12) + "," + (nBins * k) + ") rotate(-90)")
           .text(palette.yLab + " →");
-        panel.gLegend.append("rect")
-          .attr("x", 0).attr("y", nBins * k + 24)
-          .attr("width", 10).attr("height", 10).attr("fill", "#e2e8f0");
-        panel.gLegend.append("text").attr("x", 15).attr("y", nBins * k + 33)
-          .text("No capacity in either year");
+        if (meta.zeroneutral) {
+          panel.gLegend.append("rect")
+            .attr("x", 0).attr("y", nBins * k + 24)
+            .attr("width", 10).attr("height", 10).attr("fill", "#e2e8f0");
+          panel.gLegend.append("text").attr("x", 15).attr("y", nBins * k + 33)
+            .text(meta.zerolabel || "Zero in both");
+        }
       }
       else if (palette.mode === "x" || palette.mode === "y") {
         drawSeqLegend(panel, palette.scale, palette.varLabel);
-        drawZeroCapacityKey(panel, 160);
+        if (meta.zeroneutral) drawZeroCapacityKey(panel, 160);
       }
       else if (palette.mode === "diff") {
         var title = palette.comparable
@@ -1176,7 +1187,7 @@
         .attr("x", 0).attr("y", y)
         .attr("width", 10).attr("height", 10).attr("fill", "#e2e8f0");
       panel.gLegend.append("text").attr("x", 15).attr("y", y + 9)
-        .text("No capacity");
+        .text(meta.zerolabel || "Zero");
     }
 
     function drawDivLegend(panel, scale, label) {

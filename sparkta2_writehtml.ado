@@ -1,4 +1,5 @@
-*! sparkta2_writehtml v0.8.6  2026-11-08
+*! sparkta2_writehtml v0.8.7  2026-11-09
+*! v0.8.7 2026-11-09: zeroneutral / zerolabel() options (zero handling now opt-in).
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
 *!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
@@ -42,6 +43,7 @@ program define sparkta2_writehtml
          LATvar(string) LONvar(string)                                      ///
          ISDATAtable(integer 0) ISANImate(integer 0)                        ///
          ISTX2036style(integer 0) DOWNLOADPos(string)                       ///
+         ZERONeutral(integer 0) ZEROLabel(string)                           ///
          PROJection(string) ROTATestr(string)                               ///
          PARALLELSstr(string) CENTERstr(string)                             ///
          CLASSes(string) BREAKSSTR(string)                                  ///
@@ -294,7 +296,9 @@ program define sparkta2_writehtml
         file write `fh' `""mode":"`mode'","modes":"`modes'","' _n
         file write `fh' `""comparable":`iscomparable',"swap":`isswap',"download":`isdownload',"multiples":`ismultiples',"' _n
         file write `fh' `""datatable":`isdatatable',"animate":`isanimate',"' _n
+        local _zl = subinstr(subinstr(`"`zerolabel'"', char(92), "", .), char(34), "", .)
         file write `fh' `""tx2036style":`istx2036style',"downloadpos":"`downloadpos'","' _n
+        file write `fh' `""zeroneutral":`zeroneutral',"zerolabel":"`_zl'","' _n
         file write `fh' `""projection":"`projection'","rotate":"`rotatestr'","parallels":"`parallelsstr'","center":"`centerstr'","' _n
         file write `fh' `""classes":"`classes'","breaksstr":"`breaksstr'","scalebar":`isscalebar',"northarrow":`isnortharrow',"' _n
         file write `fh' `""basemapcolor":"`basemapcolor'","basemapwidth":`basemapwidthstr',"' _n

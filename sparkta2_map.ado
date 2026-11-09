@@ -1,4 +1,5 @@
-*! sparkta2_map v0.8.6  2026-11-08
+*! sparkta2_map v0.8.7  2026-11-09
+*! v0.8.7 2026-11-09: zeroneutral / zerolabel() options (zero handling now opt-in).
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
 *!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
@@ -135,6 +136,8 @@ program define sparkta2_map, rclass
         DATATable                                          ///  add CSV download + collapsible data-table view
         ANIMate                                            ///  fade features in when chart scrolls into view
         TX2036style                                        ///  Texas 2036 brand + Montserrat font
+        ZERONeutral                                        ///  opt-in: exact zeros drawn grey, left out of class breaks
+        ZEROLabel(string)                                  ///  legend text for those zeros (default: Zero)
         PROJection(string)                                 ///  albers_usa | albers_tx | albers | mercator
         ROtate(numlist max=2 min=1)                        ///  projection rotation, degrees: lambda [phi]
         PARallels(numlist max=2 min=2)                     ///  two Albers standard parallels, degrees
@@ -298,6 +301,7 @@ program define sparkta2_map, rclass
     local is_datatable  = cond("`datatable'"  != "", 1, 0)
     local is_animate    = cond("`animate'"    != "", 1, 0)
     local is_tx2036st   = cond("`tx2036style'" != "", 1, 0)
+    local is_zeroneutral = cond("`zeroneutral'" != "", 1, 0)
 
     * downloadpos validation
     if "`downloadpos'" == "" local downloadpos "side"
@@ -1047,6 +1051,7 @@ program define sparkta2_map, rclass
         isswap(`is_swap') isdownload(`is_download')         ///
         isdatatable(`is_datatable') isanimate(`is_animate') ///
         istx2036style(`is_tx2036st') downloadpos("`downloadpos'") ///
+        zeroneutral(`is_zeroneutral') zerolabel(`"`zerolabel'"') ///
         iscomparable(`is_comparable') ismultiples(`is_multiples') ///
         iszoom(`is_zoom') issearch(`is_search')             ///
         isbasemap(`is_basemap')                             ///

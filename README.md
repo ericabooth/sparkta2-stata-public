@@ -20,6 +20,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.7** (2026-11-09). Maps classify every value again by default: the zero handling added for capacity maps (breaks from positive values only, zeros in grey, a "No capacity" legend key) is now the opt-in `zeroneutral` option, with `zerolabel("No capacity")` for the legend text. Before this, every map treated zero as "none" and lumped negative values into the lowest class. Charts no longer draw blank when a named d3 scheme (blues, reds, ...) needs more than 9 colors, which affected `type(barrace)` with its default colors and donuts or over() groups with more than 9 categories. v0.8.6 (2026-11-08) made option names read the same on every Stata version (older Stata rejected `tx2036style`).
+
 **v0.8.1** (2026-08-12). Classification control, label-aware legends, map furniture, overlay styling — and a Windows/cloud-drive robustness fix. See [What's new in v0.8.1](#whats-new-in-v081-2026-08-12).
 
 - **`classes(quantile|jenks|equal|std)` + `breaks(numlist)`** — pick the choropleth/bivariate/hexbin classification instead of silently getting quantiles; `breaks()` sets explicit cutpoints.
@@ -141,6 +143,7 @@ Design notes and honest limitations (the "raster complications report"):
 ### What's new in v0.7.2 (2026-06-26)
 
 - **`tx2036style` option.** Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography to a Texas 2036 brand look — heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
+- **`zeroneutral` and `zerolabel()` options (v0.8.7, maps).** For a variable where an exact zero means "none" (installed capacity, say), `zeroneutral` draws zeros in neutral grey, computes the class breaks from the remaining values, and adds a legend key labeled by `zerolabel()` (default `Zero`). Off by default, so negative values and meaningful zeros are classified like any other value.
 - **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
 - **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined.
   

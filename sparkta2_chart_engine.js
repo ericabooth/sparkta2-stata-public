@@ -94,13 +94,20 @@
       oranges: d3.schemeOranges, purples: d3.schemePurples, greys: d3.schemeGreys
     };
     if (map[name] && map[name][k]) return map[name][k];
+    // d3's ready-made schemes only cover 3-9 classes; interpolate outside that
+    // range instead of returning undefined (which left charts blank).
+    var interp = {
+      blues: d3.interpolateBlues, reds: d3.interpolateReds, greens: d3.interpolateGreens,
+      oranges: d3.interpolateOranges, purples: d3.interpolatePurples, greys: d3.interpolateGreys
+    };
+    if (interp[name]) return d3.quantize(function (t) { return interp[name](0.15 + 0.85 * t); }, k);
     if (name === "viridis") return d3.range(k).map(function (i) { return d3.interpolateViridis(i / (k - 1)); });
     if (name === "magma")   return d3.range(k).map(function (i) { return d3.interpolateMagma(i / (k - 1)); });
     if (name === "inferno") return d3.range(k).map(function (i) { return d3.interpolateInferno(i / (k - 1)); });
     if (name === "plasma")  return d3.range(k).map(function (i) { return d3.interpolatePlasma(i / (k - 1)); });
     if (name === "cividis") return d3.range(k).map(function (i) { return d3.interpolateCividis(i / (k - 1)); });
     if (name === "tx2036")  return TX2036_PALETTE;
-    return d3.schemeBlues[k];
+    return d3.schemeBlues[k] || d3.quantize(function (t) { return d3.interpolateBlues(0.15 + 0.85 * t); }, k);
   }
   function divScheme(name, k) {
     k = k || 9;
