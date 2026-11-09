@@ -1,4 +1,10 @@
-*! sparkta2 v0.8.9  2026-11-09
+*! sparkta2 v0.8.10  2026-11-09
+*!
+*! New in 0.8.10: native chart and map labels display exactly as in the data
+*!   ($ and backtick text kept, no HTML entities in legends, a closing
+*!   script tag in a label no longer breaks the page); title, subtitle and
+*!   note all display as plain text; a donut stops with an error when its
+*!   values are negative or sum to zero.
 *!
 *! New in 0.8.9: r()/e() preserved for the hand-off (marginsplot, eventstudy,
 *!   matrix(r(table))); type-named variables stay variables with type();

@@ -1,4 +1,7 @@
-*! sparkta2_chart v0.8.6  2026-11-08
+*! sparkta2_chart v0.8.10  2026-11-09
+*! v0.8.10 2026-11-09: name()/over()/level() labels keep $ and backtick text
+*!   (block-form writes, macval); JSON strings escaped by _s2c_js; a donut
+*!   with negative values or a zero total stops with r(459).
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
 *!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
@@ -119,11 +122,11 @@ program define sparkta2_chart, rclass
     * fix a line chart that let both labels default rendered them on the wrong
     * axes; an explicit xlabel()/ylabel() was always honoured correctly and is
     * unaffected. cond() picks the on-axis variable without an if/else block.
-    if `"`xlabel'"' == "" {
+    if `"`macval(xlabel)'"' == "" {
         local _hvar = cond("`engine_type'" == "line", "`yvar'", "`xvar'")
         local xlabel : variable label `_hvar'
     }
-    if "`yvar'" != "" & `"`ylabel'"' == "" {
+    if "`yvar'" != "" & `"`macval(ylabel)'"' == "" {
         local _vvar = cond("`engine_type'" == "line", "`xvar'", "`yvar'")
         local ylabel : variable label `_vvar'
     }
@@ -214,7 +217,7 @@ program define sparkta2_chart, rclass
         exit 198
     }
 
-    if "`title'" == "" {
+    if `"`macval(title)'"' == "" {
         if      "`engine_type'" == "donut"   local title "Donut: `xvar'"
         else if "`engine_type'" == "bar"     local title "Bar: `xvar'"
         else if "`engine_type'" == "line"    local title "Line: `yvar' vs `xvar'"
@@ -242,8 +245,16 @@ program define sparkta2_chart, rclass
         local _dt_is_str = (_rc == 0)
         local _dt_vallab ""
         if !`_dt_is_str' local _dt_vallab : value label `dashtab'
-        quietly levelsof `dashtab' if `touse', local(_dtlevels)
-        local _ntabs : word count `_dtlevels'
+        if `_dt_is_str' {
+            * -levelsof- drops $name text from string values (a level such as
+            * "Reg $A" comes back as "Reg "), so string levels are read in Mata.
+            mata: _s2c_slevels("`dashtab'", "`touse'", "_dtval_")
+            local _ntabs `_dtval_n'
+        }
+        else {
+            quietly levelsof `dashtab' if `touse', local(_dtlevels)
+            local _ntabs : word count `_dtlevels'
+        }
         if `_ntabs' < 2 {
             display as error "sparkta2_chart: dashtab(`dashtab') has only `_ntabs' level on the active sample — need at least 2 tabs"
             exit 198
@@ -252,18 +263,24 @@ program define sparkta2_chart, rclass
             display as error "sparkta2_chart: dashtab(`dashtab') has `_ntabs' levels — more than 10 tabs is unusable.  Recode the variable."
             exit 198
         }
-        local _k 0
-        foreach _lv of local _dtlevels {
-            local ++_k
-            local _dtval_`_k' `"`_lv'"'
-            if `_dt_is_str' local _dtlab_`_k' `"`_lv'"'
-            else {
+        if `_dt_is_str' {
+            forvalues _k = 1/`_ntabs' {
+                local _dtlab_`_k' `"`macval(_dtval_`_k')'"'
+            }
+        }
+        else {
+            local _k 0
+            foreach _lv of local _dtlevels {
+                local ++_k
+                local _dtval_`_k' `"`_lv'"'
                 if "`_dt_vallab'" != "" {
                     local _dtlab_`_k' : label `_dt_vallab' `_lv'
                 }
                 else local _dtlab_`_k' "`_lv'"
             }
-            * "|" is the tab-list separator downstream — swap it out of labels
+        }
+        * "|" is the tab-list separator downstream — swap it out of labels
+        forvalues _k = 1/`_ntabs' {
             local _dtlab_`_k' : subinstr local _dtlab_`_k' "|" "/", all
         }
     }
@@ -295,6 +312,8 @@ program define sparkta2_chart, rclass
 
     local _first 1
     local _rows_written = 0
+    local _dn_sum = 0
+    local _dn_neg = 0
     quietly {
         forvalues _i = 1/`=_N' {
             if !`touse'[`_i'] continue
@@ -306,7 +325,8 @@ program define sparkta2_chart, rclass
             if `_ntabs' > 1 {
                 if `_dt_is_str' {
                     local _dtv = `dashtab'[`_i']
-                    if `"`_dtv'"' != `"`_dtval_`_t''"' continue
+                    local _dtsame = (`"`macval(_dtv)'"' == `"`macval(_dtval_`_t')'"')
+                    if !`_dtsame' continue
                 }
                 else {
                     if `dashtab'[`_i'] != `_dtval_`_t'' continue
@@ -339,8 +359,7 @@ program define sparkta2_chart, rclass
                     }
                 }
             }
-            local _nm : subinstr local _nm `"\"' `"\\"', all
-            local _nm : subinstr local _nm `"""' `"\""', all
+            mata: st_local("_nm", _s2c_js(st_local("_nm")))
 
             * over() resolution (grouping var for bar/line)
             local _ov ""
@@ -360,8 +379,7 @@ program define sparkta2_chart, rclass
                     }
                 }
             }
-            local _ov : subinstr local _ov `"\"' `"\\"', all
-            local _ov : subinstr local _ov `"""' `"\""', all
+            mata: st_local("_ov", _s2c_js(st_local("_ov")))
 
             * level() resolution (divbar response level)
             local _lv ""
@@ -381,8 +399,7 @@ program define sparkta2_chart, rclass
                     }
                 }
             }
-            local _lv : subinstr local _lv `"\"' `"\\"', all
-            local _lv : subinstr local _lv `"""' `"\""', all
+            mata: st_local("_lv", _s2c_js(st_local("_lv")))
 
             * time() resolution (barrace)
             local _tm .
@@ -391,15 +408,29 @@ program define sparkta2_chart, rclass
                 if missing(`_tm') continue
             }
 
+            if "`engine_type'" == "donut" {
+                if `_xv' < 0 local ++_dn_neg
+                else local _dn_sum = `_dn_sum' + `_xv'
+            }
+
             if `_first' local _first 0
             else file write `rfh' "," _n
 
             file write `rfh' "        {"
             file write `rfh' `""x":"' (`_xv')
             if "`yvar'" != "" file write `rfh' `","y":"' (`_yv')
-            if "`name'"  != "" file write `rfh' `","name":"`macval(_nm)'""'
-            if "`over'"  != "" file write `rfh' `","g":"`_ov'""'
-            if "`level'" != "" file write `rfh' `","lev":"`_lv'""'
+            * Block form, not an inline -if-: an inline -if- expands its
+            * command a second time, which dropped $name and backtick text
+            * from labels.  The escaped text is inert anyway (see _s2c_js).
+            if "`name'" != "" {
+                file write `rfh' `","name":"`macval(_nm)'""'
+            }
+            if "`over'" != "" {
+                file write `rfh' `","g":"`macval(_ov)'""'
+            }
+            if "`level'" != "" {
+                file write `rfh' `","lev":"`macval(_lv)'""'
+            }
             if "`time'"  != "" file write `rfh' `","t":"' (`_tm')
 
             * Tooltipvars: bare and numeric-aware
@@ -408,8 +439,7 @@ program define sparkta2_chart, rclass
                 capture confirm string variable `_tv'
                 if !_rc {
                     local _val = `_tv'[`_i']
-                    local _val : subinstr local _val `"\"' `"\\"', all
-                    local _val : subinstr local _val `"""' `"\""', all
+                    mata: st_local("_val", _s2c_js(st_local("_val")))
                     file write `rfh' `","t__`_tv'":"`macval(_val)'""'
                 }
                 else {
@@ -417,8 +447,7 @@ program define sparkta2_chart, rclass
                     local _tnum = `_tv'[`_i']
                     if "`_tlab'" != "" & !missing(`_tnum') {
                         local _tldisp : label `_tlab' `_tnum'
-                        local _tldisp : subinstr local _tldisp `"\"' `"\\"', all
-                        local _tldisp : subinstr local _tldisp `"""' `"\""', all
+                        mata: st_local("_tldisp", _s2c_js(st_local("_tldisp")))
                         file write `rfh' `","t__`_tv'":"`macval(_tldisp)'""'
                     }
                     else if missing(`_tnum') {
@@ -438,12 +467,31 @@ program define sparkta2_chart, rclass
 
     if `_rows_written' == 0 {
         if `_ntabs' > 1 {
-            display as error `"sparkta2_chart: no rows to plot on dashtab() tab `_t' ("`_dtlab_`_t''") — check [if]/[in], missing values, and `dashtab'"'
+            display as error `"sparkta2_chart: no rows to plot on dashtab() tab `_t' ("`macval(_dtlab_`_t')'") — check [if]/[in], missing values, and `dashtab'"'
         }
         else {
             display as error "sparkta2_chart: no rows to plot (check [if]/[in], missing values, or required varname options)"
         }
         exit 459
+    }
+    * A donut shows shares of a total, so its values must be non-negative
+    * with a positive sum.  All zeros used to draw an empty ring and
+    * negative values gave negative shares, both with rc 0.
+    if "`engine_type'" == "donut" {
+        local _dn_where ""
+        if `_ntabs' > 1 {
+            local _dn_where `" on dashtab() tab `_t' ("`macval(_dtlab_`_t')'")"'
+        }
+        if `_dn_neg' > 0 {
+            display as error `"sparkta2_chart: type(donut) needs non-negative values; `xvar' has `_dn_neg' negative value(s)`macval(_dn_where)'."'
+            display as error "  A donut shows shares of a total.  Use bar2 for values that can be negative."
+            exit 459
+        }
+        if `_dn_sum' <= 0 {
+            display as error `"sparkta2_chart: type(donut) needs a positive total; the values of `xvar' sum to zero`macval(_dn_where)'."'
+            display as error "  There are no shares to draw.  Check [if]/[in] and the value variable."
+            exit 459
+        }
     }
     local _rows_total = `_rows_total' + `_rows_written'
 
@@ -471,9 +519,8 @@ program define sparkta2_chart, rclass
         if `_tcount' > 0 file write `rfh' ","
         local ++_tcount
         local _lbl : variable label `_tv'
-        if "`_lbl'" == "" local _lbl "`_tv'"
-        local _lbl : subinstr local _lbl `"\"' `"\\"', all
-        local _lbl : subinstr local _lbl `"""' `"\""', all
+        if `"`macval(_lbl)'"' == "" local _lbl "`_tv'"
+        mata: st_local("_lbl", _s2c_js(st_local("_lbl")))
         capture confirm numeric variable `_tv'
         local _isnum = (_rc == 0)
         local _tlabname : value label `_tv'
@@ -495,11 +542,13 @@ program define sparkta2_chart, rclass
         tipjson("`tipjson'")                                        ///
         export(`"`export'"') isoffline(`is_offline')                ///
         type("`engine_type'") scheme("`scheme'")                    ///
-        title(`"`title'"') subtitle(`"`subtitle'"') note(`"`note'"') ///
-        xlabel(`"`xlabel'"') ylabel(`"`ylabel'"')                   ///
+        title(`"`macval(title)'"') subtitle(`"`macval(subtitle)'"') ///
+        note(`"`macval(note)'"')                                    ///
+        xlabel(`"`macval(xlabel)'"') ylabel(`"`macval(ylabel)'"')   ///
         xvar("`xvar'") yvar("`yvar'") name("`name'") over("`over'") ///
         level("`level'") time("`time'")                             ///
-        levelorder(`"`levelorder'"') centerlevel(`"`centerlevel'"') ///
+        levelorder(`"`macval(levelorder)'"')                        ///
+        centerlevel(`"`macval(centerlevel)'"')                      ///
         horizontal(`is_horizontal') stacked(`is_stacked')           ///
         normalize(`is_normalize') suppressaxis(`is_suppressax')     ///
         directlabels(`is_directlbl')                                ///
@@ -527,4 +576,55 @@ program define sparkta2_chart, rclass
     if "`noopen'" == "" {
         sparkta2_open, file(`"`export'"')
     }
+end
+
+* Escape text for a double-quoted JSON/JS string that is spliced into an
+* inline script block.  Besides backslash, double quote and control
+* characters, six more characters become backslash-u escapes: less-than,
+* greater-than, ampersand, apostrophe, the backtick and the dollar sign.
+* The browser reads them back unchanged, a closing script tag in the data
+* can no longer end the script block, and the escaped text holds nothing
+* that Stata's macro parser would expand, so later file writes keep it
+* exactly as written.
+version 17.0
+mata:
+string scalar _s2c_u(real scalar c)
+{
+    string scalar h
+    h = inbase(16, c)
+    while (strlen(h) < 4) h = "0" + h
+    return(char(92) + "u" + h)
+}
+string scalar _s2c_js(string scalar s)
+{
+    real scalar   i
+    string scalar r
+    r = subinstr(s, char(92), char(92) + char(92))
+    r = subinstr(r, char(34), char(92) + char(34))
+    r = subinstr(r, char(10), char(92) + "n")
+    r = subinstr(r, char(13), char(92) + "r")
+    r = subinstr(r, char(9),  char(92) + "t")
+    for (i = 1; i <= 31; i++) {
+        if (i != 9 & i != 10 & i != 13) r = subinstr(r, char(i), _s2c_u(i))
+    }
+    r = subinstr(r, char(60), _s2c_u(60))
+    r = subinstr(r, char(62), _s2c_u(62))
+    r = subinstr(r, char(38), _s2c_u(38))
+    r = subinstr(r, char(39), _s2c_u(39))
+    r = subinstr(r, char(96), _s2c_u(96))
+    r = subinstr(r, char(36), _s2c_u(36))
+    return(r)
+}
+// Distinct non-empty values of a string variable over the rows where
+// sel is nonzero, sorted, into caller locals pfx1, pfx2, ... and pfxn.
+// Used instead of -levelsof-, which drops dollar-sign text from values.
+void _s2c_slevels(string scalar var, string scalar sel, string scalar pfx)
+{
+    string colvector u
+    real scalar      i
+    u = uniqrows(st_sdata(., var, sel))
+    if (rows(u)) u = select(u, u :!= "")
+    for (i = 1; i <= rows(u); i++) st_local(pfx + strofreal(i), u[i])
+    st_local(pfx + "n", strofreal(rows(u)))
+}
 end

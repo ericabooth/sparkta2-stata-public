@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.9  09nov2026}{...}
+{* *! version 0.8.10  09nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -157,6 +157,8 @@ slice per row of {cmd:name()}) unless you use {cmd:over()} without {cmd:name()}
 or add a sparkta-only donut option ({cmd:cutout()}, {cmd:rotation()},
 {cmd:circumference()}, {cmd:sliceborder()}, {cmd:hoveroffset()},
 {cmd:pielabels}, abbreviations included); those calls go to sparkta's donut.
+The D3 donut shows shares of a total, so its values must be non-negative
+with a positive sum; otherwise it stops with an error (r(459)).
 {cmd:sparkta2} leaves {cmd:r()} and {cmd:e()} as it found them, so
 {cmd:marginsplot}, {cmd:eventstudy}, and {cmd:matrix(r(table))} work after
 {cmd:margins} or {cmd:estat}.  When the first word is both a chart type and a
@@ -582,6 +584,12 @@ The native chart types ({cmd:donut}, {cmd:bar2}, {cmd:line2},
 {cmd:divbar}, {cmd:barrace}) also accept {cmd:dashtab()} and
 {cmd:dashtabstyle()} with the same semantics; the per-tab geo variants
 apply to maps only.
+
+{pstd}
+{bf:Text in labels and titles.}  Category, group, level, and tab labels on
+maps and native charts display exactly as they are in the data, including
+{cmd:$}, quotes, {cmd:&}, and {cmd:<}.  {cmd:title()}, {cmd:subtitle()},
+and {cmd:note()} are plain text, not HTML.
 
 {pstd}
 {bf:Overlays.}  {cmd:overlays(}{it:tokens}{cmd:)} draws

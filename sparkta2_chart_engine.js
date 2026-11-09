@@ -566,7 +566,7 @@
         row.append("rect").attr("width", 12).attr("height", 12).attr("fill", palette[i]).attr("rx", 2);
         var pct = total ? (100 * d.x / total) : 0;
         row.append("text").attr("x", 18).attr("y", 10)
-          .text(esc(d.name || "") + "  " + fmt(+d.x) + " (" + d3.format(".1f")(pct) + "%)");
+          .text((d.name || "") + "  " + fmt(+d.x) + " (" + d3.format(".1f")(pct) + "%)");
       });
 
       return [{ selection: slices, fromAttr: { opacity: 0 }, finalAttr: { opacity: 1 }, duration: 600, stagger: 60 }];
@@ -702,7 +702,7 @@
         }
         entered.on("mousemove", function (ev, d) {
           var lines = ["<strong>" + esc(d.name) + "</strong>",
-                       (meta.xlabel || meta.xvar || "Value") + ": " + fmt(+d.x)];
+                       esc(meta.xlabel || meta.xvar || "Value") + ": " + fmt(+d.x)];
           appendTipvars(d, lines);
           showTip(lines.join("<br/>"), ev);
         }).on("mouseleave", hideTip);
@@ -872,7 +872,7 @@
         groups.forEach(function (gN) {
           var row = lg2.append("g").attr("transform", "translate(" + legX2 + ",0)");
           row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(gN)).attr("rx", 2);
-          var t = row.append("text").attr("x", 18).attr("y", 10).text(esc(gN));
+          var t = row.append("text").attr("x", 18).attr("y", 10).text(gN);
           var bbox;
           try { bbox = t.node().getBBox(); } catch (e) { bbox = { width: String(gN).length * 6 }; }
           legX2 += 18 + bbox.width + 18;
@@ -1005,8 +1005,8 @@
             // each row takes its OWN variable's label.  These two lines used
             // to carry the opposite axis's name, making a hover read as if
             // the measure and the axis had swapped identities.
-            lines.push((meta.ylabel || meta.yvar || "y") + ": " + fmt(+d.y));
-            lines.push((meta.xlabel || meta.xvar || "x") + ": " + fmt(+d.x));
+            lines.push(esc(meta.ylabel || meta.yvar || "y") + ": " + fmt(+d.y));
+            lines.push(esc(meta.xlabel || meta.xvar || "x") + ": " + fmt(+d.x));
             appendTipvars(d, lines);
             showTip(lines.join("<br/>"), ev);
           }).on("mouseleave", hideTip);
@@ -1018,7 +1018,7 @@
         seriesKeys.forEach(function (k, i) {
           var row = lg3.append("g").attr("transform", "translate(" + (i * 110) + ",0)");
           row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(k)).attr("rx", 2);
-          row.append("text").attr("x", 18).attr("y", 10).text(esc(k));
+          row.append("text").attr("x", 18).attr("y", 10).text(k);
         });
       }
 
@@ -1194,7 +1194,7 @@
       levels.forEach(function (lv) {
         var row = lg4.append("g").attr("transform", "translate(" + legX + ",0)");
         row.append("rect").attr("width", 12).attr("height", 12).attr("fill", colorMap[lv]).attr("rx", 2);
-        var t = row.append("text").attr("x", 18).attr("y", 10).text(esc(lv));
+        var t = row.append("text").attr("x", 18).attr("y", 10).text(lv);
         var bbox;
         try { bbox = t.node().getBBox(); } catch (e) { bbox = { width: lv.length * 6 }; }
         legX += 18 + bbox.width + 18;

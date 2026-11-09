@@ -1,4 +1,6 @@
-*! sparkta2_map v0.8.7  2026-11-09
+*! sparkta2_map v0.8.10  2026-11-09
+*! v0.8.10 2026-11-09: labels keep $ and backtick text; JSON strings escape
+*!   the characters that could close the inline script block (_s2m_js).
 *! v0.8.7 2026-11-09: zeroneutral / zerolabel() options (zero handling now opt-in).
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
@@ -280,10 +282,10 @@ program define sparkta2_map, rclass
 
     * ---- v0.8.1 label defaults: fall back to the VARIABLE LABEL before
     * ---- the bare varname, so legends / mode buttons / tooltips read well.
-    if `"`xlabel'"' == "" {
+    if `"`macval(xlabel)'"' == "" {
         local xlabel : variable label `xvar'
     }
-    if "`yvar'" != "" & `"`ylabel'"' == "" {
+    if "`yvar'" != "" & `"`macval(ylabel)'"' == "" {
         local ylabel : variable label `yvar'
     }
 
@@ -358,7 +360,7 @@ program define sparkta2_map, rclass
     }
     local is_basemap    = cond("`basemap'"    != "", 1, 0)
 
-    if "`title'" == "" {
+    if `"`macval(title)'"' == "" {
         if "`type'" == "bivariate" local title "Bivariate map: `xvar' vs `yvar'"
         else if "`type'" == "hexbin" local title "Hexbin: `xvar'"
         else if "`type'" == "points" local title "Points: `xvar'"
@@ -432,8 +434,16 @@ program define sparkta2_map, rclass
         local _dt_is_str = (_rc == 0)
         local _dt_vallab ""
         if !`_dt_is_str' local _dt_vallab : value label `dashtab'
-        quietly levelsof `dashtab' if `touse', local(_dtlevels)
-        local _ntabs : word count `_dtlevels'
+        if `_dt_is_str' {
+            * -levelsof- drops $name text from string values (a level such as
+            * "Reg $A" comes back as "Reg "), so string levels are read in Mata.
+            mata: _s2m_slevels("`dashtab'", "`touse'", "_dtval_")
+            local _ntabs `_dtval_n'
+        }
+        else {
+            quietly levelsof `dashtab' if `touse', local(_dtlevels)
+            local _ntabs : word count `_dtlevels'
+        }
         if `_ntabs' < 2 {
             display as error "sparkta2: dashtab(`dashtab') has only `_ntabs' level on the active sample — need at least 2 tabs"
             exit 198
@@ -442,18 +452,24 @@ program define sparkta2_map, rclass
             display as error "sparkta2: dashtab(`dashtab') has `_ntabs' levels — more than 10 tabs is unusable.  Recode the variable."
             exit 198
         }
-        local _k 0
-        foreach _lv of local _dtlevels {
-            local ++_k
-            local _dtval_`_k' `"`_lv'"'
-            if `_dt_is_str' local _dtlab_`_k' `"`_lv'"'
-            else {
+        if `_dt_is_str' {
+            forvalues _k = 1/`_ntabs' {
+                local _dtlab_`_k' `"`macval(_dtval_`_k')'"'
+            }
+        }
+        else {
+            local _k 0
+            foreach _lv of local _dtlevels {
+                local ++_k
+                local _dtval_`_k' `"`_lv'"'
                 if "`_dt_vallab'" != "" {
                     local _dtlab_`_k' : label `_dt_vallab' `_lv'
                 }
                 else local _dtlab_`_k' "`_lv'"
             }
-            * "|" is the tab-list separator downstream — swap it out of labels
+        }
+        * "|" is the tab-list separator downstream — swap it out of labels
+        forvalues _k = 1/`_ntabs' {
             local _dtlab_`_k' : subinstr local _dtlab_`_k' "|" "/", all
         }
     }
@@ -543,8 +559,8 @@ program define sparkta2_map, rclass
                 local _ovkind_`_n_ov' "groupvar"
                 local _ovkey_`_n_ov' "`_ov'"
                 local _lbl : variable label `_ov'
-                if `"`_lbl'"' == "" local _lbl "`_ov' boundaries"
-                local _ovlab_`_n_ov' `"`_lbl'"'
+                if `"`macval(_lbl)'"' == "" local _lbl "`_ov' boundaries"
+                local _ovlab_`_n_ov' `"`macval(_lbl)'"'
                 local _ov_gvars "`_ov_gvars' `_ov'"
             }
             else {
@@ -700,7 +716,8 @@ program define sparkta2_map, rclass
                 if `_ntabs' > 1 {
                     if `_dt_is_str' {
                         local _dtv = `dashtab'[`_i']
-                        if `"`_dtv'"' != `"`_dtval_`_t''"' continue
+                        local _dtsame = (`"`macval(_dtv)'"' == `"`macval(_dtval_`_t')'"')
+                        if !`_dtsame' continue
                     }
                     else {
                         if `dashtab'[`_i'] != `_dtval_`_t'' continue
@@ -771,10 +788,9 @@ program define sparkta2_map, rclass
                     else {
                         capture local _nm : display `name'[`_i']
                     }
-                    if "`_nm'" == "" local _nm "`_fid'"
+                    if `"`macval(_nm)'"' == "" local _nm "`_fid'"
                 }
-                local _nm : subinstr local _nm `"\"' `"\\"', all
-                local _nm : subinstr local _nm `"""' `"\""', all
+                mata: st_local("_nm", _s2m_js(st_local("_nm")))
 
                 if `_first' local _first 0
                 else file write `rfh' "," _n
@@ -821,8 +837,7 @@ program define sparkta2_map, rclass
                             local _val = strofreal(`_num')
                         }
                     }
-                    local _val : subinstr local _val `"\"' `"\\"', all
-                    local _val : subinstr local _val `"""' `"\""', all
+                    mata: st_local("_val", _s2m_js(st_local("_val")))
                     file write `rfh' `","f__`_fv'":"`macval(_val)'""'
                 }
                 foreach _sv of local slid_vars {
@@ -851,8 +866,7 @@ program define sparkta2_map, rclass
                             local _val = strofreal(`_num')
                         }
                     }
-                    local _val : subinstr local _val `"\"' `"\\"', all
-                    local _val : subinstr local _val `"""' `"\""', all
+                    mata: st_local("_val", _s2m_js(st_local("_val")))
                     file write `rfh' `","o__`_gv'":"`macval(_val)'""'
                 }
                 foreach _tv of local tip_vars {
@@ -860,8 +874,7 @@ program define sparkta2_map, rclass
                     local _isstr = (_rc == 0)
                     if `_isstr' {
                         local _tval = `_tv'[`_i']
-                        local _tval : subinstr local _tval `"\"' `"\\"', all
-                        local _tval : subinstr local _tval `"""' `"\""', all
+                        mata: st_local("_tval", _s2m_js(st_local("_tval")))
                         file write `rfh' `","t__`_tv'":"`macval(_tval)'""'
                     }
                     else {
@@ -869,8 +882,7 @@ program define sparkta2_map, rclass
                         local _tlab : value label `_tv'
                         if "`_tlab'" != "" & !missing(`_tnum') {
                             local _tdsp : label `_tlab' `_tnum'
-                            local _tdsp : subinstr local _tdsp `"\"' `"\\"', all
-                            local _tdsp : subinstr local _tdsp `"""' `"\""', all
+                            mata: st_local("_tdsp", _s2m_js(st_local("_tdsp")))
                             file write `rfh' `","t__`_tv'":"`macval(_tdsp)'""'
                         }
                         else if missing(`_tnum') {
@@ -890,7 +902,7 @@ program define sparkta2_map, rclass
 
         if `_rows_written' == 0 {
             if `_ntabs' > 1 {
-                display as error `"sparkta2: no rows to plot on dashtab() tab `_t' ("`_dtlab_`_t''") — check [if]/[in] and `dashtab'"'
+                display as error `"sparkta2: no rows to plot on dashtab() tab `_t' ("`macval(_dtlab_`_t')'") — check [if]/[in] and `dashtab'"'
             }
             else {
                 display as error "sparkta2: no rows to plot (check [if]/[in], counties(), or filter expressions)"
@@ -903,8 +915,10 @@ program define sparkta2_map, rclass
         * rows on this tab so each tab's controls match its own data.
         local _tcond ""
         if `_ntabs' > 1 {
-            if `_dt_is_str' local _tcond `" & `dashtab' == `"`_dtval_`_t''"'"'
-            else            local _tcond " & `dashtab' == `_dtval_`_t''"
+            if `_dt_is_str' {
+                local _tcond `" & `dashtab' == `"`macval(_dtval_`_t')'"'"'
+            }
+            else local _tcond " & `dashtab' == `_dtval_`_t''"
         }
 
         tempfile metajson_`_t'
@@ -916,29 +930,39 @@ program define sparkta2_map, rclass
             if `_fcount' > 0 file write `rfh' ","
             local ++_fcount
             local _lbl : variable label `_fv'
-            if "`_lbl'" == "" local _lbl "`_fv'"
-            local _lbl : subinstr local _lbl `"\"' `"\\"', all
-            local _lbl : subinstr local _lbl `"""' `"\""', all
+            if `"`macval(_lbl)'"' == "" local _lbl "`_fv'"
+            mata: st_local("_lbl", _s2m_js(st_local("_lbl")))
             file write `rfh' `"{"var":"`_fv'","label":"`macval(_lbl)'","values":["'
-            * Drop the `clean' option: it strips the compound quotes that
-            * levelsof wraps multi-word string values in, so values like
-            * "Middle / Jr. High" survive as a single token through foreach.
-            quietly levelsof `_fv' if `touse' `_tcond', local(_levels)
-            local _lvi 0
-            foreach _lv of local _levels {
-                if `_lvi' > 0 file write `rfh' ","
-                local ++_lvi
-                capture confirm string variable `_fv'
-                if _rc {
-                    local _lab : value label `_fv'
+            * String filters: -levelsof- drops $name text from values, so
+            * their levels are read in Mata.  Numeric filters keep levelsof
+            * (without `clean', so labelled values stay one token each).
+            capture confirm string variable `_fv'
+            local _fstr = (_rc == 0)
+            if `_fstr' {
+                tempvar _fsel
+                quietly gen byte `_fsel' = `touse' `macval(_tcond)'
+                mata: _s2m_slevels("`_fv'", "`_fsel'", "_flv_")
+                quietly drop `_fsel'
+                local _nlev `_flv_n'
+            }
+            else {
+                quietly levelsof `_fv' if `touse' `macval(_tcond)', local(_levels)
+                local _nlev : word count `_levels'
+                local _lab : value label `_fv'
+            }
+            forvalues _lvi = 1/`_nlev' {
+                if `_lvi' > 1 file write `rfh' ","
+                if `_fstr' {
+                    local _disp `"`macval(_flv_`_lvi')'"'
+                }
+                else {
+                    local _lv : word `_lvi' of `_levels'
                     if "`_lab'" != "" {
                         local _disp : label `_lab' `_lv'
                     }
                     else local _disp "`_lv'"
                 }
-                else local _disp `"`_lv'"'
-                local _disp : subinstr local _disp `"\"' `"\\"', all
-                local _disp : subinstr local _disp `"""' `"\""', all
+                mata: st_local("_disp", _s2m_js(st_local("_disp")))
                 file write `rfh' `""`macval(_disp)'""'
             }
             file write `rfh' "]}"
@@ -946,7 +970,7 @@ program define sparkta2_map, rclass
         file write `rfh' `"],"sliders":["'
         local _scount = 0
         foreach _sv of local slid_vars {
-            quietly summarize `_sv' if `touse' `_tcond', meanonly
+            quietly summarize `_sv' if `touse' `macval(_tcond)', meanonly
             local _lo = r(min)
             local _hi = r(max)
             * If the variable has no observed range (all-missing on `touse'),
@@ -959,9 +983,8 @@ program define sparkta2_map, rclass
             if `_scount' > 0 file write `rfh' ","
             local ++_scount
             local _lbl : variable label `_sv'
-            if "`_lbl'" == "" local _lbl "`_sv'"
-            local _lbl : subinstr local _lbl `"\"' `"\\"', all
-            local _lbl : subinstr local _lbl `"""' `"\""', all
+            if `"`macval(_lbl)'"' == "" local _lbl "`_sv'"
+            mata: st_local("_lbl", _s2m_js(st_local("_lbl")))
             file write `rfh' `"{"var":"`_sv'","label":"`macval(_lbl)'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
         }
         file write `rfh' `"],"tooltipvars":["'
@@ -970,9 +993,8 @@ program define sparkta2_map, rclass
             if `_tcount' > 0 file write `rfh' ","
             local ++_tcount
             local _lbl : variable label `_tv'
-            if "`_lbl'" == "" local _lbl "`_tv'"
-            local _lbl : subinstr local _lbl `"\"' `"\\"', all
-            local _lbl : subinstr local _lbl `"""' `"\""', all
+            if `"`macval(_lbl)'"' == "" local _lbl "`_tv'"
+            mata: st_local("_lbl", _s2m_js(st_local("_lbl")))
             capture confirm numeric variable `_tv'
             local _isnum = (_rc == 0)
             local _tlabname : value label `_tv'
@@ -984,9 +1006,8 @@ program define sparkta2_map, rclass
         file write `rfh' `","overlays":["'
         forvalues _o = 1/`_n_ov' {
             if `_o' > 1 file write `rfh' ","
-            local _olb `"`_ovlab_`_o''"'
-            local _olb : subinstr local _olb `"\"' `"\\"', all
-            local _olb : subinstr local _olb `"""' `"\""', all
+            local _olb `"`macval(_ovlab_`_o')'"'
+            mata: st_local("_olb", _s2m_js(st_local("_olb")))
             file write `rfh' `"{"kind":"`_ovkind_`_o''","key":"`_ovkey_`_o''","label":"`macval(_olb)'""'
             if "`_ovcol_`_o''" != "" file write `rfh' `","color":"`_ovcol_`_o''""'
             if "`_ovwid_`_o''" != "" file write `rfh' `","width":`_ovwid_`_o''"'
@@ -996,9 +1017,8 @@ program define sparkta2_map, rclass
         file write `rfh' `"]"'
         * v0.8.0 raster layer: bounds + opacity + base64 data URI.
         if `_has_raster' {
-            local _rlb `"`rasterlabel'"'
-            local _rlb : subinstr local _rlb `"\"' `"\\"', all
-            local _rlb : subinstr local _rlb `"""' `"\""', all
+            local _rlb `"`macval(rasterlabel)'"'
+            mata: st_local("_rlb", _s2m_js(st_local("_rlb")))
             file write `rfh' `","raster":{"bounds":[`_rb_w',`_rb_s',`_rb_e',`_rb_n'],"opacity":`rasteropacity',"label":"`macval(_rlb)'","href":""'
             sparkta2_appendfile, fh(`rfh') path("`rasterb64'") outpath("`metajson_`_t''")
             file write `rfh' `""}"'
@@ -1041,12 +1061,14 @@ program define sparkta2_map, rclass
         tabstyle("`dashtabstyle'")                          ///
         islabels(`is_maplabels') labelsize(`labelsize')     ///
         export(`"`export'"') isoffline(`is_offline')        ///
-        type("`type'") scheme("`scheme'") title(`"`title'"') ///
+        type("`type'") scheme("`scheme'")                   ///
+        title(`"`macval(title)'"')                          ///
         hexradius(`hexradius') hexstat("`hexstat'")         ///
         pointsize(`pointsize')                              ///
         latvar("`latvar'") lonvar("`lonvar'")               ///
-        subtitle(`"`subtitle'"') note(`"`note'"')           ///
-        xlabel(`"`xlabel'"') ylabel(`"`ylabel'"')           ///
+        subtitle(`"`macval(subtitle)'"')                    ///
+        note(`"`macval(note)'"')                            ///
+        xlabel(`"`macval(xlabel)'"') ylabel(`"`macval(ylabel)'"') ///
         xvar("`xvar'") yvar("`yvar'")                       ///
         mode("`mode'") modes("`modes'")                     ///
         zoomto("`_zoomto_list'")                            ///
@@ -1083,4 +1105,55 @@ program define sparkta2_map, rclass
     if "`noopen'" == "" {
         sparkta2_open, file(`"`export'"')
     }
+end
+
+* Escape text for a double-quoted JSON/JS string that is spliced into an
+* inline script block.  Besides backslash, double quote and control
+* characters, six more characters become backslash-u escapes: less-than,
+* greater-than, ampersand, apostrophe, the backtick and the dollar sign.
+* The browser reads them back unchanged, a closing script tag in the data
+* can no longer end the script block, and the escaped text holds nothing
+* that Stata's macro parser would expand, so later file writes keep it
+* exactly as written.
+version 17.0
+mata:
+string scalar _s2m_u(real scalar c)
+{
+    string scalar h
+    h = inbase(16, c)
+    while (strlen(h) < 4) h = "0" + h
+    return(char(92) + "u" + h)
+}
+string scalar _s2m_js(string scalar s)
+{
+    real scalar   i
+    string scalar r
+    r = subinstr(s, char(92), char(92) + char(92))
+    r = subinstr(r, char(34), char(92) + char(34))
+    r = subinstr(r, char(10), char(92) + "n")
+    r = subinstr(r, char(13), char(92) + "r")
+    r = subinstr(r, char(9),  char(92) + "t")
+    for (i = 1; i <= 31; i++) {
+        if (i != 9 & i != 10 & i != 13) r = subinstr(r, char(i), _s2m_u(i))
+    }
+    r = subinstr(r, char(60), _s2m_u(60))
+    r = subinstr(r, char(62), _s2m_u(62))
+    r = subinstr(r, char(38), _s2m_u(38))
+    r = subinstr(r, char(39), _s2m_u(39))
+    r = subinstr(r, char(96), _s2m_u(96))
+    r = subinstr(r, char(36), _s2m_u(36))
+    return(r)
+}
+// Distinct non-empty values of a string variable over the rows where
+// sel is nonzero, sorted, into caller locals pfx1, pfx2, ... and pfxn.
+// Used instead of -levelsof-, which drops dollar-sign text from values.
+void _s2m_slevels(string scalar var, string scalar sel, string scalar pfx)
+{
+    string colvector u
+    real scalar      i
+    u = uniqrows(st_sdata(., var, sel))
+    if (rows(u)) u = select(u, u :!= "")
+    for (i = 1; i <= rows(u); i++) st_local(pfx + strofreal(i), u[i])
+    st_local(pfx + "n", strofreal(rows(u)))
+}
 end

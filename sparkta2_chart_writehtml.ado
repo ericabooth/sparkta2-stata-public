@@ -1,4 +1,6 @@
-*! sparkta2_chart_writehtml v0.8.6  2026-11-08
+*! sparkta2_chart_writehtml v0.8.10  2026-11-09
+*! v0.8.10 2026-11-09: title, subtitle and note are HTML-escaped the same way;
+*!   meta strings and tab labels are JSON-escaped for the inline script block.
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
 *!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
@@ -51,12 +53,17 @@ program define sparkta2_chart_writehtml
     _s2wc_splitpipe, name(_trow) value(`"`tabrowjsons'"')
     _s2wc_splitpipe, name(_tlab) value(`"`macval(tablabels)'"')
 
-    * Free-text meta strings are written inside JS double-quoted literals —
-    * escape backslashes FIRST, then double quotes (same order as labels).
+    * Free-text meta strings are written inside JS double-quoted literals
+    * in an inline script block: JSON-escape them (_s2cw_js also escapes
+    * the characters that could close the script block or that Stata would
+    * expand).  Title, subtitle and note go into HTML: HTML-escape them,
+    * all three the same way, so they display exactly as typed.
     foreach _m in xlabel ylabel levelorder centerlevel sortedstr {
-        local `_m' : subinstr local `_m' `"\"' `"\\"', all
-        local `_m' : subinstr local `_m' `"""' `"\""', all
+        mata: st_local("`_m'", _s2cw_js(st_local("`_m'")))
     }
+    mata: st_local("esc_title", _s2cw_html(st_local("title")))
+    mata: st_local("esc_sub",   _s2cw_html(st_local("subtitle")))
+    mata: st_local("esc_note",  _s2cw_html(st_local("note")))
 
     * JSON-safe numeric literals (v0.8.0): Stata renders fractional reals
     * without a leading zero (0.55 -> ".55").  A bare .55 is a legal JS
@@ -73,10 +80,6 @@ program define sparkta2_chart_writehtml
 
     tempname fh
     file open `fh' using `"`export'"', write text replace
-
-    local esc_title : subinstr local title `"&"' `"&amp;"', all
-    local esc_title : subinstr local esc_title `"<"' `"&lt;"', all
-    local esc_title : subinstr local esc_title `">"' `"&gt;"', all
 
     file write `fh' `"<!DOCTYPE html>"' _n
     file write `fh' `"<html lang="en"><head>"' _n
@@ -183,8 +186,7 @@ program define sparkta2_chart_writehtml
     file write `fh' `"</head><body>"' _n
     file write `fh' `"<div class="wrap">"' _n
     file write `fh' `"<h1>`esc_title'</h1>"' _n
-    if "`subtitle'" != "" {
-        local esc_sub : subinstr local subtitle `"&"' `"&amp;"', all
+    if `"`macval(esc_sub)'"' != "" {
         file write `fh' `"<p class="sub">`esc_sub'</p>"' _n
     }
     * Dashtab bar (only when there is more than one tab).  Buttons are
@@ -202,8 +204,7 @@ program define sparkta2_chart_writehtml
     file write `fh' `"  <div class="card chartcard"><svg id="chart"></svg><div id="chart-footer"></div></div>"' _n
     file write `fh' `"</div>"' _n
     file write `fh' `"<div id="datatable"></div>"' _n
-    if "`note'" != "" {
-        local esc_note : subinstr local note `"&"' `"&amp;"', all
+    if `"`macval(esc_note)'"' != "" {
         file write `fh' `"<p class="note">`esc_note'</p>"' _n
     }
     file write `fh' `"</div><div id="tooltip"></div>"' _n
@@ -241,8 +242,7 @@ program define sparkta2_chart_writehtml
         if `_t' > 1 file write `fh' `","' _n
         local _lab `"`macval(_tlab`_t')'"'
         if `"`macval(_lab)'"' == "" local _lab "Tab `_t'"
-        local _lab : subinstr local _lab `"\"' `"\\"', all
-        local _lab : subinstr local _lab `"""' `"\""', all
+        mata: st_local("_lab", _s2cw_js(st_local("_lab")))
         file write `fh' `"{"label":"`macval(_lab)'","cfg":{"' _n
         file write `fh' `""meta":{"' _n
         file write `fh' `""type":"`type'","scheme":"`scheme'","' _n
@@ -311,17 +311,82 @@ program define _s2wc_splitpipe
     * characters inside the value, and they would end up inside the split
     * pieces (unbalanced, one per piece).
     syntax , NAME(name) [VALue(string)]
-    local str `"`value'"'
-    local k 0
-    local _pp = strpos(`"`str'"', "|")
-    while `_pp' > 0 {
-        local ++k
-        local piece = substr(`"`str'"', 1, `_pp' - 1)
-        c_local `name'`k' `macval(piece)'
-        local str = substr(`"`str'"', `_pp' + 1, .)
-        local _pp = strpos(`"`str'"', "|")
+    * The split runs in Mata: re-expanding the value in Stata expressions
+    * (substr, strpos) dropped $name text from tab labels.
+    mata: _s2cw_split(st_local("value"), "_piece")
+    forvalues k = 1/`_piece_n' {
+        c_local `name'`k' `macval(_piece`k')'
     }
-    local ++k
-    c_local `name'`k' `macval(str)'
-    c_local `name'_n `k'
+    c_local `name'_n `_piece_n'
+end
+
+* Escape text for a double-quoted JSON/JS string that is spliced into an
+* inline script block.  Besides backslash, double quote and control
+* characters, six more characters become backslash-u escapes: less-than,
+* greater-than, ampersand, apostrophe, the backtick and the dollar sign.
+* The browser reads them back unchanged, a closing script tag in the data
+* can no longer end the script block, and the escaped text holds nothing
+* that Stata's macro parser would expand, so later file writes keep it
+* exactly as written.
+version 17.0
+mata:
+string scalar _s2cw_u(real scalar c)
+{
+    string scalar h
+    h = inbase(16, c)
+    while (strlen(h) < 4) h = "0" + h
+    return(char(92) + "u" + h)
+}
+string scalar _s2cw_js(string scalar s)
+{
+    real scalar   i
+    string scalar r
+    r = subinstr(s, char(92), char(92) + char(92))
+    r = subinstr(r, char(34), char(92) + char(34))
+    r = subinstr(r, char(10), char(92) + "n")
+    r = subinstr(r, char(13), char(92) + "r")
+    r = subinstr(r, char(9),  char(92) + "t")
+    for (i = 1; i <= 31; i++) {
+        if (i != 9 & i != 10 & i != 13) r = subinstr(r, char(i), _s2cw_u(i))
+    }
+    r = subinstr(r, char(60), _s2cw_u(60))
+    r = subinstr(r, char(62), _s2cw_u(62))
+    r = subinstr(r, char(38), _s2cw_u(38))
+    r = subinstr(r, char(39), _s2cw_u(39))
+    r = subinstr(r, char(96), _s2cw_u(96))
+    r = subinstr(r, char(36), _s2cw_u(36))
+    return(r)
+}
+// Escape text for HTML element content.  Ampersand, less-than,
+// greater-than and both quote marks become entities; the backtick and the
+// dollar sign become numeric references, so Stata cannot expand them.
+string scalar _s2cw_html(string scalar s)
+{
+    string scalar r
+    r = subinstr(s, char(38), "&amp;")
+    r = subinstr(r, char(60), "&lt;")
+    r = subinstr(r, char(62), "&gt;")
+    r = subinstr(r, char(34), "&quot;")
+    r = subinstr(r, char(39), "&#39;")
+    r = subinstr(r, char(96), "&#96;")
+    r = subinstr(r, char(36), "&#36;")
+    return(r)
+}
+// Split s at every pipe into locals pfx1, pfx2, ... and pfx_n, keeping
+// empty pieces (the splitpipe program passes them on to its caller).
+void _s2cw_split(string scalar s, string scalar pfx)
+{
+    real scalar   k, p
+    string scalar r
+    r = s
+    k = 0
+    while ((p = strpos(r, "|")) > 0) {
+        k++
+        st_local(pfx + strofreal(k), substr(r, 1, p - 1))
+        r = substr(r, p + 1, .)
+    }
+    k++
+    st_local(pfx + strofreal(k), r)
+    st_local(pfx + "_n", strofreal(k))
+}
 end
