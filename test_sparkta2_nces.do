@@ -11,15 +11,15 @@ version 17.0
 clear all
 set more off
 
-* sparkta2 ships in _codeshare which is already on the Stata adopath
-* (set by the Texas 2036 profile.do). To run from a local clone instead,
-* uncomment the two lines below and point sparkta2_home at your clone:
+* sparkta2 must be on the adopath (net install sparkta2, or a local
+* clone).  To run from a local clone, uncomment the two lines below and
+* point sparkta2_home at your clone:
 *   local sparkta2_home "<path-to-your-sparkta2/ado>"
 *   adopath ++ "`sparkta2_home'"
 
 capture which sparkta2
 if _rc {
-    display as error "sparkta2 not found on adopath; check _codeshare or your local clone."
+    display as error "sparkta2 not found on adopath; net install it or adopath ++ your local clone."
     exit 199
 }
 
@@ -30,16 +30,19 @@ capture which sparkta
 if _rc display as text "Note: sparkta not installed; chart pass-throughs will be skipped."
 
 *-----------------------------------------------------------------------------
-* Load NCES EDGE Texas district data from _datashare
+* Load NCES EDGE Texas district data (not shipped with the package).
+* Set global sparkta2_nces_dta to the full path of your copy of
+* NCES_EDGE_Texas_District_Map.dta (a global driveuse pointing at a
+* shared-drive root also works).
 *-----------------------------------------------------------------------------
-if "${driveuse}" == "" {
-    global driveuse "/Users/`c(username)'/Library/CloudStorage/GoogleDrive-eric.booth@texas2036.org/Shared drives/Data and Research Team/"
+local dta `"$sparkta2_nces_dta"'
+if `"`dta'"' == "" & `"$driveuse"' != "" {
+    local dta "${driveuse}/_datashare/NCES_EDGE/02_cleaned/NCES_EDGE_Texas_District_Map.dta"
 }
-local dta "${driveuse}/_datashare/NCES_EDGE/02_cleaned/NCES_EDGE_Texas_District_Map.dta"
-capture confirm file "`dta'"
+capture confirm file `"`dta'"'
 if _rc {
-    display as error "NCES_EDGE_Texas_District_Map.dta not found at:"
-    display as error "  `dta'"
+    display as error "NCES_EDGE_Texas_District_Map.dta not found."
+    display as error "  Set global sparkta2_nces_dta to its full path and run again."
     exit 601
 }
 

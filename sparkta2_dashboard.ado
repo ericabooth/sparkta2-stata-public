@@ -1,4 +1,10 @@
-*! sparkta2_dashboard v0.8.6  2026-11-08
+*! sparkta2_dashboard v0.8.11  2026-11-09
+*! v0.8.11 2026-11-09: files() takes quoted paths, so paths with spaces
+*!   work; each iframe src is written relative to the dashboard's folder
+*!   (pages in other folders, Windows backslash paths and ~ now load);
+*!   titles and the subtitle are HTML-escaped.
+*!   Default look changed: neutral page colors; the house colors and
+*!   Montserrat are written only with tx2036style.
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
 *!   Older Stata kept the capitals after a digit (TX2036STyle, D3PATH,
 *!   ISTX2036Style), so tx2036style was "not allowed" and internal calls
@@ -26,14 +32,15 @@
 *!       title("Texas counties: sparkta2 demo gallery")
 *!
 *! Notes:
-*!   - `files()` is space-sep paths. Relative paths resolved against the
-*!     dashboard's parent directory at runtime (each iframe src is taken
-*!     verbatim, so just pass basenames if the dashboard sits in the same
-*!     folder as the map files).
+*!   - `files()` is a space-separated list of paths; quote a path that
+*!     contains spaces.  A relative path is read from the working folder
+*!     (or, failing that, from the dashboard's folder).  Each iframe src is
+*!     written relative to the dashboard's folder, so keep the pages and
+*!     the dashboard together when you move them.
 *!   - `titles()` is a pipe-separated list -- one title per file. Optional;
 *!     defaults to the basename of each file.
 *!   - `heights()` is space-sep pixel heights (one per file); single number
-*!     applies to all. Default 920.
+*!     applies to all. Default 1060.
 program define sparkta2_dashboard, rclass
     version 17.0
 
@@ -45,9 +52,16 @@ program define sparkta2_dashboard, rclass
 
     if "`title'" == "" local title "sparkta2 dashboard"
 
-    * Parse file list
-    local _flist = itrim("`files'")
-    local _nfiles = wordcount("`_flist'")
+    * Parse file list.  gettoken keeps a quoted path (one with spaces) as
+    * one entry and strips its quotes.
+    local _nfiles 0
+    local _frest `"`macval(files)'"'
+    while `"`macval(_frest)'"' != "" {
+        gettoken _f _frest : _frest
+        if `"`macval(_f)'"' == "" continue
+        local ++_nfiles
+        local _file`_nfiles' `"`macval(_f)'"'
+    }
     if `_nfiles' == 0 {
         display as error "sparkta2_dashboard: files() must contain at least one path"
         exit 198
@@ -69,6 +83,16 @@ program define sparkta2_dashboard, rclass
         local _title`_ntitles' = strtrim(`"`_trest'"')
     }
 
+    * iframe src for each page, relative to the dashboard's folder
+    if "`c(os)'" == "Windows" local _home : environment USERPROFILE
+    else                      local _home : environment HOME
+    mata: _s2d_srcs(`_nfiles')
+    forvalues _i = 1/`_nfiles' {
+        if `_miss`_i'' {
+            display as text `"  (note: `macval(_file`_i')' was not found; its src is written as given, relative to the dashboard)"'
+        }
+    }
+
     * Heights: single number -> apply to all; multiple -> per-file.
     * Default bumped from 920 to 1060 in v0.4.0 (~15% taller) so each
     * embedded chart shows more vertically before the reader scrolls.
@@ -77,16 +101,14 @@ program define sparkta2_dashboard, rclass
     local _nhts = wordcount("`_hlist'")
 
     tempname fh
-    file open `fh' using `"`export'"', write text replace
+    quietly file open `fh' using `"`export'"', write text replace
     * Give embedded pages a build-specific query string. This prevents a
     * browser from retaining an earlier map after its HTML file is rebuilt.
     local _cachedate = subinstr("`c(current_date)'", " ", "", .)
     local _cachetime = subinstr("`c(current_time)'", ":", "", .)
     local _cachetag "`_cachedate'`_cachetime'"
 
-    local esc_title : subinstr local title `"&"' `"&amp;"', all
-    local esc_title : subinstr local esc_title `"<"' `"&lt;"', all
-    local esc_title : subinstr local esc_title `">"' `"&gt;"', all
+    mata: st_local("esc_title", _s2d_html(st_local("title")))
 
     file write `fh' `"<!DOCTYPE html>"' _n
     file write `fh' `"<html lang="en"><head>"' _n
@@ -102,7 +124,14 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">"' _n
     }
     file write `fh' `"<style>"' _n
-    file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}"' _n
+    * Page color tokens: neutral by default; the authors' house colors
+    * only with tx2036style.
+    if `is_tx2036st' {
+        file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#fff;--line:#e2e8f0;}"' _n
+    }
+    else {
+        file write `fh' `":root{--ink:#202124;--accent:#1a73e8;--link:#1a73e8;--bg:#f8f9fa;--muted:#5f6368;--card:#fff;--line:#e2e8f0;}"' _n
+    }
     if `is_tx2036st' {
         file write `fh' `"*{box-sizing:border-box}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em}"' _n
         file write `fh' `"header h1{font-weight:700;letter-spacing:-0.01em}"' _n
@@ -138,7 +167,7 @@ program define sparkta2_dashboard, rclass
     file write `fh' `"<div class="wrap">"' _n
     file write `fh' `"<header><h1>`esc_title'</h1>"' _n
     if "`subtitle'" != "" {
-        local esc_sub : subinstr local subtitle `"&"' `"&amp;"', all
+        mata: st_local("esc_sub", _s2d_html(st_local("subtitle")))
         file write `fh' `"<p>`esc_sub'</p>"' _n
     }
     file write `fh' `"</header>"' _n
@@ -147,12 +176,11 @@ program define sparkta2_dashboard, rclass
     if `is_tabs' {
         file write `fh' `"<div class="dashtabs" id="dashtabs">"' _n
         forvalues _i = 1/`_nfiles' {
-            local _fpath = word("`_flist'", `_i')
-            local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
-            if `_i' <= `_ntitles' & "`_title`_i''" != "" {
-                local _tname "`_title`_i''"
+            local _basename `"`macval(_base`_i')'"'
+            if `_i' <= `_ntitles' & `"`macval(_title`_i')'"' != "" {
+                mata: st_local("_tname", _s2d_html(st_local("_title`_i'")))
             }
-            else local _tname "`_basename'"
+            else local _tname `"`macval(_basename)'"'
             if `_i' == 1 local _act `" class="active""'
             else local _act ""
             file write `fh' `"  <button type="button" data-target="sec`_i'"`_act'>`_tname'</button>"' _n
@@ -162,12 +190,11 @@ program define sparkta2_dashboard, rclass
     else {
         file write `fh' `"<nav class="toc"><strong>Jump to:</strong>"' _n
         forvalues _i = 1/`_nfiles' {
-            local _fpath = word("`_flist'", `_i')
-            local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
-            if `_i' <= `_ntitles' & "`_title`_i''" != "" {
-                local _tname "`_title`_i''"
+            local _basename `"`macval(_base`_i')'"'
+            if `_i' <= `_ntitles' & `"`macval(_title`_i')'"' != "" {
+                mata: st_local("_tname", _s2d_html(st_local("_title`_i'")))
             }
-            else local _tname "`_basename'"
+            else local _tname `"`macval(_basename)'"'
             file write `fh' `"  <a href="#sec`_i'">`_i'. `_tname'</a>"' _n
         }
         file write `fh' `"</nav>"' _n
@@ -175,12 +202,11 @@ program define sparkta2_dashboard, rclass
 
     * Sections
     forvalues _i = 1/`_nfiles' {
-        local _fpath = word("`_flist'", `_i')
-        local _basename = substr("`_fpath'", strrpos("`_fpath'", "/") + 1, .)
-        if `_i' <= `_ntitles' & "`_title`_i''" != "" {
-            local _tname "`_title`_i''"
+        local _basename `"`macval(_base`_i')'"'
+        if `_i' <= `_ntitles' & `"`macval(_title`_i')'"' != "" {
+            mata: st_local("_tname", _s2d_html(st_local("_title`_i'")))
         }
-        else local _tname "`_basename'"
+        else local _tname `"`macval(_basename)'"'
         if `_nhts' == 1 local _height = word("`_hlist'", 1)
         else if `_nhts' >= `_i' local _height = word("`_hlist'", `_i')
         else local _height = word("`_hlist'", `_nhts')
@@ -191,7 +217,7 @@ program define sparkta2_dashboard, rclass
         file write `fh' `"  <h2><span class="num">`_i'.</span>`_tname'<span class="src">`_basename'</span></h2>"' _n
         * scrolling="no" + auto-resize listener below means the iframe grows
         * to fit its content; the height attr is just an initial guess.
-        file write `fh' `"  <iframe src="`_basename'?v=`_cachetag'" height="`_height'" scrolling="no" loading="lazy"></iframe>"' _n
+        file write `fh' `"  <iframe src="`macval(_src`_i')'?v=`_cachetag'" height="`_height'" scrolling="no" loading="lazy"></iframe>"' _n
         file write `fh' `"</section>"' _n
     }
 
@@ -242,4 +268,120 @@ program define sparkta2_dashboard, rclass
     if "`noopen'" == "" {
         sparkta2_open, file(`"`export'"')
     }
+end
+
+version 17.0
+mata:
+// Text for HTML element content: escape the three markup characters.
+string scalar _s2d_html(string scalar s)
+{
+    string scalar r
+    r = subinstr(s, "&", "&amp;")
+    r = subinstr(r, "<", "&lt;")
+    r = subinstr(r, ">", "&gt;")
+    return(r)
+}
+// Split an absolute path into its root ("/", "C:/" or "//") and its
+// segments, after turning backslashes into slashes and resolving the
+// . and .. segments.
+void _s2d_split(string scalar p, string scalar root, string rowvector seg)
+{
+    string rowvector t
+    string scalar    r
+    real scalar      i
+    r = subinstr(p, char(92), "/")
+    if (substr(r, 2, 1) == ":") {
+        root = substr(r, 1, 2) + "/"
+        r    = substr(r, 3, .)
+    }
+    else if (substr(r, 1, 2) == "//") {
+        root = "//"
+        r    = substr(r, 3, .)
+    }
+    else root = "/"
+    t   = tokens(r, "/")
+    seg = J(1, 0, "")
+    for (i = 1; i <= cols(t); i++) {
+        if (t[i] == "/" | t[i] == "" | t[i] == ".") continue
+        if (t[i] == "..") {
+            if (cols(seg)) seg = cols(seg) > 1 ? seg[1..cols(seg) - 1] : J(1, 0, "")
+            continue
+        }
+        seg = seg, t[i]
+    }
+}
+// Is the path absolute (/x, C:\x, C:/x, \\server\x)?
+real scalar _s2d_isabs(string scalar p)
+{
+    string scalar c
+    c = substr(p, 1, 1)
+    return(c == "/" | c == char(92) | substr(p, 2, 1) == ":")
+}
+// A leading ~ means the home folder.
+string scalar _s2d_tilde(string scalar p, string scalar home)
+{
+    if (p == "~" | substr(p, 1, 2) == "~/" | substr(p, 1, 2) == "~" + char(92)) {
+        return(home + substr(p, 2, .))
+    }
+    return(p)
+}
+// Percent-encode the characters that would break a URL in a src attribute.
+string scalar _s2d_url(string scalar s)
+{
+    string scalar r
+    r = subinstr(s, "%", "%25")
+    r = subinstr(r, " ", "%20")
+    r = subinstr(r, "#", "%23")
+    r = subinstr(r, "?", "%3F")
+    r = subinstr(r, char(34), "%22")
+    r = subinstr(r, "&", "&amp;")
+    return(r)
+}
+// For locals _file1.._filen, set _src# (iframe src relative to the folder
+// of local export), _base# (file name) and _miss# (1 when the file was not
+// found from the working folder or from the dashboard's folder).
+void _s2d_srcs(real scalar n)
+{
+    string scalar    home, pwd, exp, f, abs, droot, froot, src
+    string rowvector dseg, fseg, eseg
+    real scalar      i, j, k, win, same
+
+    win  = (st_global("c(os)") == "Windows")
+    home = st_local("_home")
+    pwd  = st_global("c(pwd)")
+    exp  = _s2d_tilde(st_local("export"), home)
+    if (!_s2d_isabs(exp)) exp = pwd + "/" + exp
+    _s2d_split(exp, droot, eseg)
+    dseg = cols(eseg) > 1 ? eseg[1..cols(eseg) - 1] : J(1, 0, "")
+
+    for (i = 1; i <= n; i++) {
+        f = _s2d_tilde(st_local("_file" + strofreal(i)), home)
+        st_local("_miss" + strofreal(i), "0")
+        if (_s2d_isabs(f)) abs = f
+        else if (fileexists(pwd + "/" + f)) abs = pwd + "/" + f
+        else {
+            // read from the dashboard's folder, as the page itself will
+            abs = droot + (cols(dseg) ? invtokens(dseg, "/") + "/" : "") + f
+            if (!fileexists(abs)) st_local("_miss" + strofreal(i), "1")
+        }
+        _s2d_split(abs, froot, fseg)
+        st_local("_base" + strofreal(i), _s2d_html(cols(fseg) ? fseg[cols(fseg)] : f))
+        same = win ? (strlower(froot) == strlower(droot)) : (froot == droot)
+        if (!same) {
+            // another drive: only an absolute file URL can reach it
+            src = "file:///" + subinstr(froot, "//", "") + invtokens(fseg, "/")
+        }
+        else {
+            k = 0
+            for (j = 1; j <= min((cols(dseg), cols(fseg) - 1)); j++) {
+                if (win ? strlower(dseg[j]) != strlower(fseg[j]) : dseg[j] != fseg[j]) break
+                k = j
+            }
+            src = ""
+            for (j = k + 1; j <= cols(dseg); j++) src = src + "../"
+            src = src + invtokens(fseg[k + 1..cols(fseg)], "/")
+        }
+        st_local("_src" + strofreal(i), _s2d_url(src))
+    }
+}
 end

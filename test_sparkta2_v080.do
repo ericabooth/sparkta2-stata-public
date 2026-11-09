@@ -51,6 +51,10 @@ sparkta2 poverty_rate, id(fips) name(county) type(choropleth) ///
     title("v080-1 plain choropleth") export("`out'/v080_01_plain.html") offline noopen
 assert r(n_tabs) == 1
 assert r(n_rows) == 254
+* default look is neutral (v0.8.11): neutral page colors, no web font
+assert strpos(fileread("`out'/v080_01_plain.html"), "--ink:#202124") > 0
+assert strpos(fileread("`out'/v080_01_plain.html"), "--ink:#1B2D55") == 0
+assert strpos(fileread("`out'/v080_01_plain.html"), "fonts.googleapis.com") == 0
 
 *-----------------------------------------------------------------------------
 * 2. overlays(): dissolve-by-variable + topo-object mesh + maplabels,

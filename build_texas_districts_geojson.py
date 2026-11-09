@@ -14,12 +14,17 @@ Key correctness notes (learned the hard way):
   - Holes follow their parent outer in the shapefile's ring sequence;
     group them into the same GeoJSON polygon.
 
-Run:
-  python3 build_texas_districts_geojson.py
+Run (the shapefile is the NCES EDGE school-district boundary file,
+EDGE_SCHOOLDISTRICT_TL25_SY2425.shp, downloadable from nces.ed.gov/programs/edge):
+  python3 build_texas_districts_geojson.py /path/to/EDGE_SCHOOLDISTRICT_TL25_SY2425.shp
+or set SPARKTA2_NCES_SHP to that path.
 """
 import shapefile, json, math, os, sys
 
-SHP = "/Users/ericbooth/Library/CloudStorage/GoogleDrive-eric.booth@texas2036.org/Shared drives/Data and Research Team/_datashare/NCES_EDGE/01_raw/_extracted/edge/EDGE_SCHOOLDISTRICT_TL25_SY2425 (1)/EDGE_SCHOOLDISTRICT_TL25_SY2425.shp"
+SHP = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SPARKTA2_NCES_SHP", "")
+if not SHP or not os.path.exists(SHP):
+    sys.exit("Give the NCES EDGE school-district .shp path as the first argument "
+             "or in SPARKTA2_NCES_SHP.")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "texas_districts.geojson")
 
 EPS      = 0.003   # Douglas-Peucker tolerance in degrees (~330m)

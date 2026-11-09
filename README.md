@@ -20,6 +20,10 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.11** (2026-11-09). Maps and charts stay valid under `set dp comma` (numbers in the page always use a period, and your setting is restored), and large values keep their digits, so measures in the billions no longer collapse into ties. `bar2` draws negative values from a zero line, and a diverging `scheme()` such as `rdbu` colors the bars by sign. `bar2` `over()` legends wrap onto extra rows instead of running off the page, and many groups no longer start near white. Long `divbar` labels break instead of running off the left edge. `sparkta2_dashboard` takes quoted paths with spaces and writes each iframe path relative to the dashboard, so pages in other folders load. A leading `~` works in `rasterimage()` and when the page opens. Out-of-range `bins()` and unknown `scheme()` or `mode()` values print a note. The dispatcher rejects a repeated or multi-word `type()`, notes `type(map)` when `id()` is given without a type, says when `coefplot`/`eventstudy`/`marginsplot` need a newer sparkta, and lists duplicate sparkta installs when a sparkta call fails.
+
+**The default look changed in v0.8.11.** Pages and charts are now neutral by default: neutral page colors, system fonts, and the `tableau10` palette for `type(donut)`. Before, every page used the authors' house colors and donuts used the house palette. The house style is now opt-in only. To get the previous look, add `tx2036style scheme(tx2036)`. An unknown `scheme()` falls back to the neutral default with a note. See [Colors and the internal house style](#colors-and-the-internal-house-style).
+
 **v0.8.10** (2026-11-09). Labels on native charts and maps display exactly as they are in the data. A `$` or backtick in a `name()`, `over()`, or `level()` label, a variable label, or a title is kept ("Cost ($M)" used to show as "Cost ()"). Legends in donut, `bar2`, `line2`, and `divbar` no longer show HTML entities ("A &amp; B"). A label containing `</script>` no longer breaks the page. `subtitle()` and `note()` are plain text, like `title()`. A donut whose values are negative or sum to zero stops with an error (r(459)) instead of drawing an empty ring.
 
 **v0.8.9** (2026-11-09). `sparkta2` now leaves `r()` and `e()` untouched before handing off, so `marginsplot`, `eventstudy`, and `matrix(r(table))` work after `margins` or `estat` (0.8.8 cleared them). A first variable named like a chart type (`area`, `line`, `map`, ...) stays a variable when `type()` is also given. Routing reads option names, so text in a title or note cannot change which engine draws the chart; abbreviated sparkta donut options and `over()` donuts without `name()` go to sparkta's donut. Relative `export()` paths are passed to sparkta in full (older sparkta wrote them inside its Java folder). `point`, `bivariatemap`, and `horizontalbar` work as aliases.
@@ -55,7 +59,7 @@ Also in v0.8.0: `sparkta2_dashboard, tabs` (tabbed instead of long-scroll compos
 
 **v0.7.3** (2026-06-26). Chart label policy: `wraplabel(auto | on | off)` (synonyms `wrap`, `truncate`) + `gutterwidth(N)` left-margin override. `auto` keeps long labels on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines don't fit. Useful for divbar/bar2/line2 with long category names.
 
-**v0.7.2** (2026-06-26). `tx2036style` option (Texas 2036 brand + Montserrat font from Google Fonts) and `downloadpos(side|below|none)` option to move the Export menu under the chart (collapses the 240px side panel when no other controls live there).
+**v0.7.2** (2026-06-26). `tx2036style` option (the authors' internal house style: house colors + Montserrat font from Google Fonts; opt-in only since v0.8.11) and `downloadpos(side|below|none)` option to move the Export menu under the chart (collapses the 240px side panel when no other controls live there).
 
 **v0.7.1** (2026-06-26). Backward-compat rename: native bar / line are now `type(bar2)` / `type(line2)`, so sparkta's `type(bar)` / `type(line)` continue to forward unchanged. Existing do-files that called sparkta for bars or lines keep working without edits.
 
@@ -148,7 +152,7 @@ Design notes and honest limitations (the "raster complications report"):
 
 ### What's new in v0.7.2 (2026-06-26)
 
-- **`tx2036style` option.** Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography to a Texas 2036 brand look — heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
+- **`tx2036style` option** (the authors' internal house style; off by default). Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography: heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
 - **`zeroneutral` and `zerolabel()` options (v0.8.7, maps).** For a variable where an exact zero means "none" (installed capacity, say), `zeroneutral` draws zeros in neutral grey, computes the class breaks from the remaining values, and adds a legend key labeled by `zerolabel()` (default `Zero`). Off by default, so negative values and meaningful zeros are classified like any other value.
 - **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
 - **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined.
@@ -229,19 +233,54 @@ The third command runs all 10 examples that appear in `help sparkta2` and writes
 
 ## Quick start
 
+The county demo data ship with the package; `findfile` locates them after `net install`.
+
 ```stata
-import delimited using "examples/texas_county_demo.csv", varnames(1) clear stringcols(2)
+findfile texas_county_demo.csv
+import delimited using "`r(fn)'", varnames(1) clear stringcols(2)
 destring fips poverty_rate uninsured_rate, replace force
+label variable poverty_rate   "Poverty rate (%)"
+label variable uninsured_rate "Uninsured rate (%)"
+
+* Synthetic region and urban/rural variables for the filter dropdowns
+* (the same ones test_helpfile_examples.do builds)
+generate int region_n = mod(fips - 48000, 5)
+label define regL 0 "North" 1 "East" 2 "South" 3 "West" 4 "Central"
+label values region_n regL
+generate byte urban = (poverty_rate < 18 & uninsured_rate < 18)
+label define urbanL 0 "Rural" 1 "Urban"
+label values urban urbanL
 
 * Bivariate choropleth with the full UI
 sparkta2 poverty_rate uninsured_rate,                       ///
     id(fips) name(county) type(bivariate) scheme(rdbu)      ///
     modes(bivariate|x|y|diff|ratio) comparable              ///
     filters(region_n urban) sliders(poverty_rate uninsured_rate) ///
-    tooltipvars(median_income life_expect)                  ///
     swapbutton download search offline                      ///
     title("Texas counties: poverty vs uninsured")           ///
     export("texas_bivariate.html")
+```
+
+The other examples below also use `median_income`, `life_expect`, and `pop_thou`; `test_helpfile_examples.do` in this repository builds them as synthetic demo variables. `help sparkta2` lists every option, including the v0.8.2 border styling options `linecolor()`, `linewidth()`, `basemapcolor()`, and `basemapwidth()`.
+
+## Colors and the internal house style
+
+Every default is neutral. Pages use neutral ink, link, and background colors and the system font stack. Colors come from `scheme()`:
+
+- Maps: `blues` by default (`rdbu` for `type(bivariate)`). Sequential, diverging, and bivariate names are listed in `help sparkta2`.
+- Native charts: `type(donut)` defaults to `tableau10`, a neutral categorical palette of ten colors that is extended by interpolation past ten categories. `type(divbar)` defaults to `rdbu` and the other charts to `blues`. Pass `scheme(tableau10)` to `bar2`, `line2`, or `barrace` when the colors should mark categories.
+- An unknown `scheme()` prints a note and the default is used.
+
+The `tx2036style` option and the `tx2036` palette are an internal house style used in the authors' own workflows at Texas 2036. They are off unless you ask for them, and you do not need them. With `tx2036style`, the page uses the house page colors and asks Google Fonts for the Montserrat font; if the font cannot load, the browser uses a system font and the page still draws with the same layout. No font or style files are needed on your computer. `scheme(tx2036)` is a palette for native charts only.
+
+One example of the house style, for reference (this is also how to reproduce the look of pages made before v0.8.11):
+
+```stata
+* Internal house style: off by default
+sparkta2 enrollment, name(sector) type(donut)               ///
+    tx2036style scheme(tx2036)                              ///
+    title("Texas postsecondary enrollment by sector")       ///
+    export("donut_housestyle.html")
 ```
  
 ## Browser interactions — how each control maps back to Stata options
@@ -485,13 +524,15 @@ sparkta2 pop_mil,                                              ///
 
 ### District choropleth on the bundled NCES boundaries
 
+The district boundaries ship with the package; the district data file (`NCES_EDGE_Texas_District_Map.dta`) does not, so bring your own district-level data keyed on the 7-digit NCES LEAID.
+
 ```stata
 use "NCES_EDGE_Texas_District_Map.dta", clear
 destring intptlat intptlon, replace force
 sparkta2 frpl_pct100 students_per_teacher,                     ///
     id(leaid) name(name) geo(texas_districts) idwidth(7)       ///
     type(bivariate) scheme(rdbu)                                ///
-    filters(sdtyp_label) sliders(frpl_pct100 student_count)    ///
+    filters(sdtyp) sliders(frpl_pct100 student_count)          ///
     tooltipvars(student_count teacher_fte school_count)        ///
     download search offline                                     ///
     export("08_districts_bivariate.html")
@@ -518,46 +559,46 @@ sparkta2 bar poverty_rate uninsured_rate, over(region_n) stat(mean)
 sparkta2 poverty_rate uninsured_rate, type(scatter) fit(lfit) fitci
 ```
 
-sparkta 3.6.1 (GitHub, October 2026) changed its syntax so the chart type is the first word (`sparkta scatter y x`); the SSC release and earlier versions use `type()`. `sparkta2` accepts either form for every type, reads the installed sparkta's version, and writes the call the way that version expects, so one do-file runs with both. It also translates the renamed box and violin types (`hbox` and `hboxplot`, `hviolin` and `hviolinplot`). A call with no type goes to sparkta's default bar chart. `type(donut)` stays the sparkta2 D3 donut unless you add a sparkta-only donut option (`cutout()`, `rotation()`, `circumference()`, `sliceborder()`, `hoveroffset()`, `pielabels`). To force one syntax: `global sparkta2_sparkta_syntax new` (or `old`).
+`type(coefplot)`, `type(eventstudy)`, and `type(marginsplot)` need sparkta 3.6.0 or later. sparkta 3.6.1 (GitHub, October 2026) changed its syntax so the chart type is the first word (`sparkta scatter y x`); the SSC release and earlier versions use `type()`. `sparkta2` accepts either form for every type, reads the installed sparkta's version, and writes the call the way that version expects, so one do-file runs with both. It also translates the renamed box and violin types (`hbox` and `hboxplot`, `hviolin` and `hviolinplot`). A call with no type goes to sparkta's default bar chart. `type(donut)` stays the sparkta2 D3 donut unless you add a sparkta-only donut option (`cutout()`, `rotation()`, `circumference()`, `sliceborder()`, `hoveroffset()`, `pielabels`). To force one syntax: `global sparkta2_sparkta_syntax new` (or `old`).
 
 ## Folder layout
 
+The repository is flat: the package files and the developer test files sit side by side at the top level. `net install` copies only the files listed in `sparkta2.pkg`.
+
 ```
-sparkta2/
-├── ado/
-│   ├── sparkta2.ado                  # dispatcher (forwards non-map/non-chart types to sparkta)
-│   ├── sparkta2_map.ado              # map command
-│   ├── sparkta2_chart.ado            # native chart command (donut, bar2, line2, divbar, barrace)
-│   ├── sparkta2_dashboard.ado        # combine maps + charts -> one scrollable page
-│   ├── sparkta2_findfile.ado         # locate engine + map assets
-│   ├── sparkta2_writehtml.ado        # map HTML assembler (emits sparkta2-resize postMessage)
-│   ├── sparkta2_chart_writehtml.ado  # chart HTML assembler (emits sparkta2-resize postMessage)
-│   ├── sparkta2_embedjs.ado          # <script>…</script> wrapper
-│   ├── sparkta2_appendfile.ado       # shell-based file embedder
-│   ├── sparkta2_streamfile.ado       # line-by-line file stream
-│   ├── sparkta2_open.ado             # cross-platform browser open
-│   ├── sparkta2_engine.js            # D3 map engine
-│   ├── sparkta2_chart_engine.js      # D3 chart engine
-│   ├── sparkta2.sthlp                # Stata help
-│   ├── sparkta2.pkg                  # net install manifest
-│   ├── stata.toc
-│   ├── d3.min.js
-│   ├── topojson-client.min.js
-│   ├── d3-hexbin.min.js
-│   ├── texas_counties.topojson       # 254 TX counties + 56 US states + nation
-│   └── texas_districts.geojson       # 1,016 NCES EDGE SY24-25 school districts
-├── examples/
-│   ├── test_sparkta2_map.do          # 20 county-level + 2 US-state bonus examples
-│   ├── test_sparkta2_nces.do         # 20 NCES school-district examples
-│   ├── test_helpfile_examples.do     # mirrors `help sparkta2` examples 1:1
-│   ├── test_sparkta2_in_webdoc2.do   # 12-section webdoc2 demo (maps + charts + sparkta forwards)
-│   └── texas_county_demo.csv
+sparkta2-stata-public/
+├── sparkta2.ado                  # dispatcher (forwards non-map/non-chart types to sparkta)
+├── sparkta2_version.ado          # the one place the version number lives
+├── sparkta2_map.ado              # map command
+├── sparkta2_chart.ado            # native chart command (donut, bar2, line2, divbar, barrace)
+├── sparkta2_dashboard.ado        # combine maps + charts -> one page (scroll or tabs)
+├── sparkta2_findfile.ado         # locate engine + map assets (downloads missing ones)
+├── sparkta2_writehtml.ado        # map HTML assembler (emits sparkta2-resize postMessage)
+├── sparkta2_chart_writehtml.ado  # chart HTML assembler (emits sparkta2-resize postMessage)
+├── sparkta2_embedjs.ado          # <script>…</script> wrapper
+├── sparkta2_appendfile.ado       # byte-for-byte file embedder (Mata)
+├── sparkta2_streamfile.ado       # line-by-line file stream (not called since v0.8.1)
+├── sparkta2_open.ado             # cross-platform browser open
+├── sparkta2_engine.js            # D3 map engine
+├── sparkta2_chart_engine.js      # D3 chart engine
+├── sparkta2.sthlp                # Stata help
+├── sparkta2.pkg, stata.toc       # net install manifest
+├── d3.min.js, topojson-client.min.js, d3-hexbin.min.js
+├── texas_counties.topojson       # 254 TX counties + 56 US states + nation
+├── texas_districts.geojson       # 1,016 NCES EDGE SY24-25 school districts
+├── texas_county_demo.csv         # demo data (fips, county, poverty_rate, uninsured_rate)
+├── test_sparkta2_v080.do         # regression battery (not in the package)
+├── test_helpfile_examples.do     # mirrors `help sparkta2` examples 1:1 (not in the package)
+├── test_sparkta2_map.do          # county-level + US-state examples (not in the package)
+├── test_sparkta2_nces.do         # school-district examples; needs your own district data
+├── test_sparkta2_in_webdoc2.do   # webdoc2 demo (maps + charts + sparkta forwards)
+├── build_texas_districts_geojson.py  # rebuilds texas_districts.geojson from the NCES shapefile
 └── README.md
 ```
 
 ## Roadmap — where sparkta2 goes next vs leaflet / QGIS-style web mapping
 
-sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML file** that works offline, emailed, or dropped on GitHub Pages. Leaflet is a JS library you program; QGIS is a GIS you operate; sparkta2 is a *figure command*. The features below would close the most-noticed gaps without leaving that lane, roughly ordered by value-for-effort:
+sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML file** that works offline (with the `offline` option), emailed, or dropped on GitHub Pages. Leaflet is a JS library you program; QGIS is a GIS you operate; sparkta2 is a *figure command*. The features below would close the most-noticed gaps without leaving that lane, roughly ordered by value-for-effort:
 
 1. ~~**Choropleth classification options**~~ — **shipped in v0.8.1** as `classes(quantile|jenks|equal|std)` + `breaks(numlist)`.
 2. ~~**Scale bar + north arrow**~~ — **shipped in v0.8.1** as `scalebar` + `northarrow` (the miles bar is zoom-aware).
@@ -570,10 +611,15 @@ sparkta2's lane is deliberate: **one Stata command → one dependency-free HTML 
 
 ## Returned values
 
+Maps and native charts:
+
 - `r(export)` — path of the written HTML
-- `r(type)` — resolved map type
-- `r(geo)` — resolved `geo()`
-- `r(n_rows)` — number of data rows actually written
+- `r(type)` — resolved map or chart type
+- `r(geo)` — resolved `geo()` (maps only)
+- `r(n_rows)` — number of data rows actually written (summed across tabs with `dashtab()`)
+- `r(n_tabs)` — number of tabs rendered (1 without `dashtab()`)
+
+`sparkta2_dashboard` returns `r(export)`, `r(layout)` (`tabs` or `scroll`), and `r(n_files)`. Types handed to sparkta return whatever sparkta returns.
 
 ## License
 

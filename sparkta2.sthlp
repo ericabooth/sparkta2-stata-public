@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.10  09nov2026}{...}
+{* *! version 0.8.11  09nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -13,7 +13,7 @@ maps from Stata, with chart pass-through to sparkta.
 {title:Description}
 
 {pstd}
-{cmd:sparkta2} is a thin dispatcher around three engines (v0.8.2):
+{cmd:sparkta2} is a thin dispatcher around three engines:
 
 {phang2}o  A bundled D3 v7 {bf:map engine} that handles {cmd:type(bivariate)},
 {cmd:type(choropleth)}, {cmd:type(hexbin)}, and {cmd:type(points)}.{p_end}
@@ -41,6 +41,32 @@ The new D3-native versions are exposed as {cmd:type(bar2)} and
 {cmd:type(line2)}, which inherit the Export menu, {cmd:datatable}, and
 {cmd:animate} but take simpler input (one numeric var with {cmd:name()},
 optional {cmd:over()} for grouping/stacking).
+
+{pstd}
+{bf:New in v0.8.11.}  Maps and charts stay valid under {cmd:set dp comma}
+(numbers in the page always use a period decimal point, and your {cmd:dp}
+setting is restored afterwards), and large values keep their digits:
+values held as doubles are written with 15 significant digits, so
+measures in the billions or trillions no longer collapse into ties.
+{cmd:bar2} draws negative values from a zero line (a diverging
+{cmd:scheme()} such as {bf:rdbu} colours the bars by sign); {cmd:bar2}
+{cmd:over()} legends wrap onto extra rows; long {cmd:divbar} and
+{cmd:bar2} labels break instead of running off the left edge.
+{cmd:sparkta2_dashboard} takes quoted paths with spaces and writes each
+iframe path relative to the dashboard (see {help sparkta2##dashboard:below}).
+A leading {cmd:~} now works in {cmd:rasterimage()} and when the page is
+opened.  An out-of-range {cmd:bins()} or an unknown {cmd:scheme()} or
+{cmd:mode()} prints a note.
+
+{pstd}
+{bf:Default look changed in v0.8.11.}  Pages and charts are now neutral by
+default: neutral page colors, system fonts, and the {bf:tableau10} palette
+for {cmd:type(donut)} (it used the {bf:tx2036} palette before).  The
+{cmd:tx2036style} option and the {bf:tx2036} palette are an {it:internal}
+house style used in the authors' own workflows.  They are off unless you ask
+for them, and you do not need them.  To get the previous look, add
+{cmd:tx2036style scheme(tx2036)}.  See
+{help sparkta2##housestyle:Colors and the internal house style}.
 
 {pstd}
 {bf:New in v0.8.0.}  Native map and chart types gain {cmd:dashtab()} --
@@ -163,9 +189,20 @@ with a positive sum; otherwise it stops with an error (r(459)).
 {cmd:marginsplot}, {cmd:eventstudy}, and {cmd:matrix(r(table))} work after
 {cmd:margins} or {cmd:estat}.  When the first word is both a chart type and a
 variable name (for example {cmd:area}), it is read as a variable if you also
-give {cmd:type()}, and as the chart type otherwise.  A relative
+give {cmd:type()}, and as the chart type otherwise.  Give the type once:
+a second {cmd:type()} (or {cmd:ty()}), or a {cmd:type()} that names two
+types, stops with r(198).  Option names are lowercase in Stata, so
+{cmd:TYPE(map)} is not read as {cmd:type()}; it reaches sparkta as an
+unknown option.  A map needs a map type: an untyped call with {cmd:id()}
+goes to sparkta and prints a note suggesting {cmd:type(map)}.  A relative
 {cmd:export()} path is passed to sparkta as a full path in the working folder.  To force one syntax, set
-{cmd:global sparkta2_sparkta_syntax new} or {cmd:old}.
+{cmd:global sparkta2_sparkta_syntax new} or {cmd:old}; any other value is
+ignored with a note.  {cmd:coefplot}, {cmd:eventstudy}, and
+{cmd:marginsplot} need sparkta 3.6.0 or later, and {cmd:sparkta2} says so
+when an older sparkta is installed.  When a sparkta call fails and more
+than one {cmd:sparkta.ado} or {cmd:sparkta.jar} is on the adopath,
+{cmd:sparkta2} lists the copies, since an ado from one version loading the
+jar of another is a common cause.
 {p_end}
 
 {p 8 16 2}
@@ -173,7 +210,12 @@ Combined dashboard:
 {p_end}
 {p 8 16 2}
 {cmd:sparkta2_dashboard,} {cmd:files(}{it:list}{cmd:)} {cmd:export(}{it:path}{cmd:)}
-[{cmd:titles(}{it:pipelist}{cmd:)} {cmd:tabs} {it:other}]
+[{cmd:titles(}{it:pipelist}{cmd:)} {cmd:heights(}{it:numlist}{cmd:)}
+{cmd:title(}{it:string}{cmd:)} {cmd:subtitle(}{it:string}{cmd:)} {cmd:tabs}
+{cmd:tx2036style} {cmd:noopen}]
+{p_end}
+{p 8 8 2}
+See {help sparkta2##dashboard:Combining outputs: sparkta2_dashboard} below.
 {p_end}
 
 {phang}
@@ -202,8 +244,8 @@ Map {cmd:type()} values:
 
 {syntab :Rendering style}
 {synopt :{cmd:type(}{it:string}{cmd:)}}{bf:bivariate} | {bf:choropleth} | {bf:hexbin} | {bf:points} | {bf:map}{p_end}
-{synopt :{cmd:scheme(}{it:string}{cmd:)}}bivariate: {bf:rdbu|bupu|gnbu|puor}; sequential: {bf:blues|reds|greens|oranges|purples|viridis|magma|inferno|plasma|cividis}{p_end}
-{synopt :{cmd:bins(}{it:#}{cmd:)}}quantile bins per axis (bivariate); 2-5, default 3{p_end}
+{synopt :{cmd:scheme(}{it:string}{cmd:)}}bivariate: {bf:rdbu|bupu|gnbu|puor}; sequential: {bf:blues|reds|greens|oranges|purples|greys|viridis|magma|inferno|plasma|cividis}; diverging (diff and ratio modes): {bf:rdbu|brbg|puor|rdylbu}.  Maps default to {bf:rdbu} (bivariate) or {bf:blues}; another name prints a note and the map uses its default.  Native charts take the sequential and diverging names plus two categorical palettes: {bf:tableau10} (neutral; ten colors, extended by interpolation past ten categories) and {bf:tx2036} (the authors' internal house palette, used only on request).  {cmd:type(donut)} defaults to {bf:tableau10}, {cmd:divbar} to {bf:rdbu}, and the other charts to {bf:blues}; an unknown name prints a note and the chart uses its default.{p_end}
+{synopt :{cmd:bins(}{it:#}{cmd:)}}quantile bins per axis (bivariate); 2-5, default 3.  A value outside 2-5 is moved to the nearer end with a note.{p_end}
 {synopt :{cmd:classes(}quantile{c |}jenks{c |}equal{c |}std{cmd:)}}how choropleth/bivariate/hexbin values are binned (v0.8.1); default {bf:quantile} (unchanged from every earlier version). {bf:jenks} = Fisher-Jenks natural breaks; {bf:equal} = equal intervals over [min,max]; {bf:std} = one-standard-deviation steps centered on the mean. Applies to the bivariate x/y axis scales, the x/y single-measure modes, and hexbin aggregates; the diff and ratio modes keep their symmetric diverging scales regardless.{p_end}
 {synopt :{cmd:breaks(}{it:numlist}{cmd:)}}2 to 8 explicit ascending cutpoints for single-measure classifications -- choropleth x/y modes and hexbin (v0.8.1). Number of classes = number of cuts + 1. Cannot be combined with {cmd:type(bivariate)} (r(198): use {cmd:classes()} there) nor with a non-quantile {cmd:classes()} (r(198): specify one or the other). Legend rows show the cut values.{p_end}
 {synopt :{cmd:basemap}}draw a faded states/nation outline behind the focused features (background-map style){p_end}
@@ -220,7 +262,7 @@ Map {cmd:type()} values:
 {synopt :{cmd:northarrow}}north arrow at the top-left. Under rotated conic projections north is exact only at the central meridian; treat as cartographic furniture.{p_end}
 
 {syntab :Comparison-mode toggle}
-{synopt :{cmd:mode(}{it:string}{cmd:)}}initial mode: {bf:bivariate|x|y|diff|ratio}{p_end}
+{synopt :{cmd:mode(}{it:string}{cmd:)}}initial mode: {bf:bivariate|x|y|diff|ratio}; another value prints a note and the map opens in the first allowed mode{p_end}
 {synopt :{cmd:modes(}{it:string}{cmd:)}}allowed modes in toggle (pipe-sep), e.g. {bf:bivariate|diff|ratio}{p_end}
 {synopt :{cmd:comparable}}declare x/y on the same scale (enables value diff/ratio){p_end}
 {synopt :{cmd:multiples}}small-multiples: one panel per mode in a responsive grid{p_end}
@@ -238,7 +280,7 @@ Map {cmd:type()} values:
 {synopt :{cmd:downloadpos(}{it:string}{cmd:)}}{cmd:side}|{cmd:below}|{cmd:none} -- Export menu placement (v0.7.2){p_end}
 {synopt :{cmd:datatable}}add "Download CSV" + "View data table" to the Export menu{p_end}
 {synopt :{cmd:animate}}fade map features in when the chart scrolls into view{p_end}
-{synopt :{cmd:tx2036style}}Texas 2036 brand + Montserrat font (v0.7.2; requires online for Google Fonts){p_end}
+{synopt :{cmd:tx2036style}}{it:internal}: the authors' house style (house page colors + Montserrat font); off by default.  See {help sparkta2##housestyle:Colors and the internal house style}{p_end}
 {synopt :{cmd:zeroneutral}}maps: draw exact zeros in neutral grey and leave them out of the class breaks, for variables where zero means "none" (v0.8.7; off by default){p_end}
 {synopt :{cmd:zerolabel(}{it:string}{cmd:)}}legend text for those zeros; default {cmd:Zero} ({cmd:Zero in both} on bivariate maps){p_end}
 {synopt :{cmd:wraplabel(}{it:string}{cmd:)}}{cmd:auto}|{cmd:on}|{cmd:off} -- category-label wrap policy (v0.7.3; for {cmd:bar2}/{cmd:divbar}){p_end}
@@ -292,15 +334,16 @@ Map {cmd:type()} values:
 {synopt :{cmd:xlabel(}{it:string}{cmd:)}}label for the {bf:horizontal} axis (and the x-measure in legends/tooltips). Default (v0.8.1): the variable label of the variable actually on that axis, then the varname -- used in legends, mode-toggle buttons, tooltips, and native chart axes. For {cmd:line2} the varlist is {it:y x} (see below), so the horizontal axis is the {bf:second} variable and {cmd:xlabel()} defaults from it (fixed v0.8.5).{p_end}
 {synopt :{cmd:ylabel(}{it:string}{cmd:)}}label for the {bf:vertical} axis (and the y-measure); same variable-label default. For {cmd:line2} the vertical axis is the {bf:first} variable, so {cmd:ylabel()} defaults from it (fixed v0.8.5).{p_end}
 {synopt :{cmd:export(}{it:path}{cmd:)}}output HTML path{p_end}
-{synopt :{cmd:offline}}embed D3 + topojson-client + d3-hexbin inline (no CDN at runtime){p_end}
+{synopt :{cmd:offline}}embed D3 + topojson-client + d3-hexbin inline, so the page needs no internet to view.  Without {cmd:offline} those libraries load from cdn.jsdelivr.net when the page is opened.{p_end}
 {synopt :{cmd:noopen}}do not auto-open the result in the default browser{p_end}
 {synopt :{cmd:width(}{it:#}{cmd:)}}svg viewBox width; default 980{p_end}
-{synopt :{cmd:height(}{it:#}{cmd:)}}svg viewBox height; default 828{p_end}
+{synopt :{cmd:height(}{it:#}{cmd:)}}svg viewBox height; default 828 for maps and 644 for native charts{p_end}
 {synoptline}
 
 {phang}
 {cmd:[if] [in]} qualifiers are honored: excluded rows are not embedded
-in the map at all (the corresponding feature renders as dim grey).
+in the page at all.  On a map the corresponding feature renders as dim
+grey; on a native chart the row is simply left out.
 
 
 {title:Browser interactions and the Stata options that produce them}
@@ -328,7 +371,7 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:datatable}}Extends the Export menu with {bf:Download CSV} (every row currently embedded, including {cmd:tooltipvars()}, with the original Stata variable names) and {bf:View data table} (a collapsible scrollable HTML table beneath the chart showing the rows that pass the active filters/sliders/search; capped at 500 visible rows for performance — use CSV for the full set).{p_end}
 {synopt :{cmd:animate}}On first paint, the map is invisible; an IntersectionObserver fires when the chart scrolls into view and the features fade in over ~450ms with a small per-feature stagger. One-shot — does not re-trigger on subsequent scrolls.{p_end}
 {synopt :{cmd:downloadpos()}}Places the Export menu either in the side controls panel ({cmd:side}, default), in a right-aligned footer below the chart ({cmd:below}), or hides it entirely ({cmd:none}).  When set to {cmd:below} and there are no other controls (no filters, sliders, modes, search), the side panel collapses entirely so the page doesn't reserve the 240px sidebar.{p_end}
-{synopt :{cmd:tx2036style}}Loads Montserrat from Google Fonts as the HTML body font and tightens typography (heavy h1 weight, kerning).  SVG text deliberately stays on the system stack so {cmd:getComputedTextLength} measurements (used by divbar wrap, donut label suppression) stay stable across the async font load.  Falls back to system sans-serif if offline.  Use with {cmd:scheme(tx2036)} for the full brand look.{p_end}
+{synopt :{cmd:tx2036style}}{it:Internal house style, off by default.}  Switches the page colors to the authors' house colors, loads Montserrat from Google Fonts as the HTML body font, and tightens typography (heavy h1 weight, kerning).  SVG text stays on the system stack so {cmd:getComputedTextLength} measurements (used by divbar wrap, donut label suppression) stay stable across the async font load, and the page falls back to a system sans-serif if the font cannot load.  Add {cmd:scheme(tx2036)} on a native chart for the house palette as well.{p_end}
 {synopt :{cmd:wraplabel()}}Controls how long category labels render on {cmd:type(bar2)} (horizontal) and {cmd:type(divbar)}.  {cmd:auto} (default for bar2) wraps when the longest label exceeds ~28 characters.  {cmd:on} (default for divbar; aliased {cmd:wrap}) always wraps to a multi-line block.  {cmd:off} (aliased {cmd:truncate}) renders a single line and truncates with a Unicode ellipsis (...) when a label exceeds the gutter width.  No effect on the other chart types or on vertical bars.{p_end}
 {synopt :{cmd:gutterwidth()}}Override the left-margin width in pixels for the category-label gutter on horizontal {cmd:bar2} and on {cmd:divbar}.  Default depends on context: 160 (bar2 no-wrap), 300 (bar2 wrap), 300 (divbar).  Useful for tight grid embeds where you want to trade wrap fidelity for a narrower chart.{p_end}
 {synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, v0.7.8: rotate=[101.5,0], center=[0,31.5], parallels=[27.5,36.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} v0.7.8 retunes the {bf:albers_tx} preset so the panhandle's top edge renders horizontally flat (central meridian at the panhandle's longitudinal midpoint -101.5{c 176}; upper standard parallel at the panhandle latitude 36.5{c 176}).  The original v0.6.1 fix (rotate=[99,0], parallels=[27.5,35.5]) reduced the {bf:albers_usa} ~3.3{c 176} lean to ~1.3{c 176}; v0.7.8 takes it to ~0{c 176}.  Pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 composite look exactly, or {cmd:rotate(99) parallels(27.5 35.5)} on top of {cmd:projection(albers_tx)} to recover the v0.6.1 look.{p_end}
@@ -674,10 +717,15 @@ charts at different aggregation levels, which cannot use native
 {title:Examples}
 
 {pstd}
-A runnable do-file containing every example below sits at
-{bf:examples/test_helpfile_examples.do} in the package; both the
-Texas-county and ZIP datasets are bundled (the ZIP path is the Texas 2036
-{bf:_datashare/Zipcode_Crosswalks/02_cleaned/TX_ZIP_Crosswalk.dta}).
+A runnable do-file containing every example below,
+{bf:test_helpfile_examples.do}, sits at the top of the GitHub repository
+({browse "https://github.com/ericabooth/sparkta2-stata-public":github.com/ericabooth/sparkta2-stata-public});
+it is not part of the {cmd:net install}.  The Texas county demo data
+({bf:texas_county_demo.csv}) and both geographies ship with the package.
+The school-district data used in examples 8 and 9
+({bf:NCES_EDGE_Texas_District_Map.dta}) and a ZIP crosswalk are not
+shipped; the do-file skips those examples unless you point it at your
+own copies.
 
 
 {dlgtab:1. County bivariate choropleth — full UI}
@@ -757,7 +805,7 @@ centroids the bins are sparse and align oddly. Use {cmd:type(bivariate)} or
 {phang}{cmd}    export("07_us_states_bivariate.html"){p_end}
 
 
-{dlgtab:8. School-district choropleth (bundled NCES boundaries)}
+{dlgtab:8. School-district choropleth (bundled NCES boundaries; district data not shipped)}
 
 {phang}{cmd}use "NCES_EDGE_Texas_District_Map.dta", clear{p_end}
 {phang}{cmd}destring intptlat intptlon, replace force{p_end}
@@ -806,7 +854,7 @@ centroids the bins are sparse and align oddly. Use {cmd:type(bivariate)} or
 
 {dlgtab:9d. Projection control (v0.6.1)}
 
-{phang}{it:Default behavior is automatic.}{cmd: geo(texas)} {it:now uses a Texas-tuned Albers projection that drops the panhandle's tilt from ~3.3 degrees down to ~1.3 degrees.}{p_end}
+{phang}{it:Default behavior is automatic.}{cmd: geo(texas)} {it:uses a Texas-tuned Albers projection (rotate 101.5, parallels 27.5 and 36.5 since v0.7.8) that renders the panhandle's top edge flat; the v0.6.1 tuning cut the tilt from ~3.3 degrees to ~1.3 degrees.}{p_end}
 
 {phang}{it:Restore the pre-0.6.1 tilted look exactly:}{p_end}
 {phang}{cmd}sparkta2 poverty_rate,                                         ///{p_end}
@@ -814,7 +862,7 @@ centroids the bins are sparse and align oddly. Use {cmd:type(bivariate)} or
 {phang}{cmd}    projection(albers_usa)                                     ///{p_end}
 {phang}{cmd}    export("legacy_look.html"){p_end}
 
-{phang}{it:Roll your own Texas projection (the four lines below are identical to the new default):}{p_end}
+{phang}{it:Roll your own Texas projection (the four lines below reproduce the v0.6.1 tuning with its ~1.3 degree tilt; the current default uses} {cmd:rotate(101.5) parallels(27.5 36.5)}{it:):}{p_end}
 {phang}{cmd}sparkta2 poverty_rate,                                         ///{p_end}
 {phang}{cmd}    id(fips) name(county) type(choropleth)                     ///{p_end}
 {phang}{cmd}    projection(albers) rotate(99) parallels(27.5 35.5)         ///{p_end}
@@ -846,10 +894,17 @@ centroids the bins are sparse and align oddly. Use {cmd:type(bivariate)} or
 {phang}{it:One slice per row.}{cmd: name(category)} {it:supplies the slice label and}{cmd: <xvar>} {it:supplies the slice value.  Center label shows the total automatically.}{p_end}
 
 {phang}{cmd}sparkta2 enrollment,                                            ///{p_end}
-{phang}{cmd}    name(sector) type(donut) scheme(tx2036)                     ///{p_end}
+{phang}{cmd}    name(sector) type(donut)                                    ///{p_end}
 {phang}{cmd}    download datatable animate                                  ///{p_end}
 {phang}{cmd}    title("Texas postsecondary enrollment by sector")           ///{p_end}
 {phang}{cmd}    export("09e_donut.html"){p_end}
+
+{phang}{it:Internal house style (the authors' own workflows; off by default, and you do not need it).  The same donut with the house page colors, Montserrat, and the house palette:}{p_end}
+
+{phang}{cmd}sparkta2 enrollment,                                            ///{p_end}
+{phang}{cmd}    name(sector) type(donut) tx2036style scheme(tx2036)         ///{p_end}
+{phang}{cmd}    title("Texas postsecondary enrollment by sector")           ///{p_end}
+{phang}{cmd}    export("09e_donut_housestyle.html"){p_end}
 
 
 {dlgtab:9f. Native bar2 / line2 (v0.7.1; with v0.6.0 export menu + animate)}
@@ -868,12 +923,12 @@ The new D3-native versions are exposed as {cmd:bar2} and {cmd:line2}.{p_end}
 
 {phang}{it:Stacked + normalised to 100% (long input:}{cmd: yr } x{cmd: sector } x{cmd: share}{it:):}{p_end}
 {phang}{cmd}sparkta2 share, name(yr) over(sector) type(bar2) stacked normalize ///{p_end}
-{phang}{cmd}    scheme(tx2036) download datatable                           ///{p_end}
+{phang}{cmd}    scheme(tableau10) download datatable                           ///{p_end}
 {phang}{cmd}    title("Enrollment share by sector, 2020-2024")              ///{p_end}
 {phang}{cmd}    export("09f_bar_stacked.html"){p_end}
 
 {phang}{it:Multi-series line.  Two-var input}{cmd: y x }{it: with}{cmd: over(series)}{it:.}{p_end}
-{phang}{cmd}sparkta2 metric yr, over(region) type(line2) scheme(tx2036)     ///{p_end}
+{phang}{cmd}sparkta2 metric yr, over(region) type(line2) scheme(tableau10)     ///{p_end}
 {phang}{cmd}    download datatable animate                                  ///{p_end}
 {phang}{cmd}    title("Trend, 2018-2024") xlabel("Year") ylabel("Value")    ///{p_end}
 {phang}{cmd}    export("09f_line.html"){p_end}
@@ -943,7 +998,7 @@ on a single dashboard page so the viewer can scan trade-offs at a glance --
 (A) divbar full distribution, (B) sparkta2-native bar2 % Agree summary,
 (C) sparkta2-native bar2 net favourability with an RdBu diverging palette
 and animate-on-scroll.  All three iframes embed via
-{help sparkta2_dashboard}.  Each panel deliberately uses horizontal labels
+{help sparkta2##dashboard:sparkta2_dashboard}.  Each panel deliberately uses horizontal labels
 so the eye doesn't have to read angled text.{p_end}
 
 {phang}{bf:Sort discipline:}  compute net favourability per item
@@ -969,7 +1024,7 @@ item down the page.{p_end}
 {phang}{cmd}* (A) Pew-style diverging stacked bar -- full Likert distribution{p_end}
 {phang}{cmd}sparkta2 share, name(q) level(response) type(divbar)                       ///{p_end}
 {phang}{cmd}    levelorder("Strongly disagree|Disagree|Neutral|Agree|Strongly agree")  ///{p_end}
-{phang}{cmd}    centerlevel(Neutral) tx2036style downloadpos(below) download datatable ///{p_end}
+{phang}{cmd}    centerlevel(Neutral) downloadpos(below) download datatable             ///{p_end}
 {phang}{cmd}    title("A. Pew-style diverging stacked bar: full distribution")         ///{p_end}
 {phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
 {phang}{cmd}    export("09i_A_divbar.html"){p_end}
@@ -980,7 +1035,7 @@ item down the page.{p_end}
 {phang}{cmd}collapse (sum) pct_agree = share if _pos == 1, by(q item_order){p_end}
 {phang}{cmd}gsort item_order{p_end}
 {phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
-{phang}{cmd}    scheme(blues) tx2036style downloadpos(below) download datatable animate ///{p_end}
+{phang}{cmd}    scheme(blues) downloadpos(below) download datatable animate             ///{p_end}
 {phang}{cmd}    title("B. sparkta2-native bar2 (D3): % Agree")                          ///{p_end}
 {phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
 {phang}{cmd}    export("09i_B_bar2.html"){p_end}
@@ -994,7 +1049,7 @@ item down the page.{p_end}
 {phang}{cmd}collapse (sum) net_fav_pct = _signed, by(q item_order){p_end}
 {phang}{cmd}gsort item_order{p_end}
 {phang}{cmd}sparkta2 net_fav_pct, name(q) type(bar2) horizontal                        ///{p_end}
-{phang}{cmd}    scheme(rdbu) tx2036style downloadpos(below) download datatable animate ///{p_end}
+{phang}{cmd}    scheme(rdbu) downloadpos(below) download datatable animate             ///{p_end}
 {phang}{cmd}    title("C. sparkta2-native bar2 (D3): net favourability")               ///{p_end}
 {phang}{cmd}    xlabel("Net % favourable (positive minus negative)")                   ///{p_end}
 {phang}{cmd}    width(1100) height(850) offline noopen                                  ///{p_end}
@@ -1005,7 +1060,7 @@ item down the page.{p_end}
 {phang}{cmd}sparkta2_dashboard,                                                        ///{p_end}
 {phang}{cmd}    files("09i_A_divbar.html 09i_B_bar2.html 09i_C_bar2_netfav.html")     ///{p_end}
 {phang}{cmd}    titles("A. Pew divbar|B. bar2 (% Agree)|C. bar2 (net favourability)") ///{p_end}
-{phang}{cmd}    heights("900") tx2036style                                            ///{p_end}
+{phang}{cmd}    heights("900")                                                        ///{p_end}
 {phang}{cmd}    title("Likert survey items, three ways (9-item version)")              ///{p_end}
 {phang}{cmd}    export("09i_comparison.html"){p_end}
 
@@ -1017,7 +1072,7 @@ item down the page.{p_end}
 {cmd: top()}{it:.  A play/pause/replay button appears in the View panel.}{p_end}
 
 {phang}{cmd}sparkta2 pop, name(county) time(yr) type(barrace) top(10)       ///{p_end}
-{phang}{cmd}    duration(15) scheme(tx2036) download datatable              ///{p_end}
+{phang}{cmd}    duration(15) scheme(tableau10) download datatable              ///{p_end}
 {phang}{cmd}    title("Top-10 Texas counties by population, 2019-2024")     ///{p_end}
 {phang}{cmd}    export("09h_barrace.html"){p_end}
 
@@ -1043,25 +1098,25 @@ very long labels you want cleanly truncated for grid embeds
 
 {phang}{cmd}* (a) Default auto -- wrap kicks in because labels are long{p_end}
 {phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
-{phang}{cmd}    tx2036style downloadpos(below) scheme(blues)                            ///{p_end}
+{phang}{cmd}    downloadpos(below) scheme(blues)                                        ///{p_end}
 {phang}{cmd}    title("9j-a. wraplabel(auto) -- default, wraps long items")            ///{p_end}
 {phang}{cmd}    export("09j_a_auto.html"){p_end}
 
 {phang}{cmd}* (b) Force on -- explicit wrap even when labels are short{p_end}
 {phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
-{phang}{cmd}    wraplabel(on) tx2036style downloadpos(below) scheme(blues)              ///{p_end}
+{phang}{cmd}    wraplabel(on) downloadpos(below) scheme(blues)                          ///{p_end}
 {phang}{cmd}    title("9j-b. wraplabel(on) -- always wrap")                            ///{p_end}
 {phang}{cmd}    export("09j_b_on.html"){p_end}
 
 {phang}{cmd}* (c) Force off -- single line, truncated with ellipsis{p_end}
 {phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
-{phang}{cmd}    wraplabel(off) tx2036style downloadpos(below) scheme(blues)             ///{p_end}
+{phang}{cmd}    wraplabel(off) downloadpos(below) scheme(blues)                         ///{p_end}
 {phang}{cmd}    title("9j-c. wraplabel(off) -- truncate with ellipsis")                ///{p_end}
 {phang}{cmd}    export("09j_c_off.html"){p_end}
 
 {phang}{cmd}* (d) Narrow gutter via gutterwidth -- truncates more aggressively{p_end}
 {phang}{cmd}sparkta2 pct_agree, name(q) type(bar2) horizontal                          ///{p_end}
-{phang}{cmd}    wraplabel(off) gutterwidth(180) tx2036style downloadpos(below)           ///{p_end}
+{phang}{cmd}    wraplabel(off) gutterwidth(180) downloadpos(below)                       ///{p_end}
 {phang}{cmd}    scheme(blues)                                                           ///{p_end}
 {phang}{cmd}    title("9j-d. gutterwidth(180) + wraplabel(off)")                        ///{p_end}
 {phang}{cmd}    export("09j_d_narrow.html"){p_end}
@@ -1138,11 +1193,67 @@ very long labels you want cleanly truncated for grid embeds
 
 {title:Returned values}
 
+{pstd}
+Maps and native charts return:
+
 {phang}{bf:r(export)} - path of the written HTML.{p_end}
-{phang}{bf:r(type)}   - resolved map type.{p_end}
-{phang}{bf:r(geo)}    - {cmd:geo()} as resolved.{p_end}
+{phang}{bf:r(type)}   - resolved map or chart type.{p_end}
+{phang}{bf:r(geo)}    - {cmd:geo()} as resolved (maps only).{p_end}
 {phang}{bf:r(n_rows)} - number of data rows actually written (v0.8.0: totals across all tabs when {cmd:dashtab()} is set).{p_end}
 {phang}{bf:r(n_tabs)} - number of tabs rendered; 1 when {cmd:dashtab()} is not set (v0.8.0).{p_end}
+
+{pstd}
+{cmd:sparkta2_dashboard} returns {bf:r(export)}, {bf:r(layout)}
+({bf:tabs} or {bf:scroll}), and {bf:r(n_files)}.  Types handed to sparkta
+return whatever sparkta returns.
+
+
+{marker housestyle}{...}
+{title:Colors and the internal house style}
+
+{pstd}
+Every default is neutral.  Pages use neutral ink, link, and background
+colors and the system font stack.  Maps default to {bf:blues}
+({bf:rdbu} for {cmd:type(bivariate)}); {cmd:type(donut)} defaults to the
+categorical {bf:tableau10} palette, {cmd:type(divbar)} to {bf:rdbu}, and
+the other native charts to {bf:blues}.  An unknown {cmd:scheme()} prints a
+note and the default is used.
+
+{pstd}
+{cmd:tx2036style} and {cmd:scheme(tx2036)} apply the house style the authors
+use at Texas 2036.  They are internal conveniences, off unless you ask for
+them.  With {cmd:tx2036style}, the page uses the house page colors and asks
+Google Fonts for the Montserrat font when it opens; if that font cannot load
+(offline or blocked), the browser uses a system font and the page still
+draws with the same layout.  No font or style files are needed on your
+computer, and nothing about the house style can stop a map or chart that
+does not ask for it.  {cmd:scheme(tx2036)} is a palette for native charts
+only; on a map it prints a note and the map uses its default scheme.
+Pages made before v0.8.11 used the house page colors, and donuts the house
+palette, by default; {cmd:tx2036style scheme(tx2036)} reproduces that look.
+
+
+{marker dashboard}{...}
+{title:Combining outputs: sparkta2_dashboard}
+
+{pstd}
+{cmd:sparkta2_dashboard} writes one HTML page that embeds several
+{cmd:sparkta2} or sparkta pages as iframes, either as one long page with a
+"Jump to" list (default) or behind a tab bar ({cmd:tabs}).
+
+{phang}{cmd:files(}{it:list}{cmd:)} lists the pages, separated by spaces;
+put a path that contains spaces in double quotes, for example
+{cmd:files(`"map.html "my charts/line.html""')}.  A relative path is read
+from the working folder (or, if it is not there, from the dashboard's
+folder).  Each iframe path is written relative to the dashboard's folder,
+so pages in subfolders, in other folders, or given with Windows
+backslashes all load; keep the pages and the dashboard together when you
+move them.  A page that cannot be found gets a note and its path is
+written as given.{p_end}
+{phang}{cmd:export(}{it:path}{cmd:)} names the dashboard file.{p_end}
+{phang}{cmd:titles(}{it:a}{c |}{it:b}{c |}{it:...}{cmd:)} gives one section title per page, pipe-separated; the default is the file name.{p_end}
+{phang}{cmd:heights(}{it:numlist}{cmd:)} sets the starting iframe heights in pixels, one number for all pages or one per page; default 1060.  Each sparkta2 page then resizes its iframe to fit.{p_end}
+{phang}{cmd:title()} and {cmd:subtitle()} head the page; {cmd:tabs} switches to the tab bar; {cmd:noopen} skips opening the page.  {cmd:tx2036style} applies the authors' internal house style to the dashboard page (off by default; see {help sparkta2##housestyle:Colors and the internal house style}).{p_end}
 
 
 {title:References}
@@ -1175,7 +1286,8 @@ parent report (file:// enforces same-origin per directory), then:
 The do-file must be invoked via {cmd:webdoc do mydoc.do, replace} (not
 plain {cmd:do}) for {cmd:wdinit}/{cmd:webdoc put}/{cmd:wdiframe} to
 register. A runnable proof-of-concept lives at
-{bf:examples/test_sparkta2_in_webdoc2.do} (12-section comprehensive demo).
+{bf:test_sparkta2_in_webdoc2.do} at the top of the GitHub repository
+(12-section comprehensive demo; not part of the {cmd:net install}).
 
 {pstd}
 {bf:Auto-resize protocol (v0.7.7).}  Every sparkta2-native HTML page embeds

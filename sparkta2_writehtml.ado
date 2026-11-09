@@ -1,4 +1,7 @@
-*! sparkta2_writehtml v0.8.10  2026-11-09
+*! sparkta2_writehtml v0.8.11  2026-11-09
+*! v0.8.11 2026-11-09: no "(file ... not found)" note when the export file is new.
+*!   Default look changed: neutral page colors; the house colors and
+*!   Montserrat are written only with tx2036style.
 *! v0.8.10 2026-11-09: title, subtitle and note are HTML-escaped the same way
 *!   (subtitle and note escaped only the ampersand); meta strings JSON-escaped.
 *! v0.8.7 2026-11-09: zeroneutral / zerolabel() options (zero handling now opt-in).
@@ -86,7 +89,7 @@ program define sparkta2_writehtml
     }
 
     tempname fh
-    file open `fh' using `"`export'"', write text replace
+    quietly file open `fh' using `"`export'"', write text replace
 
 
     file write `fh' `"<!DOCTYPE html>"' _n
@@ -94,8 +97,8 @@ program define sparkta2_writehtml
     file write `fh' `"<meta charset="utf-8">"' _n
     file write `fh' `"<meta name="viewport" content="width=device-width, initial-scale=1">"' _n
     file write `fh' `"<title>`esc_title'</title>"' _n
-    * tx2036style: pull Montserrat from Google Fonts (Texas 2036 brand body
-    * font).  Offline mode falls back to system sans-serif via the
+    * tx2036style (opt-in house style): pull Montserrat from Google Fonts.
+    * Offline mode falls back to system sans-serif via the
     * font-family stack below.
     if `istx2036style' {
         file write `fh' `"<link rel="preconnect" href="https://fonts.googleapis.com">"' _n
@@ -103,7 +106,14 @@ program define sparkta2_writehtml
         file write `fh' `"<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">"' _n
     }
     file write `fh' `"<style>"' _n
-    file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
+    * Page color tokens: neutral by default; the authors' house colors
+    * only with tx2036style.
+    if `istx2036style' {
+        file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
+    }
+    else {
+        file write `fh' `":root{--ink:#202124;--accent:#1a73e8;--link:#1a73e8;--bg:#f8f9fa;--muted:#5f6368;--card:#ffffff;--line:#e2e8f0;}"' _n
+    }
     if `istx2036style' {
         file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}"' _n
         file write `fh' `"h1{font-weight:700;letter-spacing:-0.01em;}"' _n

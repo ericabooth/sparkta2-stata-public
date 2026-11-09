@@ -1,16 +1,29 @@
 v 3
 d sparkta2: interactive D3 maps and charts from Stata, as one self-contained HTML file
 d
-d sparkta2 writes a standalone .html file - no server, no internet needed to
-d view it - holding an interactive D3 map or chart built from the data in
-d memory.  Choropleth, bivariate (two-variable) cuts, small multiples,
+d sparkta2 writes a standalone .html file - no server needed, and with the
+d offline option no internet needed to view it - holding an interactive D3
+d map or chart built from the data in memory.  Choropleth, bivariate (two-variable) cuts, small multiples,
 d rank-difference, hexbin, point, and basemap-backed maps, plus donut, bar,
 d divergent-bar, line, and bar-race charts.  Two Texas geographies ship with
 d the package: 254 counties (with US states and nation as backdrop layers) and
 d 1,016 NCES EDGE SY2024-25 school districts; the engine also accepts any
 d TopoJSON or GeoJSON FeatureCollection you supply.  Chart types sparkta2 does
 d not cover are forwarded to sparkta (Fahad Mirza), installed separately.
-d The tx2036style option applies Texas 2036 brand colors and Montserrat.
+d Neutral default colors and fonts; tx2036style and scheme(tx2036), an
+d internal house style used in the authors' own workflows, are off by
+d default.
+d
+d New in v0.8.11: maps and charts stay valid under set dp comma and keep
+d full precision for large values; bar2 draws negative values from a zero
+d line and wraps long over() legends; long divbar labels break instead of
+d running off the page; sparkta2_dashboard takes quoted paths with spaces
+d and writes iframe paths relative to the dashboard; ~ works in
+d rasterimage(); notes for out-of-range bins() and unknown scheme()/mode();
+d the dispatcher rejects a repeated type() and lists duplicate sparkta
+d installs when sparkta fails.  The default look changed: pages and charts
+d are neutral by default (the donut uses the tableau10 palette); for the
+d previous look add tx2036style scheme(tx2036).
 d
 d New in v0.8.5: line2 default axis titles fixed. A line chart that let
 d xlabel()/ylabel() default put them on the wrong axes (the varlist is

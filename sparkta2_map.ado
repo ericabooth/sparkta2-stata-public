@@ -1,4 +1,13 @@
-*! sparkta2_map v0.8.10  2026-11-09
+*! sparkta2_map v0.8.11  2026-11-09
+*! v0.8.11 2026-11-09: numbers are written with a period decimal point
+*!   under -set dp comma- (dp is restored afterwards, also after an error)
+*!   and with 15 significant digits for doubles (_s2m_num), so large values
+*!   no longer collapse to 4 digits; bins() outside 2-5 and an unknown
+*!   scheme() or mode() print a note; rasterimage() accepts ~/ paths; the
+*!   temp-file "(file ... not found)" notes are gone.
+*!   Default look changed: the page uses neutral colors; the house colors
+*!   and Montserrat come only with tx2036style.  An unknown scheme() now
+*!   resets to the default map scheme (blues, or rdbu for bivariate).
 *! v0.8.10 2026-11-09: labels keep $ and backtick text; JSON strings escape
 *!   the characters that could close the inline script block (_s2m_js).
 *! v0.8.7 2026-11-09: zeroneutral / zerolabel() options (zero handling now opt-in).
@@ -99,6 +108,19 @@
 program define sparkta2_map, rclass
     version 17.0
 
+    * Numbers in the page must use a period decimal point.  Under
+    * -set dp comma- Stata would write 20,8 and the page would not run, so
+    * run the command with dp set to period and restore it afterwards,
+    * also when the command stops with an error.
+    if c(dp) == "comma" {
+        set dp period
+        capture noisily sparkta2_map `macval(0)'
+        local _rc = _rc
+        set dp comma
+        if !`_rc' return add
+        exit `_rc'
+    }
+
     syntax varlist(min=1 max=2 numeric) [if] [in], ID(varname) [  ///
         TYPE(string)                                       ///  map | bivariate | choropleth | hexbin | points
         NAME(varname)                                      ///  display name var
@@ -137,7 +159,7 @@ program define sparkta2_map, rclass
         DOWNLOADPos(string)                                ///  side (default) | below | none -- Export menu placement
         DATATable                                          ///  add CSV download + collapsible data-table view
         ANIMate                                            ///  fade features in when chart scrolls into view
-        TX2036style                                        ///  Texas 2036 brand + Montserrat font
+        TX2036style                                        ///  authors' house style (internal); off by default
         ZERONeutral                                        ///  opt-in: exact zeros drawn grey, left out of class breaks
         ZEROLabel(string)                                  ///  legend text for those zeros (default: Zero)
         PROJection(string)                                 ///  albers_usa | albers_tx | albers | mercator
@@ -190,7 +212,7 @@ program define sparkta2_map, rclass
     local _valid_types "bivariate choropleth hexbin points"
     if !`:list type in _valid_types' {
         display as error "sparkta2: type(`type') not recognised."
-        display as error "  Valid: bivariate, choropleth, hexbin, points (or `map' as an auto-pick)."
+        display as error "  Valid: bivariate, choropleth, hexbin, points (or map as an auto-pick)."
         exit 198
     }
 
@@ -222,6 +244,21 @@ program define sparkta2_map, rclass
         else                         local scheme "blues"
     }
     local scheme = lower("`scheme'")
+    local _known_sch "rdbu bupu gnbu puor brbg rdylbu blues reds greens oranges purples greys viridis magma inferno plasma cividis"
+    if !`:list scheme in _known_sch' {
+        local _dflt_scheme "blues"
+        if "`type'" == "bivariate" {
+            local _dflt_scheme "rdbu"
+        }
+        display as text "  (note: scheme(`scheme') is not a sparkta2 map scheme; using the default, `_dflt_scheme'."
+        display as text "   Map schemes: `_known_sch')"
+        local scheme "`_dflt_scheme'"
+    }
+    if `bins' < 2 | `bins' > 5 {
+        local _bn = cond(`bins' < 2, 2, 5)
+        display as text "  (note: bins() takes 2 to 5; using bins(`_bn'))"
+        local bins `_bn'
+    }
 
     * ---- v0.8.1 classification -----------------------------------------
     if "`classes'" != "" {
@@ -266,8 +303,7 @@ program define sparkta2_map, rclass
         display as error "sparkta2: linewidth() must be > 0"
         exit 198
     }
-    local _lw_str : display %9.0g `linewidth'
-    local _lw_str = strtrim("`_lw_str'")
+    local _lw_str = strtrim(strofreal(`linewidth', "%9.0g"))
     if substr("`_lw_str'", 1, 1) == "." local _lw_str "0`_lw_str'"
     if "`basemapcolor'" == "" local basemapcolor "#cbd5e1"
     local basemapcolor : subinstr local basemapcolor `"""' "", all
@@ -276,8 +312,7 @@ program define sparkta2_map, rclass
         display as error "sparkta2: basemapwidth() must be > 0"
         exit 198
     }
-    local _bmw_str : display %9.0g `basemapwidth'
-    local _bmw_str = strtrim("`_bmw_str'")
+    local _bmw_str = strtrim(strofreal(`basemapwidth', "%9.0g"))
     if substr("`_bmw_str'", 1, 1) == "." local _bmw_str "0`_bmw_str'"
 
     * ---- v0.8.1 label defaults: fall back to the VARIABLE LABEL before
@@ -291,6 +326,9 @@ program define sparkta2_map, rclass
 
     if "`mode'" == "" local mode = cond("`type'" == "bivariate", "bivariate", "x")
     local mode = lower("`mode'")
+    if !inlist("`mode'", "bivariate", "x", "y", "diff", "ratio") {
+        display as text "  (note: mode(`mode') is not a map mode (bivariate|x|y|diff|ratio); the map opens in its first mode)"
+    }
 
     if "`modes'" == "" {
         if "`type'" == "bivariate" {
@@ -665,9 +703,11 @@ program define sparkta2_map, rclass
         tempfile rasterb64 _pybase
         local pyscript "`_pybase'.py"
         tempname pyf
-        file open `pyf' using "`pyscript'", write text replace
+        quietly file open `pyf' using "`pyscript'", write text replace
         file write `pyf' "import base64, os, sys" _n
         file write `pyf' "src, dst = sys.argv[1], sys.argv[2]" _n
+        * expanduser: Stata's own file commands read ~/img.png, Python's open() does not
+        file write `pyf' "src = os.path.expanduser(src)" _n
         file write `pyf' `"ext = os.path.splitext(src)[1].lower().lstrip(".")"' _n
         file write `pyf' `"mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg","' _n
         file write `pyf' `"        "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")"' _n
@@ -705,7 +745,7 @@ program define sparkta2_map, rclass
         local _tidw "`_tidw_`_t''"
 
         tempfile rowjson_`_t'
-        file open `rfh' using "`rowjson_`_t''", write text replace
+        quietly file open `rfh' using "`rowjson_`_t''", write text replace
 
         local _first 1
         local _rows_written 0
@@ -800,22 +840,34 @@ program define sparkta2_map, rclass
                 file write `rfh' `","name":"`macval(_nm)'""'
 
                 if missing(`_xv') file write `rfh' `","x":null"'
-                else              file write `rfh' `","x":"' (`_xv')
+                else {
+                    mata: _s2m_numl("_ns", "`xvar'", `_i')
+                    file write `rfh' `","x":`_ns'"'
+                }
 
                 if "`yvar'" != "" {
                     if missing(`_yv') file write `rfh' `","y":null"'
-                    else              file write `rfh' `","y":"' (`_yv')
+                    else {
+                        mata: _s2m_numl("_ns", "`yvar'", `_i')
+                        file write `rfh' `","y":`_ns'"'
+                    }
                 }
 
                 if "`latvar'" != "" {
                     local _ltv = `latvar'[`_i']
                     if missing(`_ltv') file write `rfh' `","lat":null"'
-                    else                file write `rfh' `","lat":"' (`_ltv')
+                    else {
+                        mata: _s2m_numl("_ns", "`latvar'", `_i')
+                        file write `rfh' `","lat":`_ns'"'
+                    }
                 }
                 if "`lonvar'" != "" {
                     local _lnv = `lonvar'[`_i']
                     if missing(`_lnv') file write `rfh' `","lon":null"'
-                    else                file write `rfh' `","lon":"' (`_lnv')
+                    else {
+                        mata: _s2m_numl("_ns", "`lonvar'", `_i')
+                        file write `rfh' `","lon":`_ns'"'
+                    }
                 }
 
                 foreach _fv of local filt_vars {
@@ -843,7 +895,10 @@ program define sparkta2_map, rclass
                 foreach _sv of local slid_vars {
                     local _snum = `_sv'[`_i']
                     if missing(`_snum') file write `rfh' `","s__`_sv'":null"'
-                    else                file write `rfh' `","s__`_sv'":"' (`_snum')
+                    else {
+                        mata: _s2m_numl("_ns", "`_sv'", `_i')
+                        file write `rfh' `","s__`_sv'":`_ns'"'
+                    }
                 }
                 * v0.8.0 dissolve-by overlay group values (same display logic
                 * as filters: string verbatim, value label when present).
@@ -889,7 +944,8 @@ program define sparkta2_map, rclass
                             file write `rfh' `","t__`_tv'":null"'
                         }
                         else {
-                            file write `rfh' `","t__`_tv'":"' (`_tnum')
+                            mata: _s2m_numl("_ns", "`_tv'", `_i')
+                            file write `rfh' `","t__`_tv'":`_ns'"'
                         }
                     }
                 }
@@ -922,7 +978,7 @@ program define sparkta2_map, rclass
         }
 
         tempfile metajson_`_t'
-        file open `rfh' using "`metajson_`_t''", write text replace
+        quietly file open `rfh' using "`metajson_`_t''", write text replace
         file write `rfh' "{"
         file write `rfh' `""filters":["'
         local _fcount = 0
@@ -973,6 +1029,8 @@ program define sparkta2_map, rclass
             quietly summarize `_sv' if `touse' `macval(_tcond)', meanonly
             local _lo = r(min)
             local _hi = r(max)
+            mata: st_local("_los", _s2m_num(st_numscalar("r(min)")))
+            mata: st_local("_his", _s2m_num(st_numscalar("r(max)")))
             * If the variable has no observed range (all-missing on `touse'),
             * skip the slider rather than emit Stata's `.' as bare JSON (which
             * would cause the JS parser to bail and the map to render blank).
@@ -985,7 +1043,7 @@ program define sparkta2_map, rclass
             local _lbl : variable label `_sv'
             if `"`macval(_lbl)'"' == "" local _lbl "`_sv'"
             mata: st_local("_lbl", _s2m_js(st_local("_lbl")))
-            file write `rfh' `"{"var":"`_sv'","label":"`macval(_lbl)'","min":"' (`_lo') `","max":"' (`_hi') `"}"'
+            file write `rfh' `"{"var":"`_sv'","label":"`macval(_lbl)'","min":`_los',"max":`_his'}"'
         }
         file write `rfh' `"],"tooltipvars":["'
         local _tcount = 0
@@ -1143,6 +1201,21 @@ string scalar _s2m_js(string scalar s)
     r = subinstr(r, char(96), _s2m_u(96))
     r = subinstr(r, char(36), _s2m_u(36))
     return(r)
+}
+// A number as JSON text: always a period decimal point, and enough digits
+// that large values stay distinct (file write's default format kept only
+// about four significant digits past 1e9).  Values held at float precision
+// print with 7 significant digits, so a float 20.8 reads 20.8, not
+// 20.799999; other values print with 15.  Missing values become null.
+string scalar _s2m_num(real scalar x)
+{
+    if (x >= .) return("null")
+    if (x == floatround(x)) return(strtrim(strofreal(x, "%15.7g")))
+    return(strtrim(strofreal(x, "%24.15g")))
+}
+void _s2m_numl(string scalar mac, string scalar var, real scalar i)
+{
+    st_local(mac, _s2m_num(_st_data(i, st_varindex(var))))
 }
 // Distinct non-empty values of a string variable over the rows where
 // sel is nonzero, sorted, into caller locals pfx1, pfx2, ... and pfxn.

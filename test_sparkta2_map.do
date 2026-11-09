@@ -31,15 +31,15 @@ version 17.0
 clear all
 set more off
 
-* sparkta2 ships in _codeshare which is already on the Stata adopath
-* (set by the Texas 2036 profile.do). To run from a local clone instead,
-* uncomment the two lines below and point sparkta2_home at your clone:
+* sparkta2 must be on the adopath (net install sparkta2, or a local
+* clone).  To run from a local clone, uncomment the two lines below and
+* point sparkta2_home at your clone:
 *   local sparkta2_home "<path-to-your-sparkta2/ado>"
 *   adopath ++ "`sparkta2_home'"
 
 capture which sparkta2
 if _rc {
-    display as error "sparkta2 not found on adopath; check _codeshare or your local clone."
+    display as error "sparkta2 not found on adopath; net install it or adopath ++ your local clone."
     exit 199
 }
 
@@ -51,7 +51,7 @@ if _rc display as text "Note: sparkta not installed; chart pass-throughs will be
 
 *-----------------------------------------------------------------------------
 * Load demo county data + synthetic auxiliary vars
-* findfile picks up texas_county_demo.csv from _codeshare top level
+* findfile picks up texas_county_demo.csv from any adopath folder
 *-----------------------------------------------------------------------------
 findfile texas_county_demo.csv
 local demo_csv "`r(fn)'"

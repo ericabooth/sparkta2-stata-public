@@ -9,16 +9,16 @@ version 17.0
 clear all
 set more off
 
-* sparkta2 ships in _codeshare which is already on the Stata adopath
-* (set by the Texas 2036 profile.do). To run from a local clone instead,
-* uncomment the two lines below and point sparkta2_home at your clone:
+* sparkta2 must be on the adopath (net install sparkta2, or a local
+* clone).  To run from a local clone, uncomment the two lines below and
+* point sparkta2_home at your clone:
 *   local sparkta2_home "<path-to-your-sparkta2/ado>"
 *   adopath ++ "`sparkta2_home'"
 
 * Confirm sparkta2 is reachable
 capture which sparkta2
 if _rc {
-    display as error "sparkta2 not found on adopath; check _codeshare or your local clone."
+    display as error "sparkta2 not found on adopath; net install it or adopath ++ your local clone."
     exit 199
 }
 
@@ -27,7 +27,7 @@ capture mkdir "`out'"
 
 *-----------------------------------------------------------------------------
 * Texas county demo dataset (used by examples 1-5, 10)
-* findfile picks it up from _codeshare top level (or any adopath dir)
+* findfile picks it up from any adopath folder
 *-----------------------------------------------------------------------------
 findfile texas_county_demo.csv
 local demo_csv "`r(fn)'"
@@ -156,13 +156,16 @@ sparkta2 pop_mil gdp_thou,                                     ///
 *-----------------------------------------------------------------------------
 * Examples 8-9: NCES districts (replace v0.4 ZIP demo)
 *-----------------------------------------------------------------------------
-if "${driveuse}" == "" {
-    global driveuse "/Users/`c(username)'/Library/CloudStorage/GoogleDrive-eric.booth@texas2036.org/Shared drives/Data and Research Team/"
+* The district data are not shipped.  Set global sparkta2_nces_dta to the
+* full path of your NCES_EDGE_Texas_District_Map.dta to run examples 8-9
+* (a global driveuse pointing at a shared-drive root also works).
+local nces_dta `"$sparkta2_nces_dta"'
+if `"`nces_dta'"' == "" & `"$driveuse"' != "" {
+    local nces_dta "${driveuse}/_datashare/NCES_EDGE/02_cleaned/NCES_EDGE_Texas_District_Map.dta"
 }
-local nces_dta "${driveuse}/_datashare/NCES_EDGE/02_cleaned/NCES_EDGE_Texas_District_Map.dta"
-capture confirm file "`nces_dta'"
+capture confirm file `"`nces_dta'"'
 if _rc {
-    display as text "(Skipping examples 8 and 9: NCES_EDGE_Texas_District_Map.dta not at `nces_dta'.)"
+    display as text "(Skipping examples 8 and 9: set global sparkta2_nces_dta to NCES_EDGE_Texas_District_Map.dta.)"
 }
 else {
     use "`nces_dta'", clear

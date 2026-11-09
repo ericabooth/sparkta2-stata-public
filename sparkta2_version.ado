@@ -26,5 +26,5 @@
 *!     number that a user can see, so that one edit is the whole release.
 program define sparkta2_version, rclass
     version 17.0
-    return local version "0.8.10"
+    return local version "0.8.11"
 end

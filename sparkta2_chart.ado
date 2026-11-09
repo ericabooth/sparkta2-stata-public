@@ -1,4 +1,11 @@
-*! sparkta2_chart v0.8.10  2026-11-09
+*! sparkta2_chart v0.8.11  2026-11-09
+*! v0.8.11 2026-11-09: numbers are written with a period decimal point under
+*!   -set dp comma- (restored afterwards) and with 15 significant digits for
+*!   doubles (_s2c_num); temp-file "(file ... not found)" notes are gone.
+*!   Default look changed: type(donut) defaults to the neutral tableau10
+*!   palette (was tx2036) and the page uses neutral colors.  For the
+*!   previous look add tx2036style scheme(tx2036).  An unknown scheme()
+*!   falls back to the default for the chart type with a note.
 *! v0.8.10 2026-11-09: name()/over()/level() labels keep $ and backtick text
 *!   (block-form writes, macval); JSON strings escaped by _s2c_js; a donut
 *!   with negative values or a zero total stops with r(459).
@@ -59,6 +66,17 @@
 program define sparkta2_chart, rclass
     version 17.0
 
+    * Numbers in the page must use a period decimal point; see the same
+    * guard in sparkta2_map.
+    if c(dp) == "comma" {
+        set dp period
+        capture noisily sparkta2_chart `macval(0)'
+        local _rc = _rc
+        set dp comma
+        if !`_rc' return add
+        exit `_rc'
+    }
+
     syntax varlist(min=1 max=2 numeric) [if] [in], TYPE(string) [    ///
         NAME(varname)                                                ///  category / item label
         OVER(varname)                                                ///  grouping / series var (bar, line)
@@ -81,7 +99,7 @@ program define sparkta2_chart, rclass
         XLABel(string) YLABel(string)                                ///
         DOWNload DATATable ANIMate                                   ///  v0.6.0 features
         DOWNLOADPos(string)                                          ///  side (default) | below | none
-        TX2036style                                                  ///  Texas 2036 brand + Montserrat
+        TX2036style                                                  ///  authors' house style (internal); off by default
         WRAPlabel(string)                                            ///  auto (default) | on | off -- category-label wrap policy
         GUTTERwidth(integer 0)                                       ///  left-margin width in px for category labels (0 = use default)
         WIDTH(integer 980) HEIGHT(integer 644)                       ///
@@ -163,13 +181,36 @@ program define sparkta2_chart, rclass
         }
     }
 
-    * Defaults per type
-    if "`scheme'" == "" {
-        if      "`engine_type'" == "donut"   local scheme "tx2036"
-        else if "`engine_type'" == "divbar"  local scheme "rdbu"
-        else                                  local scheme "blues"
+    * Defaults per type.  Every default is a neutral palette: tableau10
+    * (categorical) for a donut, rdbu for divbar, blues otherwise.  The
+    * authors' house palette is used only on request, scheme(tx2036).  A
+    * name the chart engine does not know falls back to the default with
+    * a note.
+    local _dflt_scheme "blues"
+    if "`engine_type'" == "donut" {
+        local _dflt_scheme "tableau10"
     }
-    local scheme = lower("`scheme'")
+    if "`engine_type'" == "divbar" {
+        local _dflt_scheme "rdbu"
+    }
+    local _known_sch "tableau10 tx2036 blues reds greens oranges purples greys viridis magma inferno plasma cividis rdbu brbg puor rdylbu rdylgn"
+    if `"`macval(scheme)'"' == "" {
+        local scheme "`_dflt_scheme'"
+    }
+    else {
+        local _sch_hit ""
+        foreach _s of local _known_sch {
+            if strlower(strtrim(`"`macval(scheme)'"')) == "`_s'" {
+                local _sch_hit "`_s'"
+            }
+        }
+        if "`_sch_hit'" == "" {
+            display as text `"  (note: scheme(`macval(scheme)') is not a sparkta2 chart scheme; using the default, `_dflt_scheme'."'
+            display as text "   Chart schemes: `_known_sch')"
+            local _sch_hit "`_dflt_scheme'"
+        }
+        local scheme "`_sch_hit'"
+    }
 
     local is_horizontal = cond("`horizontal'" != "", 1, 0)
     local is_stacked    = cond("`stacked'"    != "", 1, 0)
@@ -308,7 +349,7 @@ program define sparkta2_chart, rclass
     forvalues _t = 1/`_ntabs' {
 
     tempfile rowjson_`_t'
-    file open `rfh' using "`rowjson_`_t''", write text replace
+    quietly file open `rfh' using "`rowjson_`_t''", write text replace
 
     local _first 1
     local _rows_written = 0
@@ -417,8 +458,12 @@ program define sparkta2_chart, rclass
             else file write `rfh' "," _n
 
             file write `rfh' "        {"
-            file write `rfh' `""x":"' (`_xv')
-            if "`yvar'" != "" file write `rfh' `","y":"' (`_yv')
+            mata: _s2c_numl("_ns", "`xvar'", `_i')
+            file write `rfh' `""x":`_ns'"'
+            if "`yvar'" != "" {
+                mata: _s2c_numl("_ns", "`yvar'", `_i')
+                file write `rfh' `","y":`_ns'"'
+            }
             * Block form, not an inline -if-: an inline -if- expands its
             * command a second time, which dropped $name and backtick text
             * from labels.  The escaped text is inert anyway (see _s2c_js).
@@ -431,7 +476,10 @@ program define sparkta2_chart, rclass
             if "`level'" != "" {
                 file write `rfh' `","lev":"`macval(_lv)'""'
             }
-            if "`time'"  != "" file write `rfh' `","t":"' (`_tm')
+            if "`time'"  != "" {
+                mata: _s2c_numl("_ns", "`time'", `_i')
+                file write `rfh' `","t":`_ns'"'
+            }
 
             * Tooltipvars: bare and numeric-aware
             foreach _tv of local tip_vars {
@@ -454,7 +502,8 @@ program define sparkta2_chart, rclass
                         file write `rfh' `","t__`_tv'":null"'
                     }
                     else {
-                        file write `rfh' `","t__`_tv'":"' (`_tnum')
+                        mata: _s2c_numl("_ns", "`_tv'", `_i')
+                        file write `rfh' `","t__`_tv'":`_ns'"'
                     }
                 }
             }
@@ -512,7 +561,7 @@ program define sparkta2_chart, rclass
     * depends on which rows ship, so ONE shared file is re-referenced by
     * every tab in the payload loop.
     tempfile tipjson
-    file open `rfh' using "`tipjson'", write text replace
+    quietly file open `rfh' using "`tipjson'", write text replace
     file write `rfh' `"["'
     local _tcount = 0
     foreach _tv of local tip_vars {
@@ -614,6 +663,18 @@ string scalar _s2c_js(string scalar s)
     r = subinstr(r, char(96), _s2c_u(96))
     r = subinstr(r, char(36), _s2c_u(36))
     return(r)
+}
+// A number as JSON text: period decimal point, 7 significant digits for
+// values held at float precision and 15 otherwise, null when missing.
+string scalar _s2c_num(real scalar x)
+{
+    if (x >= .) return("null")
+    if (x == floatround(x)) return(strtrim(strofreal(x, "%15.7g")))
+    return(strtrim(strofreal(x, "%24.15g")))
+}
+void _s2c_numl(string scalar mac, string scalar var, real scalar i)
+{
+    st_local(mac, _s2c_num(_st_data(i, st_varindex(var))))
 }
 // Distinct non-empty values of a string variable over the rows where
 // sel is nonzero, sorted, into caller locals pfx1, pfx2, ... and pfxn.

@@ -135,4 +135,52 @@ sparkta2 val, name(cat) level(grp) type(divbar)         ///
 assert strpos(fileread("`out'/divbar.html"), "`DL1'") > 0
 display as result "TEST 4 OK: donut and divbar direct labels unchanged"
 
+*-----------------------------------------------------------------------------
+* (5) The default look is neutral (v0.8.11): neutral page colors, no web
+*     font, and the tableau10 palette for a donut.  The authors' house
+*     style appears only when asked for with tx2036style scheme(tx2036),
+*     and an unknown scheme() falls back to the neutral default.
+*-----------------------------------------------------------------------------
+local SCN "`q'scheme`q':`q'tableau10`q'"
+local SCH "`q'scheme`q':`q'tx2036`q'"
+local SCB "`q'scheme`q':`q'blues`q'"
+local INKN "--ink:#202124"
+local INKH "--ink:#1B2D55"
+local GF   "fonts.googleapis.com"
+
+* default donut (built in test 4)
+assert strpos(fileread("`out'/donut.html"), "`SCN'")  > 0
+assert strpos(fileread("`out'/donut.html"), "`INKN'") > 0
+assert strpos(fileread("`out'/donut.html"), "`INKH'") == 0
+assert strpos(fileread("`out'/donut.html"), "`GF'")   == 0
+* default bar keeps blues on the neutral page
+assert strpos(fileread("`out'/bar_single_horiz.html"), "`SCB'")  > 0
+assert strpos(fileread("`out'/bar_single_horiz.html"), "`INKN'") > 0
+
+preserve
+collapse (sum) val, by(cat)
+* house style on request
+sparkta2 val, name(cat) type(donut) tx2036style scheme(tx2036) ///
+    title("donut, house style") export("`out'/donut_house.html") offline noopen
+assert strpos(fileread("`out'/donut_house.html"), "`SCH'")  > 0
+assert strpos(fileread("`out'/donut_house.html"), "`INKH'") > 0
+assert strpos(fileread("`out'/donut_house.html"), "`INKN'") == 0
+assert strpos(fileread("`out'/donut_house.html"), "Montserrat") > 0
+* unknown scheme: a note, then the neutral default
+sparkta2 val, name(cat) type(donut) scheme(nosuchscheme) ///
+    title("donut, unknown scheme") export("`out'/donut_unknown.html") offline noopen
+assert strpos(fileread("`out'/donut_unknown.html"), "`SCN'") > 0
+restore
+
+* dashboard page: neutral unless tx2036style
+sparkta2_dashboard, files(`"`out'/donut.html"') noopen ///
+    title("neutral dashboard") export("`out'/dash_neutral.html")
+assert strpos(fileread("`out'/dash_neutral.html"), "`INKN'") > 0
+assert strpos(fileread("`out'/dash_neutral.html"), "`GF'")   == 0
+sparkta2_dashboard, files(`"`out'/donut.html"') noopen tx2036style ///
+    title("house dashboard") export("`out'/dash_house.html")
+assert strpos(fileread("`out'/dash_house.html"), "`INKH'") > 0
+assert strpos(fileread("`out'/dash_house.html"), "Montserrat") > 0
+display as result "TEST 5 OK: neutral default look; house style only on request"
+
 display as result _n "ALL BARLABEL TESTS PASSED"

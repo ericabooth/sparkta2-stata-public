@@ -1,4 +1,17 @@
-*! sparkta2 v0.8.10  2026-11-09
+*! sparkta2 v0.8.11  2026-11-09
+*!
+*! New in 0.8.11: maps and charts stay valid under -set dp comma- and keep
+*!   full precision for large values; sparkta2_dashboard takes quoted paths
+*!   with spaces and writes iframe paths relative to the dashboard; a
+*!   leading ~ works in rasterimage() and when opening the page; notes for
+*!   out-of-range bins(), unknown scheme()/mode(); the dispatcher rejects a
+*!   repeated or multi-word type(), hints at type(map) when id() is given
+*!   without a type, and names duplicate sparkta installs when sparkta fails.
+*!   DEFAULT LOOK CHANGED: pages and charts are neutral by default (neutral
+*!   page colors, system fonts, tableau10 donut colors).  The authors' house
+*!   style is now opt-in only; for the previous look add
+*!   tx2036style scheme(tx2036).  An unknown scheme() falls back to the
+*!   neutral default with a note.
 *!
 *! New in 0.8.10: native chart and map labels display exactly as in the data
 *!   ($ and backtick text kept, no HTML entities in legends, a closing
@@ -164,6 +177,21 @@ program define sparkta2
         display as error "sparkta2: the chart type is given twice (`_lead' and type(`type'))."
         exit 198
     }
+    * A second type()/ty() would otherwise ride through to sparkta unseen.
+    local _type1 `"`type'"'
+    local _o2 `"`macval(options)'"'
+    local 0 `", `macval(_o2)'"'
+    capture syntax [, TYpe(string) *]
+    if !_rc & `"`type'"' != "" {
+        display as error "sparkta2: give the chart type once (type() appears more than once)."
+        exit 198
+    }
+    local options `"`macval(_o2)'"'
+    local type = lower(strtrim(`"`_type1'"'))
+    if `: word count `type'' > 1 {
+        display as error "sparkta2: type(`type') names more than one chart type; give one."
+        exit 198
+    }
     if "`type'" == "" local type "`_lead'"
     if "`type'" == "horizontalbar" local type "hbar"
 
@@ -172,23 +200,25 @@ program define sparkta2
     local _useropts `"`macval(options)'"'
     local 0 `", `macval(options)'"'
     syntax [, CUTout(string) ROTation(string) CIRCumference(string) SLICEBorder(string) ///
-        HOVEROffset(string) PIElabels DASHtab(string) OVer(string) NAme(string) EXPort(string) *]
+        HOVEROffset(string) PIElabels DASHtab(string) OVer(string) NAme(string) EXPort(string) ///
+        ID(string) *]
     local _sk_donut = (`"`cutout'`rotation'`circumference'`sliceborder'`hoveroffset'`pielabels'"' != "")
     local _to_sparkta 0
     if "`type'" == "donut" & (`_sk_donut' | (`"`over'"' != "" & `"`name'"' == "")) local _to_sparkta 1
     local _dashtab `"`dashtab'"'
+    local _hasid = (`"`id'"' != "")
     local _export  `"`export'"'
     local _rest_noexp `"`macval(options)'"'
     local options `"`macval(_useropts)'"'
 
     if "`type'" != "" & `: list type in _map_types' {
         _return restore `_rhold'
-        sparkta2_map `anything', type(`type') `macval(options)'
+        sparkta2_map `macval(anything)', type(`type') `macval(options)'
         exit
     }
     if "`type'" != "" & `: list type in _native_types' & !`_to_sparkta' {
         _return restore `_rhold'
-        sparkta2_chart `anything', type(`type') `macval(options)'
+        sparkta2_chart `macval(anything)', type(`type') `macval(options)'
         exit
     }
 
@@ -199,6 +229,12 @@ program define sparkta2
         display as error "  For sparkta charts, write one file per level and combine:"
         display as error `"    sparkta2_dashboard, files("lvl1.html lvl2.html") titles("Level 1|Level 2") tabs export(combined.html)"'
         exit 198
+    }
+
+    * id() belongs to the map engine: an untyped map call would otherwise
+    * reach sparkta, which has no id() option.
+    if "`type'" == "" & `_hasid' {
+        display as text "  (note: id() is a map option; add type(map) to draw a map.)"
     }
 
     capture which sparkta
@@ -218,30 +254,68 @@ program define sparkta2
         local _e `"`_export'"'
         local _c1 = substr(`"`_e'"', 1, 1)
         local _abs = inlist(`"`_c1'"', "/", "\") | substr(`"`_e'"', 2, 1) == ":"
-        if !`_abs' local _e `"`c(pwd)'/`_e'"'
+        if !`_abs' {
+            local _e `"`c(pwd)'/`macval(_e)'"'
+        }
         local options `"`macval(_rest_noexp)' export(`"`_e'"')"'
     }
 
     * Write the call in the syntax the installed sparkta expects.
     _sk2_sparkta_syntax
     local _new = r(new)
-    if `"`macval(options)'"' != "" local _opts `", `macval(options)'"'
-    else                             local _opts ""
+    local _skver `"`r(version)'"'
+    if inlist("`type'", "coefplot", "eventstudy", "marginsplot") & r(old360) == 1 {
+        display as error "sparkta2: type(`type') needs sparkta 3.6.0 or later; sparkta `_skver' is installed."
+        display as error "  Update sparkta from https://github.com/fahad-mirza/sparkta_stata"
+        exit 199
+    }
+    * Block-form if: an inline -if- expands its command a second time, so
+    * backtick or $ text in a title would be substituted (or overflow).
+    local _opts ""
+    if `"`macval(options)'"' != "" {
+        local _opts `", `macval(options)'"'
+    }
     if `_new' {
         * 3.6.1+: sparkta <type> varlist, options   (type required for a chart)
         if "`type'" == "hbox"    local type "hboxplot"
         if "`type'" == "hviolin" local type "hviolinplot"
-        if "`type'" == "" & `"`anything'"' != "" local type "bar"
+        if "`type'" == "" & `"`macval(anything)'"' != "" local type "bar"
         _return restore `_rhold'
-        sparkta `type' `anything' `macval(_opts)'
+        capture noisily sparkta `type' `macval(anything)' `macval(_opts)'
     }
     else {
         * up to 3.6.0: sparkta varlist, type(<type>) options
         if "`type'" == "hboxplot"    local type "hbox"
         if "`type'" == "hviolinplot" local type "hviolin"
-        if "`type'" != "" local _opts `", type(`type') `macval(options)'"'
+        if "`type'" != "" {
+            local _opts `", type(`type') `macval(options)'"'
+        }
         _return restore `_rhold'
-        sparkta `anything' `macval(_opts)'
+        capture noisily sparkta `macval(anything)' `macval(_opts)'
+    }
+    local _skrc = _rc
+    if `_skrc' {
+        _sk2_dupcheck
+        exit `_skrc'
+    }
+end
+
+* When sparkta fails, a second copy of sparkta.ado or sparkta.jar on the
+* adopath (one in PERSONAL, another in PLUS, say) is a common cause:
+* the ado of one version then loads the jar of another.  Name the copies.
+program define _sk2_dupcheck
+    foreach _f in sparkta.ado sparkta.jar {
+        capture findfile `_f', all
+        if !_rc {
+            local _fns `"`r(fn)'"'
+            if `: word count `_fns'' > 1 {
+                display as error "  sparkta2: more than one `_f' is on the adopath:"
+                foreach _p of local _fns {
+                    display as error `"    `_p'"'
+                }
+                display as error "  Remove the stray copy (or run ado uninstall sparkta and reinstall)."
+            }
+        }
     }
 end
 
@@ -249,15 +323,20 @@ end
 * later) or as type()?  Read the version from its header; the global
 * sparkta2_sparkta_syntax ("new" or "old") overrides the detection.
 program define _sk2_sparkta_syntax, rclass
-    if lower("$sparkta2_sparkta_syntax") == "new" {
+    local _g = strtrim(lower(`"$sparkta2_sparkta_syntax"'))
+    if "`_g'" == "new" {
         return scalar new = 1
         exit
     }
-    if lower("$sparkta2_sparkta_syntax") == "old" {
+    if "`_g'" == "old" {
         return scalar new = 0
         exit
     }
+    if `"`_g'"' != "" {
+        display as text `"  (note: ignoring global sparkta2_sparkta_syntax "$sparkta2_sparkta_syntax"; use new or old)"'
+    }
     local new 0
+    local old360 0
     local found 0
     quietly findfile sparkta.ado
     local _fn `"`r(fn)'"'
@@ -266,13 +345,18 @@ program define _sk2_sparkta_syntax, rclass
     forvalues i = 1/40 {
         file read `fh' line
         if r(eof) continue, break
-        if regexm(`"`macval(line)'"', "sparkta version ([0-9]+)[.]([0-9]+)[.]([0-9]+)") {
-            * compare major, minor, patch in turn (3.5.111 is older than 3.6.1)
+        local _ll = lower(`"`macval(line)'"')
+        if regexm(`"`macval(_ll)'"', "sparkta version ([0-9]+)[.]([0-9]+)([.]([0-9]+))?") {
+            * compare major, minor, patch in turn (3.5.111 is older than 3.6.1);
+            * a missing patch number counts as 0
             local M = real(regexs(1))
             local m = real(regexs(2))
-            local p = real(regexs(3))
+            local p = real(regexs(4))
+            if missing(`p') local p 0
             local found 1
+            return local version "`M'.`m'.`p'"
             if `M' > 3 | (`M' == 3 & `m' > 6) | (`M' == 3 & `m' == 6 & `p' >= 1) local new 1
+            if `M' < 3 | (`M' == 3 & `m' < 6) local old360 1
             continue, break
         }
     }
@@ -291,4 +375,5 @@ program define _sk2_sparkta_syntax, rclass
         file close `fh'
     }
     return scalar new = `new'
+    return scalar old360 = `old360'
 end

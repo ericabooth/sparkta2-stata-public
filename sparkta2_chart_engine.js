@@ -23,6 +23,17 @@
      data-table panel, animate-on-view (IntersectionObserver), per-row
      tooltipvars table.
 
+   v0.8.11: default look changed -- the default categorical palette is
+     the neutral tableau10 (d3.schemeTableau10), extended by interpolation
+     past ten categories; the authors' house palette is used only for
+     scheme(tx2036).
+   v0.8.11: bar2 draws negative values from a zero line (single-series
+     and grouped; a diverging scheme colours bars by sign); bar2 over()
+     legends wrap onto extra rows (with a "+N more" entry past six rows)
+     and the plot moves down to make room; more than nine over() groups
+     no longer start near white; vertical category labels thin out past
+     30 categories; wrapped labels break a word too long for the gutter.
+
    v0.8.0: render() is re-entrant for dashtab() tab switching -- each call
      first stops the previous render's barrace playback timer and
      disconnects any still-pending animate-on-view IntersectionObserver
@@ -85,10 +96,33 @@
   function labelFill(hex) { return luminance(hex) > 0.55 ? "#1f2937" : "#ffffff"; }
 
   // Palettes
+  // NEUTRAL_PALETTE is the default categorical palette (d3.schemeTableau10;
+  // the literal copy covers a d3 build that lacks it).  TX2036_PALETTE is the
+  // authors' house palette: opt-in only, through scheme(tx2036).
+  var NEUTRAL_PALETTE = (d3.schemeTableau10 && d3.schemeTableau10.length === 10)
+    ? d3.schemeTableau10.slice()
+    : ["#4e79a7","#f28e2c","#e15759","#76b7b2","#59a14f",
+       "#edc949","#af7aa1","#ff9da7","#9c755f","#bab0ab"];
   var TX2036_PALETTE = ["#1B2D55","#D44500","#2B6CB0","#6C7A8D","#7A9D54",
                        "#A67B36","#9C5BA5","#3F8A8C","#C0392B","#F1A208"];
-  function seqScheme(name, k) {
+  var CAT_SCHEMES = { tableau10: NEUTRAL_PALETTE, tx2036: TX2036_PALETTE };
+  // Categorical palette of exactly n colors.  The first base.length colors
+  // are the palette itself; past that, each further round repeats the hues
+  // interpolated toward white (odd rounds) or black (even rounds), so every
+  // category keeps a distinct color instead of collapsing into one ramp.
+  function catPalette(base, n) {
+    n = Math.max(1, n || base.length);
+    return d3.range(n).map(function (i) {
+      var c = base[i % base.length];
+      var round = Math.floor(i / base.length);
+      if (round === 0) return c;
+      var t = Math.min(0.75, 0.25 + 0.2 * Math.floor((round - 1) / 2));
+      return d3.interpolateRgb(c, round % 2 === 1 ? "#ffffff" : "#000000")(t);
+    });
+  }
+  function seqScheme(name, k, lo) {
     k = k || 7;
+    lo = (lo == null) ? 0.15 : lo;
     var map = {
       blues: d3.schemeBlues, reds: d3.schemeReds, greens: d3.schemeGreens,
       oranges: d3.schemeOranges, purples: d3.schemePurples, greys: d3.schemeGreys
@@ -100,14 +134,16 @@
       blues: d3.interpolateBlues, reds: d3.interpolateReds, greens: d3.interpolateGreens,
       oranges: d3.interpolateOranges, purples: d3.interpolatePurples, greys: d3.interpolateGreys
     };
-    if (interp[name]) return d3.quantize(function (t) { return interp[name](0.15 + 0.85 * t); }, k);
+    if (interp[name]) return d3.quantize(function (t) { return interp[name](lo + (1 - lo) * t); }, k);
     if (name === "viridis") return d3.range(k).map(function (i) { return d3.interpolateViridis(i / (k - 1)); });
     if (name === "magma")   return d3.range(k).map(function (i) { return d3.interpolateMagma(i / (k - 1)); });
     if (name === "inferno") return d3.range(k).map(function (i) { return d3.interpolateInferno(i / (k - 1)); });
     if (name === "plasma")  return d3.range(k).map(function (i) { return d3.interpolatePlasma(i / (k - 1)); });
     if (name === "cividis") return d3.range(k).map(function (i) { return d3.interpolateCividis(i / (k - 1)); });
-    if (name === "tx2036")  return TX2036_PALETTE;
-    return d3.schemeBlues[k] || d3.quantize(function (t) { return d3.interpolateBlues(0.15 + 0.85 * t); }, k);
+    // Categorical schemes return at least the whole palette, so callers
+    // that index into it see the same colors whatever k they asked for.
+    if (CAT_SCHEMES[name]) return catPalette(CAT_SCHEMES[name], Math.max(k, CAT_SCHEMES[name].length));
+    return d3.schemeBlues[k] || d3.quantize(function (t) { return d3.interpolateBlues(lo + (1 - lo) * t); }, k);
   }
   function divScheme(name, k) {
     k = k || 9;
@@ -492,7 +528,7 @@
       var cy = pad + innerH / 2;
 
       // Color palette
-      var palette = seqScheme(meta.scheme || "tx2036", Math.max(3, data.length));
+      var palette = seqScheme(meta.scheme || "tableau10", Math.max(3, data.length));
       if (palette.length < data.length) {
         // Extend palette by interpolating
         var ext = d3.range(data.length).map(function (i) {
@@ -554,7 +590,7 @@
           .style("font-size", "20px").style("font-weight", 600).style("fill", "#1f2937")
           .attr("dy", "-.1em").text(fmt(total));
         centerG.append("text").attr("class", "label")
-          .style("font-size", "11px").style("fill", "#6c7a8d")
+          .style("font-size", "11px").style("fill", meta.tx2036style ? "#6c7a8d" : "#5f6368")
           .attr("dy", "1.2em").text("Total");
       }
 
@@ -608,24 +644,97 @@
       if (lwOverride > 0) leftMargin = lwOverride;
       else                 leftMargin = horiz ? (useWrappedLabels ? 300 : 160) : 64;
 
+      // over() groups, their colours and the legend come first, so the plot
+      // can start below however many legend rows the groups need.
+      var groups = [], color = null, legendRows = 1;
+      if (hasOver) {
+        data.forEach(function (d) { if (groups.indexOf(d.g) < 0) groups.push(d.g); });
+        // Past nine groups the scheme is interpolated; start it darker so
+        // the first groups are not near white.
+        var gPal = seqScheme(meta.scheme || "blues", Math.max(3, groups.length), groups.length > 9 ? 0.3 : 0.15);
+        if (gPal.length < groups.length) {
+          gPal = d3.range(groups.length).map(function (i) {
+            return d3.interpolateRgb(gPal[0], gPal[gPal.length - 1])(i / Math.max(1, groups.length - 1));
+          });
+        }
+        color = d3.scaleOrdinal().domain(groups).range(gPal);
+        // Legend rows wrap at the right edge; past six rows the rest are
+        // summarised as "+N more" (every group still has its tooltip).
+        var lg2 = svg.append("g").attr("class", "legend")
+          .attr("transform", "translate(" + leftMargin + "," + 6 + ")");
+        var legMaxW = Math.max(120, W - leftMargin - 24);
+        var legX2 = 0, legY2 = 0, MAXROWS = 6;
+        for (var gi = 0; gi < groups.length; gi++) {
+          var gN = groups[gi];
+          var row = lg2.append("g").attr("transform", "translate(" + legX2 + "," + legY2 + ")");
+          row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(gN)).attr("rx", 2);
+          var t = row.append("text").attr("x", 18).attr("y", 10).text(gN);
+          var bbox;
+          try { bbox = t.node().getBBox(); } catch (e) { bbox = { width: String(gN).length * 6 }; }
+          var itemW = 18 + bbox.width + 18;
+          if (legX2 > 0 && legX2 + itemW - 18 > legMaxW) {
+            // wrap: move this item to the start of a new row
+            if (legendRows === MAXROWS) {
+              row.remove();
+              lg2.append("text").attr("x", legX2).attr("y", legY2 + 10)
+                .text("+" + (groups.length - gi) + " more");
+              break;
+            }
+            legendRows++;
+            legX2 = 0; legY2 += 16;
+            row.attr("transform", "translate(0," + legY2 + ")");
+          }
+          legX2 += itemW;
+        }
+      }
+      var legendExtra = 16 * (legendRows - 1);
+
       var margin = horiz
-        ? { top: 24, right: 24, bottom: 36, left: leftMargin }
-        : { top: 24, right: 24, bottom: 60, left: leftMargin };
+        ? { top: 24 + legendExtra, right: meta.directlabels ? 48 : 24, bottom: 36, left: leftMargin }
+        : { top: 24 + legendExtra, right: 24, bottom: 60, left: leftMargin };
       var iw = W - margin.left - margin.right;
       var ih = H - margin.top  - margin.bottom;
       var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
       var entered;  // selection of bar rects, returned for animate
+      var zeroPos = null;  // where bars grow from, for the entry animation
+      // Past 30 categories a vertical bar chart labels every k-th one only.
+      function catAxis(scale) {
+        var ax = d3.axisBottom(scale);
+        if (cats.length > 30) {
+          var step = Math.ceil(cats.length / 30);
+          ax.tickValues(cats.filter(function (c, i) { return i % step === 0; }));
+        }
+        return ax;
+      }
 
       if (!hasOver) {
         // Simple single-series bar
         var palette = seqScheme(meta.scheme || "blues", 9);
         var color = palette[Math.floor(palette.length / 2)];
-        var scaleVal = d3.scaleLinear().nice()
-          .domain([0, d3.max(data, function (d) { return +d.x; }) || 1]);
+        // One series under the neutral categorical scheme: its first color.
+        if (meta.scheme === "tableau10") color = palette[0];
+        // Negative values grow left (or down) from a zero line.
+        var vMin = Math.min(0, d3.min(data, function (d) { return +d.x; }) || 0);
+        var vMax = Math.max(0, d3.max(data, function (d) { return +d.x; }) || 0);
+        if (vMin === 0 && vMax === 0) vMax = 1;
+        var scaleVal = d3.scaleLinear().domain([vMin, vMax]).nice();
+        var hasNeg = vMin < 0;
+        // With both signs and a diverging scheme, colour bars by sign.
+        var sch = (meta.scheme || "").toLowerCase();
+        var signCol = null;
+        var divInterp = { rdbu: d3.interpolateRdBu, brbg: d3.interpolateBrBG, puor: d3.interpolatePuOr,
+                          rdylbu: d3.interpolateRdYlBu, rdylgn: d3.interpolateRdYlGn };
+        if (hasNeg && divInterp[sch]) {
+          // negative from the scheme's first end (red in rdbu), positive
+          // from its other end (blue in rdbu)
+          signCol = { neg: divInterp[sch](0.15), pos: divInterp[sch](0.85) };
+        }
+        function barFill(d) { return signCol ? (+d.x < 0 ? signCol.neg : signCol.pos) : color; }
         if (horiz) {
           var yScale = d3.scaleBand().domain(cats).range([0, ih]).padding(0.18);
-          scaleVal.range([0, iw]);
+          // leave room left of the longest negative bar for its value label
+          scaleVal.range([hasNeg && meta.directlabels ? 44 : 0, iw]);
           if (useWrappedLabels) {
             // Hand-render wrapped labels instead of using d3.axisLeft, so
             // long survey-item names wrap to 2-3 lines and stay readable.
@@ -658,17 +767,25 @@
           g.append("g").attr("class", "axis")
             .attr("transform", "translate(0," + ih + ")")
             .call(d3.axisBottom(scaleVal).ticks(6));
+          var x0h = scaleVal(0);
+          zeroPos = x0h;
           entered = g.selectAll("rect.bar").data(data).enter().append("rect")
             .attr("class", "bar")
-            .attr("x", 0)
+            .attr("x", function (d) { return Math.min(x0h, scaleVal(+d.x)); })
             .attr("y", function (d) { return yScale(d.name); })
-            .attr("width",  function (d) { return scaleVal(+d.x); })
+            .attr("width",  function (d) { return Math.abs(scaleVal(+d.x) - x0h); })
             .attr("height", yScale.bandwidth())
-            .attr("fill", color);
+            .attr("fill", barFill);
+          if (hasNeg) {
+            g.append("line").attr("class", "zero-line")
+              .attr("x1", x0h).attr("x2", x0h).attr("y1", 0).attr("y2", ih)
+              .attr("stroke", "#64748b").attr("stroke-width", 1);
+          }
           if (meta.directlabels) {
             g.selectAll("text.dlab").data(data).enter().append("text")
               .attr("class", "label")
-              .attr("x", function (d) { return scaleVal(+d.x) + 5; })
+              .attr("x", function (d) { return +d.x < 0 ? scaleVal(+d.x) - 5 : scaleVal(+d.x) + 5; })
+              .attr("text-anchor", function (d) { return +d.x < 0 ? "end" : "start"; })
               .attr("y", function (d) { return yScale(d.name) + yScale.bandwidth() / 2; })
               .attr("dominant-baseline", "middle")
               .style("pointer-events", "none")
@@ -676,25 +793,33 @@
           }
         } else {
           var xScale = d3.scaleBand().domain(cats).range([0, iw]).padding(0.18);
-          scaleVal.range([ih, 0]);
+          // leave room below the deepest negative bar for its value label
+          scaleVal.range([hasNeg && meta.directlabels ? ih - 18 : ih, 0]);
           g.append("g").attr("class", "axis")
             .attr("transform", "translate(0," + ih + ")")
-            .call(d3.axisBottom(xScale))
+            .call(catAxis(xScale))
             .selectAll("text").attr("transform", "rotate(-20)").attr("text-anchor", "end");
           g.append("g").attr("class", "axis")
             .call(d3.axisLeft(scaleVal).ticks(6));
+          var y0v = scaleVal(0);
+          zeroPos = y0v;
           entered = g.selectAll("rect.bar").data(data).enter().append("rect")
             .attr("class", "bar")
             .attr("x", function (d) { return xScale(d.name); })
-            .attr("y", function (d) { return scaleVal(+d.x); })
+            .attr("y", function (d) { return Math.min(y0v, scaleVal(+d.x)); })
             .attr("width",  xScale.bandwidth())
-            .attr("height", function (d) { return ih - scaleVal(+d.x); })
-            .attr("fill", color);
+            .attr("height", function (d) { return Math.abs(y0v - scaleVal(+d.x)); })
+            .attr("fill", barFill);
+          if (hasNeg) {
+            g.append("line").attr("class", "zero-line")
+              .attr("x1", 0).attr("x2", iw).attr("y1", y0v).attr("y2", y0v)
+              .attr("stroke", "#64748b").attr("stroke-width", 1);
+          }
           if (meta.directlabels) {
             g.selectAll("text.dlab").data(data).enter().append("text")
               .attr("class", "label")
               .attr("x", function (d) { return xScale(d.name) + xScale.bandwidth() / 2; })
-              .attr("y", function (d) { return scaleVal(+d.x) - 5; })
+              .attr("y", function (d) { return +d.x < 0 ? scaleVal(+d.x) + 14 : scaleVal(+d.x) - 5; })
               .attr("text-anchor", "middle")
               .style("pointer-events", "none")
               .text(function (d) { return fmt(+d.x); });
@@ -708,17 +833,8 @@
         }).on("mouseleave", hideTip);
       }
       else {
-        // Grouped or stacked: data is long form { name, g, x }
-        // Build groups (over distinct values)
-        var groups = [];
-        data.forEach(function (d) { if (groups.indexOf(d.g) < 0) groups.push(d.g); });
-        var palette = seqScheme(meta.scheme || "blues", Math.max(3, groups.length));
-        if (palette.length < groups.length) {
-          palette = d3.range(groups.length).map(function (i) {
-            return d3.interpolateRgb(palette[0], palette[palette.length - 1])(i / Math.max(1, groups.length - 1));
-          });
-        }
-        var color = d3.scaleOrdinal().domain(groups).range(palette);
+        // Grouped or stacked: data is long form { name, g, x }; groups and
+        // their colours were set up with the legend above.
 
         // Reshape long -> wide for d3.stack
         var byCat = {};
@@ -774,7 +890,7 @@
             var xScale3 = d3.scaleBand().domain(cats).range([0, iw]).padding(0.18);
             var yScale3 = d3.scaleLinear().domain([0, maxV]).nice().range([ih, 0]);
             g.append("g").attr("class", "axis").attr("transform", "translate(0," + ih + ")")
-              .call(d3.axisBottom(xScale3))
+              .call(catAxis(xScale3))
               .selectAll("text").attr("transform", "rotate(-20)").attr("text-anchor", "end");
             g.append("g").attr("class", "axis").call(d3.axisLeft(yScale3).ticks(6)
               .tickFormat(normalize ? function (d) { return d + "%"; } : null));
@@ -809,25 +925,35 @@
         }
         else {
           // Grouped (side-by-side)
-          var maxV2 = d3.max(data, function (d) { return +d.x; }) || 1;
+          var maxV2 = Math.max(0, d3.max(data, function (d) { return +d.x; }) || 0);
+          var minV2 = Math.min(0, d3.min(data, function (d) { return +d.x; }) || 0);
+          if (maxV2 === 0 && minV2 === 0) maxV2 = 1;
           if (horiz) {
             var y0 = d3.scaleBand().domain(cats).range([0, ih]).padding(0.18);
             var y1 = d3.scaleBand().domain(groups).range([0, y0.bandwidth()]).padding(0.05);
-            var x1 = d3.scaleLinear().domain([0, maxV2]).nice().range([0, iw]);
+            var x1 = d3.scaleLinear().domain([minV2, maxV2]).nice().range([0, iw]);
+            var gx0 = x1(0);
+            zeroPos = gx0;
             g.append("g").attr("class", "axis").call(d3.axisLeft(y0));
             g.append("g").attr("class", "axis").attr("transform", "translate(0," + ih + ")")
               .call(d3.axisBottom(x1).ticks(6));
             entered = g.selectAll("rect.bar").data(data).enter().append("rect")
               .attr("class", "bar")
-              .attr("x", 0)
+              .attr("x", function (d) { return Math.min(gx0, x1(+d.x)); })
               .attr("y", function (d) { return y0(d.name) + y1(d.g); })
               .attr("height", y1.bandwidth())
-              .attr("width", function (d) { return x1(+d.x); })
+              .attr("width", function (d) { return Math.abs(x1(+d.x) - gx0); })
               .attr("fill", function (d) { return color(d.g); });
+            if (minV2 < 0) {
+              g.append("line").attr("class", "zero-line")
+                .attr("x1", gx0).attr("x2", gx0).attr("y1", 0).attr("y2", ih)
+                .attr("stroke", "#64748b").attr("stroke-width", 1);
+            }
             if (meta.directlabels) {
               g.selectAll("text.dlab").data(data).enter().append("text")
                 .attr("class", "label")
-                .attr("x", function (d) { return x1(+d.x) + 5; })
+                .attr("x", function (d) { return +d.x < 0 ? x1(+d.x) - 5 : x1(+d.x) + 5; })
+                .attr("text-anchor", function (d) { return +d.x < 0 ? "end" : "start"; })
                 .attr("y", function (d) { return y0(d.name) + y1(d.g) + y1.bandwidth() / 2; })
                 .attr("dominant-baseline", "middle")
                 .style("pointer-events", "none")
@@ -836,23 +962,30 @@
           } else {
             var x0 = d3.scaleBand().domain(cats).range([0, iw]).padding(0.18);
             var xg = d3.scaleBand().domain(groups).range([0, x0.bandwidth()]).padding(0.05);
-            var yg = d3.scaleLinear().domain([0, maxV2]).nice().range([ih, 0]);
+            var yg = d3.scaleLinear().domain([minV2, maxV2]).nice().range([ih, 0]);
+            var gy0 = yg(0);
+            zeroPos = gy0;
             g.append("g").attr("class", "axis").attr("transform", "translate(0," + ih + ")")
-              .call(d3.axisBottom(x0))
+              .call(catAxis(x0))
               .selectAll("text").attr("transform", "rotate(-20)").attr("text-anchor", "end");
             g.append("g").attr("class", "axis").call(d3.axisLeft(yg).ticks(6));
             entered = g.selectAll("rect.bar").data(data).enter().append("rect")
               .attr("class", "bar")
               .attr("x", function (d) { return x0(d.name) + xg(d.g); })
-              .attr("y", function (d) { return yg(+d.x); })
+              .attr("y", function (d) { return Math.min(gy0, yg(+d.x)); })
               .attr("width", xg.bandwidth())
-              .attr("height", function (d) { return ih - yg(+d.x); })
+              .attr("height", function (d) { return Math.abs(gy0 - yg(+d.x)); })
               .attr("fill", function (d) { return color(d.g); });
+            if (minV2 < 0) {
+              g.append("line").attr("class", "zero-line")
+                .attr("x1", 0).attr("x2", iw).attr("y1", gy0).attr("y2", gy0)
+                .attr("stroke", "#64748b").attr("stroke-width", 1);
+            }
             if (meta.directlabels) {
               g.selectAll("text.dlab").data(data).enter().append("text")
                 .attr("class", "label")
                 .attr("x", function (d) { return x0(d.name) + xg(d.g) + xg.bandwidth() / 2; })
-                .attr("y", function (d) { return yg(+d.x) - 4; })
+                .attr("y", function (d) { return +d.x < 0 ? yg(+d.x) + 12 : yg(+d.x) - 4; })
                 .attr("text-anchor", "middle")
                 .style("pointer-events", "none")
                 .text(function (d) { return fmt(+d.x); });
@@ -865,22 +998,12 @@
             showTip(lines.join("<br/>"), ev);
           }).on("mouseleave", hideTip);
         }
-        // Legend (measured spacing, so long series names never overlap)
-        var lg2 = svg.append("g").attr("class", "legend")
-          .attr("transform", "translate(" + (margin.left) + "," + 6 + ")");
-        var legX2 = 0;
-        groups.forEach(function (gN) {
-          var row = lg2.append("g").attr("transform", "translate(" + legX2 + ",0)");
-          row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color(gN)).attr("rx", 2);
-          var t = row.append("text").attr("x", 18).attr("y", 10).text(gN);
-          var bbox;
-          try { bbox = t.node().getBBox(); } catch (e) { bbox = { width: String(gN).length * 6 }; }
-          legX2 += 18 + bbox.width + 18;
-        });
       }
 
-      // Entry animation: bars grow from zero
+      // Entry animation: bars grow from zero (the zero line when the
+      // values have both signs)
       var fromAttr = horiz ? { width: 0 } : { height: 0, y: ih };
+      if (zeroPos != null) fromAttr = horiz ? { width: 0, x: zeroPos } : { height: 0, y: zeroPos };
       return [{ selection: entered, fromAttr: fromAttr, finalAttr: {}, duration: 700, stagger: 40 }];
     }
 
@@ -1203,7 +1326,7 @@
       if (meta.directlabels) {
         svg.append("text").attr("class", "label")
           .attr("x", W - margin.right + 4).attr("y", margin.top - 12)
-          .attr("text-anchor", "start").style("font-size", "10px").style("fill", "#6c7a8d")
+          .attr("text-anchor", "start").style("font-size", "10px").style("fill", meta.tx2036style ? "#6c7a8d" : "#5f6368")
           .text("Net (+/−)");
       }
 
@@ -1258,6 +1381,28 @@
       var lineHeight = 1.1;
       var x = +text.attr("x") || 0;
       text.text(null);
+
+      // A single word wider than the gutter would run off the left edge:
+      // break it into pieces that fit, at character boundaries.
+      var probeW = text.append("tspan").attr("x", x);
+      var split = [];
+      words.forEach(function (w) {
+        probeW.text(w);
+        if (w.length < 2 || probeW.node().getComputedTextLength() <= maxPx) { split.push(w); return; }
+        var rest = w;
+        while (rest.length) {
+          var lo = 1, hi = rest.length;
+          while (lo < hi) {
+            var mid = Math.ceil((lo + hi) / 2);
+            probeW.text(rest.slice(0, mid));
+            if (probeW.node().getComputedTextLength() <= maxPx) lo = mid; else hi = mid - 1;
+          }
+          split.push(rest.slice(0, lo));
+          rest = rest.slice(lo);
+        }
+      });
+      probeW.remove();
+      words = split;
 
       // Greedy line-fill using a hidden probe tspan so getComputedTextLength
       // can measure as we add words.
@@ -1319,7 +1464,7 @@
       var topN = Math.max(3, +meta.top || 12);
 
       // Color palette: stable per category by hash-pick from a sequential.
-      var pal = seqScheme(meta.scheme || "tx2036", Math.max(10, allCats.length));
+      var pal = seqScheme(meta.scheme || "tableau10", Math.max(10, allCats.length));
       var color = d3.scaleOrdinal().domain(allCats).range(pal);
 
       // Time-display element

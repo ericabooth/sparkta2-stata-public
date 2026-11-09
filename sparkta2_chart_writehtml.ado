@@ -1,4 +1,7 @@
-*! sparkta2_chart_writehtml v0.8.10  2026-11-09
+*! sparkta2_chart_writehtml v0.8.11  2026-11-09
+*! v0.8.11 2026-11-09: no "(file ... not found)" note when the export file is new.
+*!   Default look changed: neutral page colors; the house colors and
+*!   Montserrat are written only with tx2036style.
 *! v0.8.10 2026-11-09: title, subtitle and note are HTML-escaped the same way;
 *!   meta strings and tab labels are JSON-escaped for the inline script block.
 *! v0.8.6 2026-11-08: option names now read the same on every Stata version.
@@ -17,7 +20,7 @@
 *!   tooltipvars is variable metadata only, so one shared tipjson file is
 *!   re-appended into every tab's cfg.
 *!
-*! Mirrors the page structure of sparkta2_writehtml.ado (Texas 2036 brand
+*! Mirrors the page structure of sparkta2_writehtml.ado (page color
 *! tokens, Export menu CSS, datatable CSS, print stylesheet) but omits the
 *! map-specific machinery (topojson, hexbin, projection, layer selection)
 *! since the chart engine doesn't need any of it.
@@ -79,22 +82,29 @@ program define sparkta2_chart_writehtml
     }
 
     tempname fh
-    file open `fh' using `"`export'"', write text replace
+    quietly file open `fh' using `"`export'"', write text replace
 
     file write `fh' `"<!DOCTYPE html>"' _n
     file write `fh' `"<html lang="en"><head>"' _n
     file write `fh' `"<meta charset="utf-8">"' _n
     file write `fh' `"<meta name="viewport" content="width=device-width, initial-scale=1">"' _n
     file write `fh' `"<title>`esc_title'</title>"' _n
-    * tx2036style: Montserrat from Google Fonts (Texas 2036 brand body font).
+    * tx2036style (opt-in house style): Montserrat from Google Fonts.  The
+    * font-family stack below falls back to system fonts if it cannot load.
     if `istx2036style' {
         file write `fh' `"<link rel="preconnect" href="https://fonts.googleapis.com">"' _n
         file write `fh' `"<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>"' _n
         file write `fh' `"<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">"' _n
     }
     file write `fh' `"<style>"' _n
-    * Texas 2036 brand tokens (matches the map writehtml)
-    file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
+    * Page color tokens: neutral by default; the authors' house colors
+    * only with tx2036style.
+    if `istx2036style' {
+        file write `fh' `":root{--ink:#1B2D55;--accent:#D44500;--link:#2B6CB0;--bg:#F5F7FA;--muted:#6C7A8D;--card:#ffffff;--line:#e2e8f0;}"' _n
+    }
+    else {
+        file write `fh' `":root{--ink:#202124;--accent:#1a73e8;--link:#1a73e8;--bg:#f8f9fa;--muted:#5f6368;--card:#ffffff;--line:#e2e8f0;}"' _n
+    }
     if `istx2036style' {
         file write `fh' `"*{box-sizing:border-box;}body{margin:0;font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-weight:400;letter-spacing:-0.005em;}"' _n
         file write `fh' `"h1{font-weight:700;letter-spacing:-0.01em;}"' _n
