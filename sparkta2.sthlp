@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.8  09nov2026}{...}
+{* *! version 0.8.9  09nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -152,10 +152,17 @@ reads the installed sparkta's version and writes the call the way that version
 expects, so the same do-file runs with either.  It also translates the box and
 violin names that 3.6.1 renamed ({cmd:hbox}/{cmd:hboxplot},
 {cmd:hviolin}/{cmd:hviolinplot}).  With no type, the call goes to sparkta's
-default bar chart.  {cmd:type(donut)} uses the {cmd:sparkta2} D3 donut unless you
-add a sparkta-only donut option ({cmd:cutout()}, {cmd:rotation()},
+default bar chart.  {cmd:type(donut)} uses the {cmd:sparkta2} D3 donut (one
+slice per row of {cmd:name()}) unless you use {cmd:over()} without {cmd:name()}
+or add a sparkta-only donut option ({cmd:cutout()}, {cmd:rotation()},
 {cmd:circumference()}, {cmd:sliceborder()}, {cmd:hoveroffset()},
-{cmd:pielabels}), which sends it to sparkta.  To force one syntax, set
+{cmd:pielabels}, abbreviations included); those calls go to sparkta's donut.
+{cmd:sparkta2} leaves {cmd:r()} and {cmd:e()} as it found them, so
+{cmd:marginsplot}, {cmd:eventstudy}, and {cmd:matrix(r(table))} work after
+{cmd:margins} or {cmd:estat}.  When the first word is both a chart type and a
+variable name (for example {cmd:area}), it is read as a variable if you also
+give {cmd:type()}, and as the chart type otherwise.  A relative
+{cmd:export()} path is passed to sparkta as a full path in the working folder.  To force one syntax, set
 {cmd:global sparkta2_sparkta_syntax new} or {cmd:old}.
 {p_end}
 

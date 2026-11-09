@@ -181,6 +181,8 @@ program define sparkta2_map, rclass
         else           local type "choropleth"
     }
     if "`type'" == "univariate" local type "choropleth"
+    if "`type'" == "point"        local type "points"
+    if "`type'" == "bivariatemap" local type "bivariate"
 
     * type validation
     local _valid_types "bivariate choropleth hexbin points"
