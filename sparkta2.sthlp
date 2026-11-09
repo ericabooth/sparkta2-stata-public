@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.7  09nov2026}{...}
+{* *! version 0.8.8  09nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -135,10 +135,28 @@ Native charts (handled by sparkta2 directly, v0.7.0+):
 {p_end}
 
 {p 8 16 2}
-Other charts (forwarded verbatim to sparkta):
+Other charts (handed to sparkta, in the syntax the installed sparkta expects):
+{p_end}
+{p 8 16 2}
+{cmd:sparkta2} {it:charttype} {it:varlist} [{cmd:,} {it:sparkta_options}]
 {p_end}
 {p 8 16 2}
 {cmd:sparkta2} {it:varlist} {cmd:,} {cmd:type(}{it:charttype}{cmd:)} [{it:sparkta_options}]
+{p_end}
+{p 8 8 2}
+Either form works for every chart type, and for the map and native types too
+(for example {cmd:sparkta2 choropleth} {it:var}{cmd:, id(fips)}).  sparkta 3.6.1
+(GitHub, October 2026) takes the type as its first word, {cmd:sparkta scatter y x};
+earlier versions, including the one on SSC, take {cmd:type()}.  {cmd:sparkta2}
+reads the installed sparkta's version and writes the call the way that version
+expects, so the same do-file runs with either.  It also translates the box and
+violin names that 3.6.1 renamed ({cmd:hbox}/{cmd:hboxplot},
+{cmd:hviolin}/{cmd:hviolinplot}).  With no type, the call goes to sparkta's
+default bar chart.  {cmd:type(donut)} uses the {cmd:sparkta2} D3 donut unless you
+add a sparkta-only donut option ({cmd:cutout()}, {cmd:rotation()},
+{cmd:circumference()}, {cmd:sliceborder()}, {cmd:hoveroffset()},
+{cmd:pielabels}), which sends it to sparkta.  To force one syntax, set
+{cmd:global sparkta2_sparkta_syntax new} or {cmd:old}.
 {p_end}
 
 {p 8 16 2}
@@ -1092,6 +1110,9 @@ very long labels you want cleanly truncated for grid embeds
 
 {dlgtab:10. Chart pass-through to sparkta}
 
+{phang}{cmd}sparkta2 scatter poverty_rate uninsured_rate,                  ///{p_end}
+{phang}{cmd}    fit(lfit) fitci offline export("10_scatter.html"){p_end}
+{phang}{cmd}* the classic form gives the same page:{p_end}
 {phang}{cmd}sparkta2 poverty_rate uninsured_rate,                          ///{p_end}
 {phang}{cmd}    type(scatter) fit(lfit) fitci offline                      ///{p_end}
 {phang}{cmd}    export("10_scatter.html"){p_end}

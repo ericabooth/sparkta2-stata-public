@@ -20,6 +20,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.8** (2026-11-09). Works with sparkta 3.6.1, which takes the chart type as its first word (`sparkta scatter y x`): `sparkta2` accepts that form and the classic `type()` form for every chart and map type, and writes the hand-off in whichever syntax the installed sparkta uses. Also fixed in the dispatcher: a call with no type went to the map code ("option id() required") instead of sparkta's default bar; text such as a title containing `type(` was read as the chart type; the `ty()` abbreviation was not recognized; and sparkta's own donut options were rejected.
+
 **v0.8.7** (2026-11-09). Maps classify every value again by default: the zero handling added for capacity maps (breaks from positive values only, zeros in grey, a "No capacity" legend key) is now the opt-in `zeroneutral` option, with `zerolabel("No capacity")` for the legend text. Before this, every map treated zero as "none" and lumped negative values into the lowest class. Charts no longer draw blank when a named d3 scheme (blues, reds, ...) needs more than 9 colors, which affected `type(barrace)` with its default colors and donuts or over() groups with more than 9 categories. v0.8.6 (2026-11-08) made option names read the same on every Stata version (older Stata rejected `tx2036style`).
 
 **v0.8.1** (2026-08-12). Classification control, label-aware legends, map furniture, overlay styling — and a Windows/cloud-drive robustness fix. See [What's new in v0.8.1](#whats-new-in-v081-2026-08-12).
@@ -504,9 +506,15 @@ sparkta2 frpl_pct100,                                          ///
 ### Chart pass-through to sparkta
 
 ```stata
+* sparkta 3.6.1 style: the chart type first
+sparkta2 scatter poverty_rate uninsured_rate, fit(lfit) fitci
+sparkta2 bar poverty_rate uninsured_rate, over(region_n) stat(mean)
+
+* classic style: type() as an option (still works)
 sparkta2 poverty_rate uninsured_rate, type(scatter) fit(lfit) fitci
-sparkta2 poverty_rate uninsured_rate, type(bar) over(region_n) stat(mean)
 ```
+
+sparkta 3.6.1 (GitHub, October 2026) changed its syntax so the chart type is the first word (`sparkta scatter y x`); the SSC release and earlier versions use `type()`. `sparkta2` accepts either form for every type, reads the installed sparkta's version, and writes the call the way that version expects, so one do-file runs with both. It also translates the renamed box and violin types (`hbox` and `hboxplot`, `hviolin` and `hviolinplot`). A call with no type goes to sparkta's default bar chart. `type(donut)` stays the sparkta2 D3 donut unless you add a sparkta-only donut option (`cutout()`, `rotation()`, `circumference()`, `sliceborder()`, `hoveroffset()`, `pielabels`). To force one syntax: `global sparkta2_sparkta_syntax new` (or `old`).
 
 ## Folder layout
 

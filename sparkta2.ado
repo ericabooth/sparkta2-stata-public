@@ -1,4 +1,8 @@
-*! sparkta2 v0.8.7  2026-11-09
+*! sparkta2 v0.8.8  2026-11-09
+*!
+*! New in 0.8.8: works with sparkta 3.6.1's syntax (type as the first word);
+*!   both forms accepted for every type, hand-off written for the installed
+*!   sparkta; dispatcher fixes (no type, type( inside text, ty(), donut).
 *!
 *! New in 0.8.7: map zero handling is opt-in (zeroneutral, zerolabel());
 *!   named d3 schemes interpolate past 9 classes, so barrace and large
@@ -100,49 +104,117 @@ program define sparkta2
     sparkta2_version
     display as text "  [sparkta2 v`r(version)']"
 
-    * Peek at user-supplied type() without consuming any args.
-    * If it's a map type, dispatch to sparkta2_map. Otherwise forward to sparkta.
-    local _raw `"`0'"'
-    local _peek_type ""
-    local _lc = lower(`"`_raw'"')
-    local _pos = strpos(`"`_lc'"', "type(")
-    if `_pos' > 0 {
-        local _rest = substr(`"`_raw'"', `_pos' + 5, .)
-        local _endpos = strpos(`"`_rest'"', ")")
-        if `_endpos' > 0 {
-            local _peek_type = lower(strtrim(substr(`"`_rest'"', 1, `_endpos' - 1)))
-        }
-    }
+    * Chart types sparkta2 draws itself, and the types sparkta draws.  sparkta
+    * 3.6.1 renamed hbox/hviolin to hboxplot/hviolinplot; both spellings are
+    * accepted here and translated for whichever sparkta is installed.
+    local _map_types    "map bivariate choropleth bivariatemap univariate hexbin points point"
+    local _native_types "donut divbar barrace bar2 line2"
+    local _sk_types     "bar line scatter pie hbar stackedbar stackedhbar stackedarea area bubble stackedline cibar ciline histogram stackedbar100 stackedhbar100 boxplot violin hboxplot hviolinplot hbox hviolin coefplot eventstudy marginsplot"
+    local _all_types    "`_map_types' `_native_types' `_sk_types'"
 
-    local _map_types          "map bivariate choropleth bivariatemap univariate hexbin points point"
-    local _native_chart_types "donut divbar barrace bar2 line2"
-    if `:list _peek_type in _map_types' {
-        sparkta2_map `0'
+    * Form 1 (sparkta 3.6.1 style): the type is the first word,
+    *     sparkta2 scatter price mpg, ...
+    * Form 2 (classic): the type is an option,
+    *     sparkta2 price mpg, type(scatter) ...
+    local _lead ""
+    gettoken _first _rest : 0, parse(" ,")
+    local _first_l = lower(`"`_first'"')
+    if `"`_first_l'"' != "" & `: list _first_l in _all_types' {
+        local _lead "`_first_l'"
+        local 0 `"`_rest'"'
+    }
+    syntax [anything(everything)] [, TYpe(string) *]
+    local type = lower(strtrim(`"`type'"'))
+    if "`_lead'" != "" & "`type'" != "" & "`_lead'" != "`type'" {
+        display as error "sparkta2: the chart type is given twice (`_lead' and type(`type'))."
+        exit 198
+    }
+    if "`type'" == "" local type "`_lead'"
+
+    * sparkta-only donut options send type(donut) to sparkta's Chart.js donut
+    * instead of sparkta2's D3 donut.
+    if "`type'" == "donut" & regexm(lower(`" `options'"'), "[ ](cutout|rotation|circumference|sliceborder|hoveroffset)[(]|[ ]pielabels") {
+        local _to_sparkta 1
+    }
+    else local _to_sparkta 0
+
+    if `"`options'"' != "" local _opts `", `options'"'
+    else                    local _opts ""
+
+    if "`type'" != "" & `: list type in _map_types' {
+        sparkta2_map `anything', type(`type') `options'
         exit
     }
-    if `:list _peek_type in _native_chart_types' {
-        sparkta2_chart `0'
+    if "`type'" != "" & `: list type in _native_types' & !`_to_sparkta' {
+        sparkta2_chart `anything', type(`type') `options'
         exit
     }
 
-    * dashtab() cannot ride through to sparkta: the pass-through is verbatim,
-    * so there is nowhere to split the data into tabs.  Point at the
-    * dashboard's tabbed layout, which composes any per-level files.
-    if strpos(lower(`"`_raw'"'), "dashtab(") > 0 {
+    * dashtab() cannot ride through to sparkta: the data never pass through
+    * sparkta2's renderer, so there is nowhere to split them into tabs.
+    if strpos(lower(`"`options'"'), "dashtab(") > 0 {
         display as error "sparkta2: dashtab() works with sparkta2-native types only (maps + donut|divbar|barrace|bar2|line2)."
-        display as error "  For sparkta pass-through charts, write one file per level and combine:"
+        display as error "  For sparkta charts, write one file per level and combine:"
         display as error `"    sparkta2_dashboard, files("lvl1.html lvl2.html") titles("Level 1|Level 2") tabs export(combined.html)"'
         exit 198
     }
 
     capture which sparkta
     if _rc {
-        display as error "sparkta2: type(`_peek_type') needs sparkta.ado to be installed."
+        display as error "sparkta2: type(`type') needs sparkta.ado to be installed."
         display as error "  Install sparkta first (https://github.com/fahad-mirza/sparkta_stata)"
         display as error "  or use a sparkta2-native type:"
         display as error "    Maps:   map | bivariate | choropleth | hexbin | points"
         display as error "    Charts: donut | divbar | barrace | bar2 | line2"
         exit 199
     }
-    sparkta `0'
+
+    * Write the call in the syntax the installed sparkta expects.
+    _sk2_sparkta_syntax
+    if r(new) {
+        * 3.6.1+: sparkta <type> varlist, options   (type required for a chart)
+        if "`type'" == "hbox"    local type "hboxplot"
+        if "`type'" == "hviolin" local type "hviolinplot"
+        if "`type'" == "" & `"`anything'"' != "" local type "bar"
+        sparkta `type' `anything' `_opts'
+    }
+    else {
+        * up to 3.6.0: sparkta varlist, type(<type>) options
+        if "`type'" == "hboxplot"    local type "hbox"
+        if "`type'" == "hviolinplot" local type "hviolin"
+        if "`type'" != "" local _opts `", type(`type') `options'"'
+        sparkta `anything' `_opts'
+    }
+end
+
+* Does the installed sparkta take the type as its first word (3.6.1 and
+* later) or as type()?  Read the version from its header; the global
+* sparkta2_sparkta_syntax ("new" or "old") overrides the detection.
+program define _sk2_sparkta_syntax, rclass
+    if lower("$sparkta2_sparkta_syntax") == "new" {
+        return scalar new = 1
+        exit
+    }
+    if lower("$sparkta2_sparkta_syntax") == "old" {
+        return scalar new = 0
+        exit
+    }
+    local new 0
+    quietly findfile sparkta.ado
+    tempname fh
+    file open `fh' using `"`r(fn)'"', read text
+    forvalues i = 1/40 {
+        file read `fh' line
+        if r(eof) continue, break
+        if regexm(`"`macval(line)'"', "sparkta version ([0-9]+)[.]([0-9]+)[.]([0-9]+)") {
+            * compare major, minor, patch in turn (3.5.111 is older than 3.6.1)
+            local M = real(regexs(1))
+            local m = real(regexs(2))
+            local p = real(regexs(3))
+            if `M' > 3 | (`M' == 3 & `m' > 6) | (`M' == 3 & `m' == 6 & `p' >= 1) local new 1
+            continue, break
+        }
+    }
+    file close `fh'
+    return scalar new = `new'
 end
