@@ -177,14 +177,20 @@ program define sparkta2_findfile, rclass
         }
         local was = cond("`have'" == "", "an earlier release", "v`have'")
         if `fixed' {
-            noisily display as text "  sparkta2: `file' at `found' is from `was';"
-            noisily display as text "            using the v`adover' copy in `cache'"
+            if "`found'" == "`cache'`file'" {
+                display as text "  sparkta2: replaced `file' from `was' with the v`adover' file"
+                display as text "            in `cache'"
+            }
+            else {
+                display as text "  sparkta2: `file' at `found' is from `was';"
+                display as text "            using the v`adover' copy in `cache'"
+            }
         }
         else {
-            noisily display as text "  sparkta2 note: `file' is from `was', but sparkta2 is v`adover',"
-            noisily display as text "    and a matching copy could not be downloaded.  Some options may"
-            noisily display as text "    not draw as documented.  File in use: `found'"
-            noisily display as text `"    To fix, connect once and rerun, or: net get sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/") replace"'
+            display as text "  sparkta2 note: `file' is from `was', but sparkta2 is v`adover',"
+            display as text "    and a matching copy could not be downloaded.  Some options may"
+            display as text "    not draw as documented.  File in use: `found'"
+            display as text `"    To fix, connect once and rerun, or: net get sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/") replace"'
         }
     }
 

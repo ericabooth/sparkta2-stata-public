@@ -1,4 +1,7 @@
-*! sparkta2_map v0.8.11  2026-11-09
+*! sparkta2_map v0.8.12  2026-11-10
+*! v0.8.12 2026-11-10: sparkta2_findfile's messages (first-use downloads, an
+*!         engine file replaced after an upgrade) are shown for maps as they
+*!         already were for charts; they were suppressed before.
 *! v0.8.11 2026-11-09: numbers are written with a period decimal point
 *!   under -set dp comma- (dp is restored afterwards, also after an error)
 *!   and with 15 significant digits for doubles (_s2m_num), so large values
@@ -569,7 +572,10 @@ program define sparkta2_map, rclass
 
     * ---- Resolve engine + per-tab geography assets ------------------------
     forvalues _t = 1/`_ntabs' {
-        quietly sparkta2_findfile, geo("`_tgeo_`_t''")
+        * Show sparkta2_findfile's messages (downloads, an engine replaced
+        * after an upgrade) for the first tab; later tabs would repeat them.
+        if `_t' == 1 sparkta2_findfile, geo("`_tgeo_`_t''")
+        else quietly sparkta2_findfile, geo("`_tgeo_`_t''")
         local _ttopo_`_t' "`r(topopath)'"
         if `_t' == 1 {
             local engpath "`r(engpath)'"
