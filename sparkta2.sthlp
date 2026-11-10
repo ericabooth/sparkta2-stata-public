@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.11  09nov2026}{...}
+{* *! version 0.8.12  10nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -41,6 +41,19 @@ The new D3-native versions are exposed as {cmd:type(bar2)} and
 {cmd:type(line2)}, which inherit the Export menu, {cmd:datatable}, and
 {cmd:animate} but take simpler input (one numeric var with {cmd:name()},
 optional {cmd:over()} for grouping/stacking).
+
+{pstd}
+{bf:New in v0.8.12.}  Upgrading no longer leaves the previous release's
+engine in use.  {cmd:net install, replace} updates the ado files but not the
+two engine files ({cmd:sparkta2_engine.js} and
+{cmd:sparkta2_chart_engine.js}), so an upgraded install drew with the older
+engine and newer options could fail without a message.  Each engine file now
+states its version, and {cmd:sparkta2} checks it on every call.  A copy from
+another release is replaced by the current one, which is downloaded once
+into {cmd:PLUS/s/sparkta2/}, and a short note reports the change.  If the
+current file cannot be downloaded, {cmd:sparkta2} uses the copy it found and
+prints a note with the fix.  A {cmd:global sparkta2_remote_base} override is
+used for this download as well.
 
 {pstd}
 {bf:New in v0.8.11.}  Maps and charts stay valid under {cmd:set dp comma}

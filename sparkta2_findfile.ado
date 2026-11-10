@@ -1,4 +1,11 @@
-*! sparkta2_findfile v0.5.0  2026-08-11
+*! sparkta2_findfile v0.6.0  2026-11-10
+*! v0.6.0: the two engine files carry a version on their first line, and it
+*!         must equal the ado version.  -net install, replace- updates the
+*!         ado files but not .js files, so an upgraded install kept drawing
+*!         with the engine from the older release and said nothing.  An
+*!         engine that does not match is now replaced by a current copy in
+*!         PLUS/s/sparkta2/ (downloaded if needed); if no current copy can
+*!         be had, the old one is used and a note says so.
 *! Locate engine + asset files for sparkta2 maps and charts. Auto-downloads
 *! from the configured GitHub mirror on first use when Stata's `net install'
 *! couldn't copy the .js / .topojson assets (it only copies recognised
@@ -124,6 +131,63 @@ program define sparkta2_findfile, rclass
         }
     }
 
+    * Version check on the two engine files.  Each carries the release it
+    * belongs to on its first line.  A copy from another release (left by an
+    * upgrade, or by an old -net get- into the working folder) is replaced by
+    * the cached copy if that one is current, or by a fresh download.
+    sparkta2_version
+    local adover "`r(version)'"
+    local cache "`plus's/sparkta2/"
+    local checks ""
+    if `wantmap'   local checks "`checks' eng:`engfile'"
+    if `wantchart' local checks "`checks' chart:`chartfile'"
+    foreach pair of local checks {
+        local key  = substr("`pair'", 1, strpos("`pair'", ":") - 1)
+        local file = substr("`pair'", strpos("`pair'", ":") + 1, .)
+        if "``key'path'" == "" continue
+        mata: sparkta2_ff_marker(st_local("`key'path"), "have")
+        if "`have'" == "`adover'" continue
+        local found "``key'path'"
+        * a current copy already in the cache?
+        local fixed 0
+        capture confirm file "`cache'`file'"
+        if !_rc & "`found'" != "`cache'`file'" {
+            mata: sparkta2_ff_marker(st_local("cache") + st_local("file"), "cv")
+            if "`cv'" == "`adover'" {
+                local `key'path "`cache'`file'"
+                local fixed 1
+            }
+        }
+        * otherwise download one, check it, and only then put it in the cache
+        if !`fixed' {
+            tempfile fresh
+            capture copy "`remote_base'`file'" "`fresh'", replace
+            if !_rc {
+                mata: sparkta2_ff_marker(st_local("fresh"), "nv")
+                if "`nv'" == "`adover'" {
+                    capture mkdir "`plus's"
+                    capture mkdir "`cache'"
+                    capture copy "`fresh'" "`cache'`file'", replace
+                    if !_rc {
+                        local `key'path "`cache'`file'"
+                        local fixed 1
+                    }
+                }
+            }
+        }
+        local was = cond("`have'" == "", "an earlier release", "v`have'")
+        if `fixed' {
+            noisily display as text "  sparkta2: `file' at `found' is from `was';"
+            noisily display as text "            using the v`adover' copy in `cache'"
+        }
+        else {
+            noisily display as text "  sparkta2 note: `file' is from `was', but sparkta2 is v`adover',"
+            noisily display as text "    and a matching copy could not be downloaded.  Some options may"
+            noisily display as text "    not draw as documented.  File in use: `found'"
+            noisily display as text `"    To fix, connect once and rerun, or: net get sparkta2, from("https://raw.githubusercontent.com/ericabooth/sparkta2-stata-public/main/") replace"'
+        }
+    }
+
     * Requirements depend on what was asked for: maps need the topo layer,
     * map engine, d3, and topojson-client; charts need the chart engine and d3.
     local short 0
@@ -153,4 +217,26 @@ program define sparkta2_findfile, rclass
     return local d3path    "`d3path'"
     return local tcpath    "`tcpath'"
     return local hxpath    "`hxpath'"
+end
+
+version 17.0
+mata:
+// Read the release number from the first line of an engine file into the
+// caller's local macro.  Empty when the file has no such line (engines
+// shipped before v0.8.12) or cannot be opened.
+void sparkta2_ff_marker(string scalar path, string scalar lname)
+{
+    real scalar fh
+    string matrix line
+
+    st_local(lname, "")
+    fh = _fopen(path, "r")
+    if (fh < 0) return
+    line = fget(fh)
+    fclose(fh)
+    if (rows(line) == 0) return
+    if (regexm(line, "sparkta2-engine ([0-9]+\.[0-9]+\.[0-9]+)")) {
+        st_local(lname, regexs(1))
+    }
+}
 end

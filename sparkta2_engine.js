@@ -1,3 +1,4 @@
+/* sparkta2-engine 0.8.12 -- sparkta2_findfile reads this line; it must match the ado version */
 /* sparkta2_engine.js -- D3 choropleth + bivariate + hexbin + points map engine
    Builds on:
      https://observablehq.com/@d3/bivariate-choropleth

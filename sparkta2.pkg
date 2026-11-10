@@ -14,6 +14,12 @@ d Neutral default colors and fonts; tx2036style and scheme(tx2036), an
 d internal house style used in the authors' own workflows, are off by
 d default.
 d
+d New in v0.8.12: an upgraded install no longer keeps the engine files of
+d the release it replaced.  net install, replace updates the ado files but
+d not the two engine .js files; sparkta2 now reads the version on the first
+d line of each engine file and replaces a copy that does not match, or
+d prints a note when it cannot download the current one.
+d
 d New in v0.8.11: maps and charts stay valid under set dp comma and keep
 d full precision for large values; bar2 draws negative values from a zero
 d line and wraps long over() legends; long divbar labels break instead of
@@ -65,7 +71,7 @@ d
 d Author: Eric A. Booth, Sr Researcher, Texas 2036
 d Support: eric.a.booth@gmail.com
 d
-d Distribution-Date: 20261109
+d Distribution-Date: 20261110
 d
 f sparkta2.ado
 f sparkta2_appendfile.ado

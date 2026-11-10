@@ -1,4 +1,13 @@
-*! sparkta2 v0.8.11  2026-11-09
+*! sparkta2 v0.8.12  2026-11-10
+*!
+*! New in 0.8.12: an upgrade no longer keeps the engine from the release
+*!   it replaced.  -net install, replace- updates the ado files but not the
+*!   two engine .js files, so maps and charts went on drawing with the old
+*!   engine and newer options could fail without a message.  Each engine
+*!   file now carries its version on the first line; sparkta2_findfile
+*!   compares it with the ado version and replaces a copy that does not
+*!   match (from PLUS/s/sparkta2/, downloading it if needed), or says so
+*!   when it cannot.
 *!
 *! New in 0.8.11: maps and charts stay valid under -set dp comma- and keep
 *!   full precision for large values; sparkta2_dashboard takes quoted paths

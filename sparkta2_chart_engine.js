@@ -1,3 +1,4 @@
+/* sparkta2-engine 0.8.12 -- sparkta2_findfile reads this line; it must match the ado version */
 /* sparkta2_chart_engine.js -- D3 v7 engine for native (non-map) sparkta2 chart types.
    Builds on:
      https://observablehq.com/@d3/bar-chart-race

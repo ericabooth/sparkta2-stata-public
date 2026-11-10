@@ -20,6 +20,8 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
 
+**v0.8.12** (2026-11-10). Upgrading no longer leaves the previous release's engine in use. `net install, replace` updates the ado files but not the two engine files (`sparkta2_engine.js`, `sparkta2_chart_engine.js`), so an install upgraded from an earlier version went on drawing with the older engine, and newer options could fail without a message. Each engine file now states its version on its first line, and `sparkta2` checks it on every call. A copy from another release is replaced by the current one (downloaded once into `sysdir PLUS/s/sparkta2/`), with a short note. If the current file cannot be downloaded, `sparkta2` uses the copy it found and prints a note with the fix. Regression battery: `test_sparkta2_enginecheck.do`.
+
 **v0.8.11** (2026-11-09). Maps and charts stay valid under `set dp comma` (numbers in the page always use a period, and your setting is restored), and large values keep their digits, so measures in the billions no longer collapse into ties. `bar2` draws negative values from a zero line, and a diverging `scheme()` such as `rdbu` colors the bars by sign. `bar2` `over()` legends wrap onto extra rows instead of running off the page, and many groups no longer start near white. Long `divbar` labels break instead of running off the left edge. `sparkta2_dashboard` takes quoted paths with spaces and writes each iframe path relative to the dashboard, so pages in other folders load. A leading `~` works in `rasterimage()` and when the page opens. Out-of-range `bins()` and unknown `scheme()` or `mode()` values print a note. The dispatcher rejects a repeated or multi-word `type()`, notes `type(map)` when `id()` is given without a type, says when `coefplot`/`eventstudy`/`marginsplot` need a newer sparkta, and lists duplicate sparkta installs when a sparkta call fails.
 
 **The default look changed in v0.8.11.** Pages and charts are now neutral by default: neutral page colors, system fonts, and the `tableau10` palette for `type(donut)`. Before, every page used the authors' house colors and donuts used the house palette. The house style is now opt-in only. To get the previous look, add `tx2036style scheme(tx2036)`. An unknown `scheme()` falls back to the neutral default with a note. See [Colors and the internal house style](#colors-and-the-internal-house-style).
@@ -206,6 +208,8 @@ help sparkta2
 ```
 
 Note that Stata's `net install` only copies recognised extensions (`.ado`, `.sthlp`, and friends); the bundled D3 / TopoJSON / d3-hexbin assets need to land next to the ado files for `findfile` to pick them up.  The package handles this automatically: on the first map **or chart** call, `sparkta2_findfile` checks `adopath` for the assets and, if any are missing, downloads them from this repository into `sysdir PLUS/s/sparkta2/`.  Subsequent calls reuse the cached copies. Override the source with `global sparkta2_remote_base "<your URL or local path, with trailing slash>"` before the first call (honored as of v0.7.9; earlier versions read the override from the wrong macro and ignored it).
+
+After an upgrade, `sparkta2` also checks that the two engine files belong to the installed version and replaces them if they do not (v0.8.12). If you copied the assets into a project folder with `net get` under an earlier version, run `net get` there again with `replace`, or delete the old `.js` files; until then `sparkta2` uses the current copies in `sysdir PLUS/s/sparkta2/` and prints a note.
 
 To place the assets yourself instead of waiting for the first-call download — on an air-gapped machine, say, or to pre-seed a shared install — `net get` them into the current directory:
 
@@ -588,6 +592,7 @@ sparkta2-stata-public/
 ├── texas_districts.geojson       # 1,016 NCES EDGE SY24-25 school districts
 ├── texas_county_demo.csv         # demo data (fips, county, poverty_rate, uninsured_rate)
 ├── test_sparkta2_v080.do         # regression battery (not in the package)
+├── test_sparkta2_enginecheck.do  # engine version check after an upgrade (not in the package)
 ├── test_helpfile_examples.do     # mirrors `help sparkta2` examples 1:1 (not in the package)
 ├── test_sparkta2_map.do          # county-level + US-state examples (not in the package)
 ├── test_sparkta2_nces.do         # school-district examples; needs your own district data

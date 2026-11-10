@@ -22,9 +22,13 @@
 *!     display "running `r(version)'"
 *!
 *! RELEASING
-*!     Change the string below.  Nothing else in the package carries a version
-*!     number that a user can see, so that one edit is the whole release.
+*!     Change the string below, and change the same number in the first
+*!     line of sparkta2_engine.js and sparkta2_chart_engine.js.
+*!     sparkta2_findfile compares those two lines with this string and
+*!     replaces an engine file that does not match, so a release that
+*!     forgets the .js lines makes every user re-download the engines.
+*!     test_sparkta2_enginecheck.do fails when the three numbers differ.
 program define sparkta2_version, rclass
     version 17.0
-    return local version "0.8.11"
+    return local version "0.8.12"
 end
