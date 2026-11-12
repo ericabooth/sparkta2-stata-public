@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.8.12  10nov2026}{...}
+{* *! version 0.8.13  12nov2026}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] sparkta" "help sparkta"}{...}
 {vieweralsosee "[R] spmap" "help spmap"}{...}
@@ -41,6 +41,18 @@ The new D3-native versions are exposed as {cmd:type(bar2)} and
 {cmd:type(line2)}, which inherit the Export menu, {cmd:datatable}, and
 {cmd:animate} but take simpler input (one numeric var with {cmd:name()},
 optional {cmd:over()} for grouping/stacking).
+
+{pstd}
+{bf:New in v0.8.13.}  Two fixes for maps that do not use the county file.
+{cmd:overlays()} with a variable now outlines the groups on a GeoJSON
+geography such as {cmd:geo(texas_districts)}; before, the overlay was
+skipped without a message and its checkbox did nothing.  A layer token
+({cmd:states}, {cmd:nation}) on a GeoJSON geography prints a note.  The
+default projection now follows the geography: Texas files other than the
+county file get the Texas-tuned projection, and any other custom geography
+gets an Albers projection centered on its own features, so these maps no
+longer lean unless {cmd:projection(albers_tx)} is given.  A map that set
+{cmd:projection()} is unchanged.
 
 {pstd}
 {bf:New in v0.8.12.}  Upgrading no longer leaves the previous release's
@@ -387,7 +399,7 @@ Stata option. The table below maps the option to the in-browser behavior.
 {synopt :{cmd:tx2036style}}{it:Internal house style, off by default.}  Switches the page colors to the authors' house colors, loads Montserrat from Google Fonts as the HTML body font, and tightens typography (heavy h1 weight, kerning).  SVG text stays on the system stack so {cmd:getComputedTextLength} measurements (used by divbar wrap, donut label suppression) stay stable across the async font load, and the page falls back to a system sans-serif if the font cannot load.  Add {cmd:scheme(tx2036)} on a native chart for the house palette as well.{p_end}
 {synopt :{cmd:wraplabel()}}Controls how long category labels render on {cmd:type(bar2)} (horizontal) and {cmd:type(divbar)}.  {cmd:auto} (default for bar2) wraps when the longest label exceeds ~28 characters.  {cmd:on} (default for divbar; aliased {cmd:wrap}) always wraps to a multi-line block.  {cmd:off} (aliased {cmd:truncate}) renders a single line and truncates with a Unicode ellipsis (...) when a label exceeds the gutter width.  No effect on the other chart types or on vertical bars.{p_end}
 {synopt :{cmd:gutterwidth()}}Override the left-margin width in pixels for the category-label gutter on horizontal {cmd:bar2} and on {cmd:divbar}.  Default depends on context: 160 (bar2 no-wrap), 300 (bar2 wrap), 300 (divbar).  Useful for tight grid embeds where you want to trade wrap fidelity for a narrower chart.{p_end}
-{synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, v0.7.8: rotate=[101.5,0], center=[0,31.5], parallels=[27.5,36.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); other geos default to {bf:albers_usa}.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} v0.7.8 retunes the {bf:albers_tx} preset so the panhandle's top edge renders horizontally flat (central meridian at the panhandle's longitudinal midpoint -101.5{c 176}; upper standard parallel at the panhandle latitude 36.5{c 176}).  The original v0.6.1 fix (rotate=[99,0], parallels=[27.5,35.5]) reduced the {bf:albers_usa} ~3.3{c 176} lean to ~1.3{c 176}; v0.7.8 takes it to ~0{c 176}.  Pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 composite look exactly, or {cmd:rotate(99) parallels(27.5 35.5)} on top of {cmd:projection(albers_tx)} to recover the v0.6.1 look.{p_end}
+{synopt :{cmd:projection()}}Picks the d3 projection.  Default is auto: {cmd:geo(texas)} and other Texas files such as {cmd:geo(texas_districts)} (any name that starts with {cmd:texas_} or {cmd:tx_}) -> {bf:albers_tx} (Texas-tuned d3.geoAlbers, v0.7.8: rotate=[101.5,0], center=[0,31.5], parallels=[27.5,36.5]); {cmd:geo(us)} or {cmd:layer(states|nation)} -> {bf:albers_usa} (the d3.geoAlbersUsa composite with AK/HI insets); any other geography gets an Albers projection centered on its own features (v0.8.13; before that, {bf:albers_usa}, which tilts a region away from the middle of the country), unless it spans most of the country, in which case {bf:albers_usa} is kept.  Explicit values: {bf:albers_usa}, {bf:albers_tx}, {bf:albers} (generic Albers — use with {cmd:rotate()}/{cmd:parallels()}/{cmd:center()} to tune), {bf:mercator}.  {bf:Note:} v0.7.8 retunes the {bf:albers_tx} preset so the panhandle's top edge renders horizontally flat (central meridian at the panhandle's longitudinal midpoint -101.5{c 176}; upper standard parallel at the panhandle latitude 36.5{c 176}).  The original v0.6.1 fix (rotate=[99,0], parallels=[27.5,35.5]) reduced the {bf:albers_usa} ~3.3{c 176} lean to ~1.3{c 176}; v0.7.8 takes it to ~0{c 176}.  Pass {cmd:projection(albers_usa)} to restore the pre-0.6.1 composite look exactly, or {cmd:rotate(99) parallels(27.5 35.5)} on top of {cmd:projection(albers_tx)} to recover the v0.6.1 look.{p_end}
 {synopt :{cmd:rotate() parallels() center()}}Numeric overrides applied on top of the chosen preset.  {cmd:rotate(}{it:lambda}{cmd:)} or {cmd:rotate(}{it:lambda phi}{cmd:)} sets the projection rotation in degrees.  {cmd:parallels(}{it:p1 p2}{cmd:)} sets the two Albers standard parallels in degrees.  {cmd:center(}{it:lon lat}{cmd:)} sets the projection center in degrees.  These have no effect under {cmd:projection(albers_usa)} because the composite projection does not expose them.{p_end}
 {synopt :{cmd:tooltipvars(varlist)}}Each listed variable becomes a labelled row in the tooltip table when hovering over a county/ZIP/state. Labels use {cmd:variable label} when present.{p_end}
 {synopt :{cmd:basemap}}A faded {bf:states} (or {bf:nation}) outline is drawn behind the focused features and remains visible at every zoom level.{p_end}
@@ -594,9 +606,13 @@ rendering of the same data will show East Texas counties subtly rotated.
 If your map's panhandle top is not flat (or is tilted more than expected),
 check, in order:
 
-{phang}1. The {cmd:geo()} value.  {cmd:geo(texas)} defaults to albers_tx;
-{cmd:geo(us)} defaults to albers_usa; other geos default to albers_usa.
-Different defaults render the same data with different lean.{p_end}
+{phang}1. The {cmd:geo()} value.  {cmd:geo(texas)} and other Texas files
+({cmd:texas_districts}, or any name that starts with {cmd:texas_} or
+{cmd:tx_}) default to albers_tx; {cmd:geo(us)} defaults to albers_usa; any
+other geography defaults to an Albers projection centered on its features.
+Before v0.8.13 everything except {cmd:geo(texas)} defaulted to albers_usa,
+so a school-district map leaned unless {cmd:projection(albers_tx)} was
+given.{p_end}
 
 {phang}2. The {cmd:layer()} value.  {cmd:layer(states|nation)} forces
 albers_usa regardless of {cmd:geo()} -- so a {cmd:geo(texas) layer(states)}
@@ -689,8 +705,18 @@ overlay's color.  Any of these options without {cmd:overlays()} is an
 error (r(198)).
 
 {pstd}
-Overlays require a TopoJSON input (arcs); GeoJSON FeatureCollection
-drop-ins (like {bf:texas_districts.geojson}) render no overlays.
+{bf:Overlays and GeoJSON files (v0.8.13).}  A variable in {cmd:overlays()}
+works with a GeoJSON geography such as {bf:texas_districts.geojson}: each
+group of features is outlined, with a border shared by two groups drawn
+once, and {cmd:overlaycolors()}, {cmd:overlaywidths()}, and
+{cmd:overlaydash()} apply.  A GeoJSON file has no shared arcs to merge, so
+the outline is made with an SVG mask in place of a dissolve; it is offset
+from the true boundary by less than a pixel, and a group in several
+separate pieces gets one label at its overall centroid.  A layer token such
+as {cmd:states} or {cmd:nation} names a second layer inside a TopoJSON
+file, which a GeoJSON file does not have; {cmd:sparkta2} prints a note and
+leaves that token out of the Layers box.  Before v0.8.13 every overlay on
+a GeoJSON map was skipped without a message.
 
 {pstd}
 {bf:Name labels.}  {cmd:maplabels} adds feature name labels at centroids

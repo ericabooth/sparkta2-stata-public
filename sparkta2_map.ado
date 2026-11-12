@@ -1,4 +1,8 @@
-*! sparkta2_map v0.8.12  2026-11-10
+*! sparkta2_map v0.8.13  2026-11-12
+*! v0.8.13 2026-11-12: a note when an overlays() layer token (states, nation)
+*!         meets a GeoJSON geography, where it cannot be drawn.  The engine
+*!         now outlines overlays() group variables on GeoJSON maps and picks
+*!         the projection from the geography (see sparkta2.ado).
 *! v0.8.12 2026-11-10: sparkta2_findfile's messages (first-use downloads, an
 *!         engine file replaced after an upgrade) are shown for maps as they
 *!         already were for charts; they were suppressed before.
@@ -614,6 +618,23 @@ program define sparkta2_map, rclass
             }
         }
         local _ov_gvars = strtrim("`_ov_gvars'")
+    }
+
+    * An object token (states, nation) names a second layer inside a
+    * TopoJSON file.  A GeoJSON file has only one layer, so such a token
+    * cannot be drawn there: say so instead of drawing nothing.  Group
+    * variables work with either kind of file.
+    forvalues _o = 1/`_n_ov' {
+        if "`_ovkind_`_o''" == "object" {
+            forvalues _t = 1/`_ntabs' {
+                if lower(substr("`_ttopo_`_t''", -8, .)) == ".geojson" {
+                    display as text "  sparkta2 note: overlays(`_ovkey_`_o'') is not drawn on geo(`_tgeo_`_t'')."
+                    display as text "    `_ovkey_`_o'' is not a variable, so it is read as a layer inside the"
+                    display as text "    geography file, and a GeoJSON file has no second layer.  A variable"
+                    display as text "    in overlays() works with GeoJSON: its groups are outlined."
+                }
+            }
+        }
     }
 
     * ---- v0.8.1 per-overlay styling: color / width / dash lists ----------

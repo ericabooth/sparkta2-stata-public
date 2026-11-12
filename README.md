@@ -18,185 +18,14 @@ Map design borrows from Mike Bostock's Observable notebooks ([d3/bivariate-choro
 
 ## Status
 
-Live version demo gallery here: https://ericabooth.github.io/Sparkta2_Example_Site/
+Current version: **v0.8.13** (2026-11-12). Live demo gallery: https://ericabooth.github.io/Sparkta2_Example_Site/
 
-**v0.8.12** (2026-11-10). Upgrading no longer leaves the previous release's engine in use. `net install, replace` updates the ado files but not the two engine files (`sparkta2_engine.js`, `sparkta2_chart_engine.js`), so an install upgraded from an earlier version went on drawing with the older engine, and newer options could fail without a message. Each engine file now states its version on its first line, and `sparkta2` checks it on every call. A copy from another release is replaced by the current one (downloaded once into `sysdir PLUS/s/sparkta2/`), with a short note. If the current file cannot be downloaded, `sparkta2` uses the copy it found and prints a note with the fix. Regression battery: `test_sparkta2_enginecheck.do`.
-
-**v0.8.11** (2026-11-09). Maps and charts stay valid under `set dp comma` (numbers in the page always use a period, and your setting is restored), and large values keep their digits, so measures in the billions no longer collapse into ties. `bar2` draws negative values from a zero line, and a diverging `scheme()` such as `rdbu` colors the bars by sign. `bar2` `over()` legends wrap onto extra rows instead of running off the page, and many groups no longer start near white. Long `divbar` labels break instead of running off the left edge. `sparkta2_dashboard` takes quoted paths with spaces and writes each iframe path relative to the dashboard, so pages in other folders load. A leading `~` works in `rasterimage()` and when the page opens. Out-of-range `bins()` and unknown `scheme()` or `mode()` values print a note. The dispatcher rejects a repeated or multi-word `type()`, notes `type(map)` when `id()` is given without a type, says when `coefplot`/`eventstudy`/`marginsplot` need a newer sparkta, and lists duplicate sparkta installs when a sparkta call fails.
-
-**The default look changed in v0.8.11.** Pages and charts are now neutral by default: neutral page colors, system fonts, and the `tableau10` palette for `type(donut)`. Before, every page used the authors' house colors and donuts used the house palette. The house style is now opt-in only. To get the previous look, add `tx2036style scheme(tx2036)`. An unknown `scheme()` falls back to the neutral default with a note. See [Colors and the internal house style](#colors-and-the-internal-house-style).
-
-**v0.8.10** (2026-11-09). Labels on native charts and maps display exactly as they are in the data. A `$` or backtick in a `name()`, `over()`, or `level()` label, a variable label, or a title is kept ("Cost ($M)" used to show as "Cost ()"). Legends in donut, `bar2`, `line2`, and `divbar` no longer show HTML entities ("A &amp; B"). A label containing `</script>` no longer breaks the page. `subtitle()` and `note()` are plain text, like `title()`. A donut whose values are negative or sum to zero stops with an error (r(459)) instead of drawing an empty ring.
-
-**v0.8.9** (2026-11-09). `sparkta2` now leaves `r()` and `e()` untouched before handing off, so `marginsplot`, `eventstudy`, and `matrix(r(table))` work after `margins` or `estat` (0.8.8 cleared them). A first variable named like a chart type (`area`, `line`, `map`, ...) stays a variable when `type()` is also given. Routing reads option names, so text in a title or note cannot change which engine draws the chart; abbreviated sparkta donut options and `over()` donuts without `name()` go to sparkta's donut. Relative `export()` paths are passed to sparkta in full (older sparkta wrote them inside its Java folder). `point`, `bivariatemap`, and `horizontalbar` work as aliases.
-
-**v0.8.8** (2026-11-09). Works with sparkta 3.6.1, which takes the chart type as its first word (`sparkta scatter y x`): `sparkta2` accepts that form and the classic `type()` form for every chart and map type, and writes the hand-off in whichever syntax the installed sparkta uses. Also fixed in the dispatcher: a call with no type went to the map code ("option id() required") instead of sparkta's default bar; text such as a title containing `type(` was read as the chart type; the `ty()` abbreviation was not recognized; and sparkta's own donut options were rejected.
-
-**v0.8.7** (2026-11-09). Maps classify every value again by default: the zero handling added for capacity maps (breaks from positive values only, zeros in grey, a "No capacity" legend key) is now the opt-in `zeroneutral` option, with `zerolabel("No capacity")` for the legend text. Before this, every map treated zero as "none" and lumped negative values into the lowest class. Charts no longer draw blank when a named d3 scheme (blues, reds, ...) needs more than 9 colors, which affected `type(barrace)` with its default colors and donuts or over() groups with more than 9 categories. v0.8.6 (2026-11-08) made option names read the same on every Stata version (older Stata rejected `tx2036style`).
-
-**v0.8.1** (2026-08-12). Classification control, label-aware legends, map furniture, overlay styling — and a Windows/cloud-drive robustness fix. See [What's new in v0.8.1](#whats-new-in-v081-2026-08-12).
-
-- **`classes(quantile|jenks|equal|std)` + `breaks(numlist)`** — pick the choropleth/bivariate/hexbin classification instead of silently getting quantiles; `breaks()` sets explicit cutpoints.
-- **Legends and axes now read variable labels** — `xlabel()`/`ylabel()` default to the variable label, so out-of-the-box legends say "Poverty rate (%)", not `poverty_rate`.
-- **`scalebar` + `northarrow`** — a zoom-aware miles scale bar and a north arrow.
-- **`overlaycolors()` / `overlaywidths()` / `overlaydash()`** — style each overlay layer independently (e.g. navy region outlines, a dashed orange highlight).
-- **No more OS shell in the pipeline** — embedded assets are spliced in Mata now, fixing forward-slash and spaces-in-path failures on Windows (OneDrive / Google Drive folders). Byte-identical output, verified in the battery.
-
-**v0.8.0** (2026-08-11). Four headline additions — see [What's new in v0.8.0](#whats-new-in-v080-2026-08-11) for the details and the raster design notes:
-
-- **`dashtab(varname)` — higher-order tabs.** Where `over()` breaks out subgroups *within* a chart and `by()` makes small multiples, `dashtab()` renders one **full figure per level** of a variable and puts a tab bar above the output. Each tab can carry its own geography (`dashtabgeo() dashtablayer() dashtabidwidth()`), so a single self-contained HTML file can switch between county, school-district, and region views. Works on all native map types and native chart types (`donut bar2 line2 divbar barrace`); `dashtabstyle(tabs|buttons)` picks underline tabs or pill buttons.
-- **`overlays()` — checkbox layer toggles.** Overlay boundary layers on top of the data layer, each with an on/off checkbox in a new *Layers* controls section. A token naming another TopoJSON object (`states`, `nation`) draws its boundary mesh; a token naming a **variable in your data dissolves the focused features by that variable client-side** (`topojson.merge` in the browser) into labelled group outlines — Comptroller regions on top of counties with no extra shapefile.
-- **`maplabels` — feature name labels** at polygon centroids, toggleable, zoom-stable (`labelsize()` sets the base size).
-- **`rasterimage()` — offline georeferenced image layer** under the data layer (`rasterbounds(west south east north)`, `rasteropacity()`), base64-embedded so the HTML stays a single self-contained file.
-
-Also in v0.8.0: `sparkta2_dashboard, tabs` (tabbed instead of long-scroll composition — the route for tabbing across *sparkta pass-through* charts), and the v0.7.9 fresh-install/chart-asset fixes below are now actually in the shipped code (`sparkta2_findfile` v0.5.0 with the `charts` mode and a working `global sparkta2_remote_base`).
-
-**`directlabels` now works on every bar layout.** The flag reached the chart engine for `bar2` but only `donut` and `divbar` acted on it, so bars silently rendered without values. All six layouts the engine draws separately (single, grouped, and stacked, each horizontal and vertical) now print the value: stacked and 100%-stacked segments get a centred, contrast-aware label, and a segment too narrow to hold one is skipped rather than overprinted, leaving the value in the tooltip. The bar legend also spaces entries by measured text width instead of a fixed 110px step, so long series names no longer overlap. Regression battery: `test_sparkta2_barlabels.do`.
-
-**v0.7.9** (2026-08-11). Fresh-install fix for the chart types: `sparkta2_chart` now resolves `sparkta2_chart_engine.js` and `d3.min.js` through `sparkta2_findfile` (new `charts` option), so `bar2` / `line2` / `donut` / `divbar` / `barrace` get the same three-pass asset lookup as the maps — adopath (including the working directory, for `net get` users), the `sysdir PLUS/s/sparkta2/` cache, then auto-download. Previously the first chart after a plain `net install` failed with `r(601)` ("not on adopath"), because `net install` cannot place `.js` ancillaries. Also fixed: the documented `global sparkta2_remote_base` mirror override was read from the wrong macro and never applied; it now works, and accepts a local path (handy for air-gapped installs and tests).
-
-**v0.7.8** (2026-06-26). Texas-tuned Albers retuned to make the panhandle top edge perfectly horizontal: central meridian moved from `–99°` to `–101.5°` (the panhandle's longitudinal midpoint) and upper standard parallel from `35.5°` to `36.5°` (the panhandle's latitude). The v0.6.1 fix had reduced the original `albers_usa` ~3.3° lean to ~1.3°; v0.7.8 takes it to 0.0°. See [Projection: Texas-tuned Albers and how to override it](#projection-texas-tuned-albers-and-how-to-override-it) below for the geometry, trade-offs, and escape hatches.
-
-**v0.7.7** (2026-06-26). Iframe auto-resize protocol: every sparkta2-native HTML output now posts its rendered content height to its parent page on load / resize / DOM mutation, and parent pages (sparkta2_dashboard wrappers + the webdoc2 demos) grow each iframe to fit + set `scrolling="no"`, so embeds never get clipped behind a scrollbar. Opt out per-iframe with the `data-skip-resize="1"` HTML attribute (used for sparkta / Chart.js pass-throughs that don't speak the resize protocol).
-
-**v0.7.3** (2026-06-26). Chart label policy: `wraplabel(auto | on | off)` (synonyms `wrap`, `truncate`) + `gutterwidth(N)` left-margin override. `auto` keeps long labels on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines don't fit. Useful for divbar/bar2/line2 with long category names.
-
-**v0.7.2** (2026-06-26). `tx2036style` option (the authors' internal house style: house colors + Montserrat font from Google Fonts; opt-in only since v0.8.11) and `downloadpos(side|below|none)` option to move the Export menu under the chart (collapses the 240px side panel when no other controls live there).
-
-**v0.7.1** (2026-06-26). Backward-compat rename: native bar / line are now `type(bar2)` / `type(line2)`, so sparkta's `type(bar)` / `type(line)` continue to forward unchanged. Existing do-files that called sparkta for bars or lines keep working without edits.
-
-**v0.7.0** (2026-06-26). Native D3 chart types beyond maps: donut, bar2, line2, diverging stacked bar (Pew-style for Likert/survey items), and bar chart race. All inherit the v0.6.0 Export menu, animate-on-view, and CSV data download.
+Jump to [Install](#install), [Quick start](#quick-start), or the [Version history](#version-history) table at the end of this page. If you are upgrading from before v0.8.11, note that pages and charts now use a neutral look by default; see [Colors and the internal house style](#colors-and-the-internal-house-style).
 
 Two bundled Texas geographies: 254 counties (with 56 US states + nation as backdrop layers) and 1,016 NCES EDGE SY2024-25 school districts. The engine also accepts any TopoJSON or GeoJSON FeatureCollection you drop next to the ado files.
 
 <img width="900" alt="All 1,016 Texas school districts from the bundled NCES EDGE geography, shaded bivariately by FRPL eligibility against students per teacher" src="assets/02_school_districts.png" />
 
-
-### What's new in v0.8.1 (2026-08-12)
-
-![Jenks-classified county choropleth with variable-label legend, north arrow, zoom-aware miles scale bar, and independently styled overlay layers (navy regions, gray state lines, dashed orange key-county spotlight)](assets/sparkta2_v081_preview.png)
-
-*One frame, most of v0.8.1–v0.8.2: `classes(jenks)` cuts in the legend, which is now titled by the variable label; north arrow and a zoom-aware miles scale bar; three overlay layers styled independently via `overlaycolors()/overlaywidths()/overlaydash()`; slate county borders via `linecolor()/linewidth()` over a `basemapcolor()`-styled backdrop (v0.8.2); Export pinned bottom-right with `downloadpos(below)`.*
-
-#### Classification control — `classes()` and `breaks()`
-
-Every earlier version binned quantile-only. Now: `classes(quantile|jenks|equal|std)` picks the scheme (Fisher-Jenks natural breaks, equal intervals, or 1-sd steps centered on the mean), and `breaks(12 16 20 24)` sets explicit cutpoints for single-measure maps (classes = cuts + 1). Applies to choropleth x/y modes, both bivariate axes (`classes()` only), and hexbin aggregates; diff/ratio modes keep their symmetric diverging scales. Legend rows show the actual cut values, so "what are these bins?" finally has a visible answer.
-
-#### Legends read labels, not varnames
-
-`xlabel()`/`ylabel()` now default to the **variable label** before falling back to the varname — legends, mode-toggle buttons, and tooltips say "Poverty rate (%)" out of the box. Same for the native chart axes.
-
-#### Map furniture
-
-`scalebar` draws a miles bar (1/2/5×10ⁿ round numbers) bottom-left on a translucent chip and **recomputes as you zoom**; `northarrow` adds the arrow top-left. Standard caveat: under a rotated conic projection north is exact only at the central meridian.
-
-#### Per-overlay styling
-
-`overlaycolors()`, `overlaywidths()`, `overlaydash(solid|dashed|dotted)` — one value for all overlays or one per `overlays()` token in order. Strokes and dash patterns hold their on-screen size while zooming; dissolved-group labels take their overlay's color. A dashed accent color turns the sparse-variable spotlight trick into a proper annotation layer.
-
-#### Windows / cloud-drive robustness (user report, resolved)
-
-A Windows user reported two failures: they had to hand-edit the package to flip `/` to `\` before assets would load, and builds broke whenever the project lived under a spaced path (a Google Drive folder). Root cause for both: `sparkta2_appendfile` spliced the embedded JS/TopoJSON through the OS shell (`shell type` on Windows), and cmd both rejects forward-slash paths and mangles spaced-path quoting. v0.8.1 replaces the shell round-trip with a **byte-for-byte Mata copy** (`fopen/fread/fwrite`) — no shell, no slash direction, no quoting, no console flashing per call, and a missing asset now errors loudly instead of splicing nothing. Output verified byte-identical to the shell version, and the battery now builds from asset and export directories with spaces on every run. No Windows-specific slashes were added anywhere; the one remaining Windows-only concession is in `sparkta2_open` (the `start` launcher), where cmd genuinely requires backslashes.
-
-### What's new in v0.8.0 (2026-08-11)
-
-#### `dashtab()` — tabs as a first-class Stata option
-
-```stata
-* One HTML file: a Counties tab and a School-districts tab, each its own geography
-sparkta2 poverty_rate, id(geoid) name(name) type(choropleth)      ///
-    dashtab(level) dashtabgeo(texas|texas_districts) dashtabidwidth(5 7) ///
-    export(county_vs_district.html) offline
-```
-
-Stack your aggregation levels long (one `level` variable, one id column), and `dashtab(level)` splits them into tabs — the *whole figure* re-renders per tab: its own data, its own geography, its own legend quantiles, its own filters. Think of the hierarchy as: `over()` = subgroups inside one chart, `by()` = small multiples, **`dashtab()` = entirely different figures behind tabs**. Details: string or labeled-numeric variable, 2–10 levels in `levelsof` order, tab labels from the value labels. `dashtabstyle(buttons)` restyles the bar as pill "dashbuttons". For **sparkta pass-through** types the data never passes through sparkta2's renderer, so `dashtab()` errors there — instead render one file per level and compose with the new tabbed dashboard: `sparkta2_dashboard, files(...) titles(...) tabs export(...)`.
-
-Under the hood every sparkta2 map now emits a `window.__SPARKTA2_TABS__` payload (a plain map is simply one tab with no bar) and a tab switch is a clean full re-render — distinct geographies are embedded once each and shared across tabs that reuse them.
-
-#### `overlays()` — layer checkboxes, including client-side dissolve
-
-```stata
-* Comptroller-region outlines + state lines on top of a county choropleth
-sparkta2 poverty_rate, id(fips) name(county) type(choropleth) ///
-    overlays(region states) maplabels export(overlay.html) offline
-```
-
-Each token becomes a checkbox in a new **Layers** section of the controls panel. A token naming a TopoJSON *object* (`states`, `nation`, or any object in a custom file) draws that object's boundary mesh above the data layer. A token naming a *variable in your data* triggers a **client-side dissolve**: the focused features are merged by the variable's value with `topojson.merge` in the browser, and the merged group outlines are drawn with the group name at each centroid — a QGIS-style dissolve with no extra shapefile, no GIS toolchain, driven entirely by a column in your dataset. Checkbox labels come from the `variable label`. Constraint: dissolve and mesh overlays need a TopoJSON input (they operate on shared arcs), so GeoJSON drop-ins like `texas_districts.geojson` render without overlays.
-
-#### `maplabels` — feature name labels
-
-`maplabels` prints each feature's `name()` at its centroid with a white halo, toggleable from the Layers section, and the labels **counter-scale against zoom** so they hold a constant on-screen size while the geometry scales — the familiar web-map behavior. `labelsize(#)` sets the base size (default 9). Practical up to a few hundred features; for the 1,016-district layer leave it off or subset first.
-
-#### `rasterimage()` — raster layers, and what they can and cannot be
-
-What shipped: a **georeferenced image layer**. Give it any PNG/JPG/GIF/WebP plus `rasterbounds(west south east north)` in decimal degrees, and the image is base64-embedded into the HTML (still one self-contained offline file), drawn beneath the data layer at `rasteropacity()` (default 0.75), with its own Layers checkbox. This covers the satellite-composite / scanned-map / model-surface use cases — e.g. a Google Earth Engine export for the county window you're mapping.
-
-Design notes and honest limitations (the "raster complications report"):
-
-1. **Projection.** The image is stretched between its projected NW/SE corners. Under `projection(mercator)` that is exact (web imagery is Web-Mercator). Under the default Texas-tuned Albers the vector graticule bends while the raster pixels stay straight, so alignment drifts toward the edges of large extents — a few km at Texas scale. Use `projection(mercator)` when raster alignment matters; treat Albers + raster as decorative. True client-side raster *reprojection* means per-pixel resampling (canvas/WebGL) — deliberately out of scope for a package whose output is one dependency-free file.
-2. **Tile basemaps (the leaflet look) are a different feature.** Slippy tiles require a tile CDN at *view time* (breaks the offline guarantee), Web-Mercator lock-in, zoom-level tile math (d3-tile), and attribution requirements. Feasible as an opt-in `basemap(tiles)` online-only mode — on the roadmap below, not in v0.8.0.
-3. **File size.** Base64 inflates the image by ~4/3. sparkta2 warns above 2 MB and refuses above 20 MB; downscale first (a 1200-px-wide JPEG at quality 70 is typically 150–400 KB and looks fine underneath a choropleth).
-4. **Stata plumbing.** Encoding uses Stata's built-in Python (stdlib `base64` only, no pip) — and only for `rasterimage()` callers; everything else remains Python-free.
-
-#### Other v0.8.0 changes
-
-- `sparkta2_dashboard, tabs` — tab bar + one visible section instead of the long scroll; iframes stay lazy-loaded and keep their state across switches.
-- The v0.7.9 notes below (chart engine via `sparkta2_findfile, charts`, working `global sparkta2_remote_base`, local-path mirrors) are now in the shipped code.
-- Fixed in `sparkta2.sthlp`: SMCL directives that were split across line breaks rendered as literal `{cmd:...}` text in the help viewer.
-
-### What's new in v0.7.7 (2026-06-26)
-
-- **Iframe auto-resize protocol.** Each sparkta2-native HTML page now embeds a tiny inline `<script>` that calls `window.parent.postMessage({type:'sparkta2-resize', height: H}, '*')` whenever the rendered content height changes (load, window resize, ResizeObserver, MutationObserver). Both `sparkta2_dashboard` wrappers and the webdoc2 demos ship a parent-side listener that grows each iframe to fit and sets `scrolling="no"`, so embedded outputs never get clipped behind a scrollbar.
-- **`data-skip-resize="1"` escape hatch.** Mark a single `<iframe>` with that HTML attribute and the parent listener will leave its height + scrolling untouched. Use this for sparkta / Chart.js pass-throughs whose pages do not emit the `sparkta2-resize` message — without the escape hatch, those iframes would be silently clipped at the wrapper's declared height; with it, they get a native scrollbar.
- 
-
-- **Chart label policy.** New `wraplabel(auto | on | off)` option (synonyms `wrap` and `truncate`) plus `gutterwidth(N)` to override the left-margin gutter width. `auto` keeps long category names on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines still overflow. Targets divbar / bar2 / line2 with long item text where the default gutter was clipping labels.
-
-### What's new in v0.7.2 (2026-06-26)
-
-- **`tx2036style` option** (the authors' internal house style; off by default). Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography: heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
-- **`zeroneutral` and `zerolabel()` options (v0.8.7, maps).** For a variable where an exact zero means "none" (installed capacity, say), `zeroneutral` draws zeros in neutral grey, computes the class breaks from the remaining values, and adds a legend key labeled by `zerolabel()` (default `Zero`). Off by default, so negative values and meaningful zeros are classified like any other value.
-- **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
-- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined.
-  
-- **Backward-compat rename.** sparkta2-native bar / line are now exposed as `type(bar2)` and `type(line2)`. `type(bar)` and `type(line)` continue to forward to `sparkta` unchanged so every pre-0.7.0 do-file using sparkta's bar/line syntax (multi-var, `stat()`, `fit()`, `over()` with stat=mean, ...) still works without edits.
-- Opt in to the D3-native versions (Export menu, `animate`, `datatable`, CSV download) by changing `type(bar)` to `type(bar2)` (and likewise `line` → `line2`). The native versions take simpler input — one numeric var with `name()`, optional `over()` for grouping/stacking.
-- `donut`, `divbar`, `barrace` keep their original names — there's no name collision with sparkta for those.
-
-### What's new in v0.7.0 (2026-06-26)
-
-- **Five new sparkta2-native non-map chart types.** All D3 v7, rendered by a new `sparkta2_chart_engine.js` and dispatched by `sparkta2_chart.ado`.
-  - `type(donut)` — ring chart, one slice per row. Center label shows the total.
-  - `type(bar2)` (v0.7.1 rename; was `bar` in v0.7.0) — vertical / horizontal bars; optional `over()` for grouped or `stacked` (+ `normalize`) variants.
-  - `type(line2)` (v0.7.1 rename; was `line` in v0.7.0) — multi-series line via `over(series)`; `y x` input; monotone-X curve.
-  - `type(divbar)` — **Pew-style diverging stacked bar** for Likert/survey items. Horizontal bars, wrapping long item text in the left margin, central zero baseline, direct % labels inside segments, net favourability column on the right, no bottom axis by default. Long-form input: `name(item) level(response) <share>`, with `levelorder()` to fix the level ordering.
-  - `type(barrace)` — animated bar chart race over `time()`, with play/pause/replay button.
-
-### What's new in v0.6.1 (2026-06-26)
-
-- **Texas projection tilt fixed.** `d3.geoAlbersUsa()` was used for every layer including `geo(texas)`, but its CONUS-wide standard parallels (29.5°N / 45.5°N) and –96° rotation centre the projection near Kansas. Texas, south and west of that centre, rendered with a ~3.3° downward lean on the panhandle's top edge. Now:
-  - `geo(texas)` defaults to a Texas-tuned `d3.geoAlbers()` (`rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]`), dropping the lean to ~1.3°.
-  - `geo(us)` and `layer(states|nation)` keep `d3.geoAlbersUsa()` (unchanged).
-- **New options:** `projection(albers_usa | albers_tx | albers | mercator)` for presets, plus `rotate()`, `parallels()`, and `center()` numeric overrides on any non-composite projection.
-- Backward-compat escape hatch: pass `projection(albers_usa)` to restore the pre-0.6.1 look exactly.
-
-### What's new in v0.6.0 (2026-06-23)
-
-- **Export menu** replaces the single "Download PNG" button. Setting `download` now opens a small dropdown with **PNG**, **SVG**, and **Print to PDF…** (browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).
-- **`datatable` option.** Extends the Export menu with **Download CSV** (every embedded row with original Stata variable names, including `tooltipvars()`) and **View data table** (collapsible scrollable HTML table beneath the chart showing rows that pass the active filters/sliders/search).
-- **`animate` option.** IntersectionObserver-gated entry animation: features fade in over ~450ms with a small per-feature stagger when the chart enters the viewport. One-shot; doesn't re-trigger on subsequent scrolls.
-
-### What's new in v0.5.0
-
-- **Hexbin renderer fix.** v0.4.0's hexbin produced zero bins — d3-hexbin defaults to array-indexing the input but the engine pushes object points. Engine now sets explicit x/y accessors. All hexbin examples now render.
-- **Basemap projection fix.** Previously the projection was fit to the basemap layer (all 50 US states), so Texas-only maps appeared tiny in the corner and "reset zoom" exposed the whole US. The projection now always fits the focused layer; the basemap is drawn beneath at whatever extent.
-- **GeoJSON FeatureCollection support.** Engine accepts either a TopoJSON (with `objects`) or a GeoJSON `FeatureCollection` (with `features`). Drop a `<geo>.geojson` next to the ado and pass `geo(<name>)`.
-- **`texas_districts.geojson` bundled.** 1,016 Texas school district polygons built from the NCES EDGE SY2024-25 shapefile, simplified via Douglas-Peucker to 1.4 MB. Use `geo(texas_districts) idwidth(7)` with 7-digit LEAID ids.
-- **NCES districts demo do-file.**  loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare and exercises sparkta2 on real district-level data (replaces the v0.4.0 ZIP demo, which couldn't use polygon boundaries because no ZCTA boundaries were in the _datashare).
-
-
-
-<img width="900" alt="Hexbin aggregation of Texas counties, shading each hex by the mean poverty rate of the counties it covers" src="assets/03_hexbin.png" />
 
 ## Install
 
@@ -442,7 +271,7 @@ sparkta2 ..., projection(mercator)
 
 If your panhandle top is not flat, or is tilted differently from what's shown here, check in order:
 
-1. **`geo()` value.** `geo(texas)` picks `albers_tx`; `geo(us)` picks `albers_usa`; other geos pick `albers_usa`. Different defaults render the same data with different lean.
+1. **`geo()` value.** `geo(texas)` and other Texas files (`texas_districts`, or any name starting `texas_` or `tx_`) pick `albers_tx`; `geo(us)` picks `albers_usa`; any other geography picks an Albers projection centered on its own features (v0.8.13). Before v0.8.13 everything except `geo(texas)` picked `albers_usa`, which leans a region that is not in the middle of the country.
 2. **`layer()` value.** `layer(states|nation)` overrides the geo default and forces `albers_usa` — so `geo(texas) layer(states)` is using the composite, not the Texas-tuned preset.
 3. **Explicit `projection() / rotate() / parallels() / center()`** you've passed. These take precedence over the preset defaults.
 4. **Installed version.** v0.5.x and earlier used `albers_usa` for every map; v0.6.1 introduced `albers_tx` with a ~1.3° residual lean; v0.7.8 retunes `albers_tx` to zero lean. Every sparkta2 map call prints a dispatcher banner like `[sparkta2 v0.7.8]` in the Stata Results window — that's the running version.
@@ -565,6 +394,136 @@ sparkta2 poverty_rate uninsured_rate, type(scatter) fit(lfit) fitci
 
 `type(coefplot)`, `type(eventstudy)`, and `type(marginsplot)` need sparkta 3.6.0 or later. sparkta 3.6.1 (GitHub, October 2026) changed its syntax so the chart type is the first word (`sparkta scatter y x`); the SSC release and earlier versions use `type()`. `sparkta2` accepts either form for every type, reads the installed sparkta's version, and writes the call the way that version expects, so one do-file runs with both. It also translates the renamed box and violin types (`hbox` and `hboxplot`, `hviolin` and `hviolinplot`). A call with no type goes to sparkta's default bar chart. `type(donut)` stays the sparkta2 D3 donut unless you add a sparkta-only donut option (`cutout()`, `rotation()`, `circumference()`, `sliceborder()`, `hoveroffset()`, `pielabels`). To force one syntax: `global sparkta2_sparkta_syntax new` (or `old`).
 
+## Feature notes by release
+
+These sections describe the larger features in detail, newest first. For a one-line summary of every release, see the [Version history](#version-history) table.
+
+### What's new in v0.8.1 (2026-08-12)
+
+![Jenks-classified county choropleth with variable-label legend, north arrow, zoom-aware miles scale bar, and independently styled overlay layers (navy regions, gray state lines, dashed orange key-county spotlight)](assets/sparkta2_v081_preview.png)
+
+*One frame, most of v0.8.1–v0.8.2: `classes(jenks)` cuts in the legend, which is now titled by the variable label; north arrow and a zoom-aware miles scale bar; three overlay layers styled independently via `overlaycolors()/overlaywidths()/overlaydash()`; slate county borders via `linecolor()/linewidth()` over a `basemapcolor()`-styled backdrop (v0.8.2); Export pinned bottom-right with `downloadpos(below)`.*
+
+#### Classification control — `classes()` and `breaks()`
+
+Every earlier version binned quantile-only. Now: `classes(quantile|jenks|equal|std)` picks the scheme (Fisher-Jenks natural breaks, equal intervals, or 1-sd steps centered on the mean), and `breaks(12 16 20 24)` sets explicit cutpoints for single-measure maps (classes = cuts + 1). Applies to choropleth x/y modes, both bivariate axes (`classes()` only), and hexbin aggregates; diff/ratio modes keep their symmetric diverging scales. Legend rows show the actual cut values, so "what are these bins?" finally has a visible answer.
+
+#### Legends read labels, not varnames
+
+`xlabel()`/`ylabel()` now default to the **variable label** before falling back to the varname — legends, mode-toggle buttons, and tooltips say "Poverty rate (%)" out of the box. Same for the native chart axes.
+
+#### Map furniture
+
+`scalebar` draws a miles bar (1/2/5×10ⁿ round numbers) bottom-left on a translucent chip and **recomputes as you zoom**; `northarrow` adds the arrow top-left. Standard caveat: under a rotated conic projection north is exact only at the central meridian.
+
+#### Per-overlay styling
+
+`overlaycolors()`, `overlaywidths()`, `overlaydash(solid|dashed|dotted)` — one value for all overlays or one per `overlays()` token in order. Strokes and dash patterns hold their on-screen size while zooming; dissolved-group labels take their overlay's color. A dashed accent color turns the sparse-variable spotlight trick into a proper annotation layer.
+
+#### Windows / cloud-drive robustness (user report, resolved)
+
+A Windows user reported two failures: they had to hand-edit the package to flip `/` to `\` before assets would load, and builds broke whenever the project lived under a spaced path (a Google Drive folder). Root cause for both: `sparkta2_appendfile` spliced the embedded JS/TopoJSON through the OS shell (`shell type` on Windows), and cmd both rejects forward-slash paths and mangles spaced-path quoting. v0.8.1 replaces the shell round-trip with a **byte-for-byte Mata copy** (`fopen/fread/fwrite`) — no shell, no slash direction, no quoting, no console flashing per call, and a missing asset now errors loudly instead of splicing nothing. Output verified byte-identical to the shell version, and the battery now builds from asset and export directories with spaces on every run. No Windows-specific slashes were added anywhere; the one remaining Windows-only concession is in `sparkta2_open` (the `start` launcher), where cmd genuinely requires backslashes.
+
+### What's new in v0.8.0 (2026-08-11)
+
+#### `dashtab()` — tabs as a first-class Stata option
+
+```stata
+* One HTML file: a Counties tab and a School-districts tab, each its own geography
+sparkta2 poverty_rate, id(geoid) name(name) type(choropleth)      ///
+    dashtab(level) dashtabgeo(texas|texas_districts) dashtabidwidth(5 7) ///
+    export(county_vs_district.html) offline
+```
+
+Stack your aggregation levels long (one `level` variable, one id column), and `dashtab(level)` splits them into tabs — the *whole figure* re-renders per tab: its own data, its own geography, its own legend quantiles, its own filters. Think of the hierarchy as: `over()` = subgroups inside one chart, `by()` = small multiples, **`dashtab()` = entirely different figures behind tabs**. Details: string or labeled-numeric variable, 2–10 levels in `levelsof` order, tab labels from the value labels. `dashtabstyle(buttons)` restyles the bar as pill "dashbuttons". For **sparkta pass-through** types the data never passes through sparkta2's renderer, so `dashtab()` errors there — instead render one file per level and compose with the new tabbed dashboard: `sparkta2_dashboard, files(...) titles(...) tabs export(...)`.
+
+Under the hood every sparkta2 map now emits a `window.__SPARKTA2_TABS__` payload (a plain map is simply one tab with no bar) and a tab switch is a clean full re-render — distinct geographies are embedded once each and shared across tabs that reuse them.
+
+#### `overlays()` — layer checkboxes, including client-side dissolve
+
+```stata
+* Comptroller-region outlines + state lines on top of a county choropleth
+sparkta2 poverty_rate, id(fips) name(county) type(choropleth) ///
+    overlays(region states) maplabels export(overlay.html) offline
+```
+
+Each token becomes a checkbox in a new **Layers** section of the controls panel. A token naming a TopoJSON *object* (`states`, `nation`, or any object in a custom file) draws that object's boundary mesh above the data layer. A token naming a *variable in your data* triggers a **client-side dissolve**: the focused features are merged by the variable's value with `topojson.merge` in the browser, and the merged group outlines are drawn with the group name at each centroid — a QGIS-style dissolve with no extra shapefile, no GIS toolchain, driven entirely by a column in your dataset. Checkbox labels come from the `variable label`. On a GeoJSON geography such as `texas_districts.geojson`, a variable token still works (v0.8.13): the file has no shared arcs to merge, so the group outline is made with an SVG mask in place of a dissolve. An object token (`states`, `nation`) needs a TopoJSON file that has that object; on a GeoJSON geography `sparkta2` prints a note and leaves it out.
+
+#### `maplabels` — feature name labels
+
+`maplabels` prints each feature's `name()` at its centroid with a white halo, toggleable from the Layers section, and the labels **counter-scale against zoom** so they hold a constant on-screen size while the geometry scales — the familiar web-map behavior. `labelsize(#)` sets the base size (default 9). Practical up to a few hundred features; for the 1,016-district layer leave it off or subset first.
+
+#### `rasterimage()` — raster layers, and what they can and cannot be
+
+What shipped: a **georeferenced image layer**. Give it any PNG/JPG/GIF/WebP plus `rasterbounds(west south east north)` in decimal degrees, and the image is base64-embedded into the HTML (still one self-contained offline file), drawn beneath the data layer at `rasteropacity()` (default 0.75), with its own Layers checkbox. This covers the satellite-composite / scanned-map / model-surface use cases — e.g. a Google Earth Engine export for the county window you're mapping.
+
+Design notes and honest limitations (the "raster complications report"):
+
+1. **Projection.** The image is stretched between its projected NW/SE corners. Under `projection(mercator)` that is exact (web imagery is Web-Mercator). Under the default Texas-tuned Albers the vector graticule bends while the raster pixels stay straight, so alignment drifts toward the edges of large extents — a few km at Texas scale. Use `projection(mercator)` when raster alignment matters; treat Albers + raster as decorative. True client-side raster *reprojection* means per-pixel resampling (canvas/WebGL) — deliberately out of scope for a package whose output is one dependency-free file.
+2. **Tile basemaps (the leaflet look) are a different feature.** Slippy tiles require a tile CDN at *view time* (breaks the offline guarantee), Web-Mercator lock-in, zoom-level tile math (d3-tile), and attribution requirements. Feasible as an opt-in `basemap(tiles)` online-only mode — on the roadmap below, not in v0.8.0.
+3. **File size.** Base64 inflates the image by ~4/3. sparkta2 warns above 2 MB and refuses above 20 MB; downscale first (a 1200-px-wide JPEG at quality 70 is typically 150–400 KB and looks fine underneath a choropleth).
+4. **Stata plumbing.** Encoding uses Stata's built-in Python (stdlib `base64` only, no pip) — and only for `rasterimage()` callers; everything else remains Python-free.
+
+#### Other v0.8.0 changes
+
+- `sparkta2_dashboard, tabs` — tab bar + one visible section instead of the long scroll; iframes stay lazy-loaded and keep their state across switches.
+- The v0.7.9 notes below (chart engine via `sparkta2_findfile, charts`, working `global sparkta2_remote_base`, local-path mirrors) are now in the shipped code.
+- Fixed in `sparkta2.sthlp`: SMCL directives that were split across line breaks rendered as literal `{cmd:...}` text in the help viewer.
+
+### What's new in v0.7.7 (2026-06-26)
+
+- **Iframe auto-resize protocol.** Each sparkta2-native HTML page now embeds a tiny inline `<script>` that calls `window.parent.postMessage({type:'sparkta2-resize', height: H}, '*')` whenever the rendered content height changes (load, window resize, ResizeObserver, MutationObserver). Both `sparkta2_dashboard` wrappers and the webdoc2 demos ship a parent-side listener that grows each iframe to fit and sets `scrolling="no"`, so embedded outputs never get clipped behind a scrollbar.
+- **`data-skip-resize="1"` escape hatch.** Mark a single `<iframe>` with that HTML attribute and the parent listener will leave its height + scrolling untouched. Use this for sparkta / Chart.js pass-throughs whose pages do not emit the `sparkta2-resize` message — without the escape hatch, those iframes would be silently clipped at the wrapper's declared height; with it, they get a native scrollbar.
+ 
+
+- **Chart label policy.** New `wraplabel(auto | on | off)` option (synonyms `wrap` and `truncate`) plus `gutterwidth(N)` to override the left-margin gutter width. `auto` keeps long category names on one line when they fit, wraps to two lines otherwise, and truncates with an ellipsis if even two lines still overflow. Targets divbar / bar2 / line2 with long item text where the default gutter was clipping labels.
+
+### What's new in v0.7.2 (2026-06-26)
+
+- **`tx2036style` option** (the authors' internal house style; off by default). Loads Montserrat (400/500/600/700 weights) from Google Fonts and tightens typography: heavy h1 weight, kerning, navy body text. SVG text deliberately stays on the system stack so `getComputedTextLength` measurements (used by divbar wrap, donut label suppression) stay stable across the async font load. Falls back to system sans-serif if offline.
+- **`zeroneutral` and `zerolabel()` options (v0.8.7, maps).** For a variable where an exact zero means "none" (installed capacity, say), `zeroneutral` draws zeros in neutral grey, computes the class breaks from the remaining values, and adds a legend key labeled by `zerolabel()` (default `Zero`). Off by default, so negative values and meaningful zeros are classified like any other value.
+- **`downloadpos(side | below | none)` option.** Moves the Export menu out of the side controls panel into a right-aligned footer under the chart, or hides it entirely. When `below` and no other controls live in the side panel, the layout collapses to a single column so the page no longer reserves the 240px sidebar — useful for narrow embeds and one-off figures.
+- **New helpfile example 9g+:** "Likert survey items, three ways" comparison — the same 9 Likert items rendered as Pew-style divbar (full distribution), sparkta2-native bar2 (% Agree summary), and sparkta-forwarded bar (Chart.js, % Agree), all combined.
+  
+- **Backward-compat rename.** sparkta2-native bar / line are now exposed as `type(bar2)` and `type(line2)`. `type(bar)` and `type(line)` continue to forward to `sparkta` unchanged so every pre-0.7.0 do-file using sparkta's bar/line syntax (multi-var, `stat()`, `fit()`, `over()` with stat=mean, ...) still works without edits.
+- Opt in to the D3-native versions (Export menu, `animate`, `datatable`, CSV download) by changing `type(bar)` to `type(bar2)` (and likewise `line` → `line2`). The native versions take simpler input — one numeric var with `name()`, optional `over()` for grouping/stacking.
+- `donut`, `divbar`, `barrace` keep their original names — there's no name collision with sparkta for those.
+
+### What's new in v0.7.0 (2026-06-26)
+
+- **Five new sparkta2-native non-map chart types.** All D3 v7, rendered by a new `sparkta2_chart_engine.js` and dispatched by `sparkta2_chart.ado`.
+  - `type(donut)` — ring chart, one slice per row. Center label shows the total.
+  - `type(bar2)` (v0.7.1 rename; was `bar` in v0.7.0) — vertical / horizontal bars; optional `over()` for grouped or `stacked` (+ `normalize`) variants.
+  - `type(line2)` (v0.7.1 rename; was `line` in v0.7.0) — multi-series line via `over(series)`; `y x` input; monotone-X curve.
+  - `type(divbar)` — **Pew-style diverging stacked bar** for Likert/survey items. Horizontal bars, wrapping long item text in the left margin, central zero baseline, direct % labels inside segments, net favourability column on the right, no bottom axis by default. Long-form input: `name(item) level(response) <share>`, with `levelorder()` to fix the level ordering.
+  - `type(barrace)` — animated bar chart race over `time()`, with play/pause/replay button.
+
+### What's new in v0.6.1 (2026-06-26)
+
+- **Texas projection tilt fixed.** `d3.geoAlbersUsa()` was used for every layer including `geo(texas)`, but its CONUS-wide standard parallels (29.5°N / 45.5°N) and –96° rotation centre the projection near Kansas. Texas, south and west of that centre, rendered with a ~3.3° downward lean on the panhandle's top edge. Now:
+  - `geo(texas)` defaults to a Texas-tuned `d3.geoAlbers()` (`rotate=[99,0], center=[0,31.5], parallels=[27.5,35.5]`), dropping the lean to ~1.3°.
+  - `geo(us)` and `layer(states|nation)` keep `d3.geoAlbersUsa()` (unchanged).
+- **New options:** `projection(albers_usa | albers_tx | albers | mercator)` for presets, plus `rotate()`, `parallels()`, and `center()` numeric overrides on any non-composite projection.
+- Backward-compat escape hatch: pass `projection(albers_usa)` to restore the pre-0.6.1 look exactly.
+
+### What's new in v0.6.0 (2026-06-23)
+
+- **Export menu** replaces the single "Download PNG" button. Setting `download` now opens a small dropdown with **PNG**, **SVG**, and **Print to PDF…** (browser print dialog with a print-only stylesheet that hides the controls panel and tooltip).
+- **`datatable` option.** Extends the Export menu with **Download CSV** (every embedded row with original Stata variable names, including `tooltipvars()`) and **View data table** (collapsible scrollable HTML table beneath the chart showing rows that pass the active filters/sliders/search).
+- **`animate` option.** IntersectionObserver-gated entry animation: features fade in over ~450ms with a small per-feature stagger when the chart enters the viewport. One-shot; doesn't re-trigger on subsequent scrolls.
+
+### What's new in v0.5.0
+
+- **Hexbin renderer fix.** v0.4.0's hexbin produced zero bins — d3-hexbin defaults to array-indexing the input but the engine pushes object points. Engine now sets explicit x/y accessors. All hexbin examples now render.
+- **Basemap projection fix.** Previously the projection was fit to the basemap layer (all 50 US states), so Texas-only maps appeared tiny in the corner and "reset zoom" exposed the whole US. The projection now always fits the focused layer; the basemap is drawn beneath at whatever extent.
+- **GeoJSON FeatureCollection support.** Engine accepts either a TopoJSON (with `objects`) or a GeoJSON `FeatureCollection` (with `features`). Drop a `<geo>.geojson` next to the ado and pass `geo(<name>)`.
+- **`texas_districts.geojson` bundled.** 1,016 Texas school district polygons built from the NCES EDGE SY2024-25 shapefile, simplified via Douglas-Peucker to 1.4 MB. Use `geo(texas_districts) idwidth(7)` with 7-digit LEAID ids.
+- **NCES districts demo do-file.**  loads `NCES_EDGE_Texas_District_Map.dta` from the _datashare and exercises sparkta2 on real district-level data (replaces the v0.4.0 ZIP demo, which couldn't use polygon boundaries because no ZCTA boundaries were in the _datashare).
+
+
+
+<img width="900" alt="Hexbin aggregation of Texas counties, shading each hex by the mean poverty rate of the counties it covers" src="assets/03_hexbin.png" />
+
 ## Folder layout
 
 The repository is flat: the package files and the developer test files sit side by side at the top level. `net install` copies only the files listed in `sparkta2.pkg`.
@@ -593,6 +552,7 @@ sparkta2-stata-public/
 ├── texas_county_demo.csv         # demo data (fips, county, poverty_rate, uninsured_rate)
 ├── test_sparkta2_v080.do         # regression battery (not in the package)
 ├── test_sparkta2_enginecheck.do  # engine version check after an upgrade (not in the package)
+├── test_sparkta2_geojson.do      # overlays and default projection on GeoJSON geographies (not in the package)
 ├── test_helpfile_examples.do     # mirrors `help sparkta2` examples 1:1 (not in the package)
 ├── test_sparkta2_map.do          # county-level + US-state examples (not in the package)
 ├── test_sparkta2_nces.do         # school-district examples; needs your own district data
@@ -625,6 +585,34 @@ Maps and native charts:
 - `r(n_tabs)` — number of tabs rendered (1 without `dashtab()`)
 
 `sparkta2_dashboard` returns `r(export)`, `r(layout)` (`tabs` or `scroll`), and `r(n_files)`. Types handed to sparkta return whatever sparkta returns.
+
+## Version history
+
+| Version | Date | What changed |
+|---|---|---|
+| 0.8.13 | 2026-11-12 | `overlays()` with a variable outlines its groups on GeoJSON geographies such as `texas_districts` (it was skipped without a message); a layer token there prints a note. Default projection follows the geography, so district maps and other custom geographies no longer lean. |
+| 0.8.12 | 2026-11-10 | After an upgrade, engine files left from the earlier release are detected and replaced (`net install, replace` does not update `.js` files). Download and replacement notes now show for maps. |
+| 0.8.11 | 2026-11-09 | Neutral default look (house style is opt-in: `tx2036style scheme(tx2036)`). Pages stay valid under `set dp comma`; large values keep their digits. `bar2` draws negatives from a zero line; long legends and `divbar` labels wrap. `sparkta2_dashboard` takes paths with spaces. |
+| 0.8.10 | 2026-11-09 | Labels display exactly as in the data (`$`, backticks, `&`, `</script>`). `subtitle()` and `note()` are plain text. A donut with negative or zero-sum values stops with an error. |
+| 0.8.9 | 2026-11-09 | `r()` and `e()` are left untouched, so `marginsplot`, `eventstudy`, and `matrix(r(table))` work after `margins`. Routing reads option names only. Relative `export()` paths passed to sparkta in full. |
+| 0.8.8 | 2026-11-09 | Works with sparkta 3.6.1 (chart type as the first word) and with the older `type()` syntax. Several dispatcher fixes for calls with no type, `ty()`, and titles containing `type(`. |
+| 0.8.7 | 2026-11-09 | Maps classify every value by default again; the zero handling for capacity maps is the opt-in `zeroneutral` with `zerolabel()`. Charts no longer draw blank when a named scheme needs more than 9 colors. |
+| 0.8.6 | 2026-11-08 | Option names read the same on every Stata version. |
+| 0.8.5 | | `line2` default axis titles fixed. |
+| 0.8.3 | | `line2` draws series that cross zero. Repository moved to github.com/ericabooth. |
+| 0.8.2 | | `linecolor()`/`linewidth()` and `basemapcolor()`/`basemapwidth()` restyle feature borders and the backdrop outline. |
+| 0.8.1 | 2026-08-12 | `classes(quantile\|jenks\|equal\|std)` and `breaks()`; legends and axes read variable labels; `scalebar` and `northarrow`; per-overlay colors, widths, and dash; asset splice moved from the OS shell to Mata (fixes Windows and spaced-path failures). [Details](#whats-new-in-v081-2026-08-12) |
+| 0.8.0 | 2026-08-11 | `dashtab()` tabs; `overlays()` layer checkboxes with client-side dissolve; `maplabels`; `rasterimage()`; `sparkta2_dashboard, tabs`; `directlabels` on every bar layout. [Details](#whats-new-in-v080-2026-08-11) |
+| 0.7.9 | 2026-08-11 | Fresh-install fix: chart types find their engine through the same lookup as maps. `global sparkta2_remote_base` override now works. |
+| 0.7.8 | 2026-06-26 | Texas-tuned Albers retuned so the panhandle's top edge is flat. See [Projection](#projection-texas-tuned-albers-and-how-to-override-it). |
+| 0.7.7 | 2026-06-26 | Embedded pages report their height so parent pages size each iframe to fit. |
+| 0.7.3 | 2026-06-26 | `wraplabel(auto\|on\|off)` and `gutterwidth()` for long category labels. |
+| 0.7.2 | 2026-06-26 | `tx2036style` house-style option; `downloadpos(side\|below\|none)`. |
+| 0.7.1 | 2026-06-26 | Native bar and line renamed `bar2` and `line2`, so `type(bar)` and `type(line)` still forward to sparkta. |
+| 0.7.0 | 2026-06-26 | Native D3 chart types: `donut`, `bar2`, `line2`, `divbar`, `barrace`. |
+| 0.6.1 | 2026-06-26 | Texas-tuned Albers projection; `projection()`, `rotate()`, `parallels()`, `center()`. |
+| 0.6.0 | 2026-06-23 | `datatable` with CSV download, `animate`, and the Export menu (PNG, SVG, print). |
+| 0.5.0 | | GeoJSON geographies accepted; `texas_districts.geojson` bundled. |
 
 ## License
 

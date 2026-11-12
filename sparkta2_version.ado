@@ -30,5 +30,5 @@
 *!     test_sparkta2_enginecheck.do fails when the three numbers differ.
 program define sparkta2_version, rclass
     version 17.0
-    return local version "0.8.12"
+    return local version "0.8.13"
 end

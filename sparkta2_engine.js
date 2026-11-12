@@ -1,4 +1,4 @@
-/* sparkta2-engine 0.8.12 -- sparkta2_findfile reads this line; it must match the ado version */
+/* sparkta2-engine 0.8.13 -- sparkta2_findfile reads this line; it must match the ado version */
 /* sparkta2_engine.js -- D3 choropleth + bivariate + hexbin + points map engine
    Builds on:
      https://observablehq.com/@d3/bivariate-choropleth
@@ -578,15 +578,37 @@
         .filter(Number.isFinite);
       return out.length ? out : null;
     }
-    function buildProjection() {
+    function buildProjection(fitFC) {
       var preset = (meta.projection || "").toLowerCase();
+      var auto = null;
       if (!preset) {
-        if (layerName === "states" || layerName === "nation" || meta.geo === "us") {
+        var geoName = String(meta.geo || "").toLowerCase();
+        if (layerName === "states" || layerName === "nation" || geoName === "us") {
           preset = "albers_usa";
-        } else if (meta.geo === "texas") {
+        } else if (geoName === "texas" || /^(texas|tx)[_-]/.test(geoName)) {
+          // texas_districts and other Texas files get the same Texas-tuned
+          // projection as the county file, so every Texas map has the same
+          // shape.  Before v0.8.13 only geo(texas) did, and the others were
+          // drawn with the national projection, which tilts Texas.
           preset = "albers_tx";
         } else {
+          // Any other geography: an Albers projection centred on the
+          // features themselves, with the standard parallels one sixth of
+          // the way in from the south and north edges.  The national
+          // composite (albers_usa) is kept only for a file that spans most
+          // of the country, where its Alaska and Hawaii insets are wanted.
           preset = "albers_usa";
+          try {
+            var bb = d3.geoBounds(fitFC);
+            var lon0 = bb[0][0], lat0 = bb[0][1], lon1 = bb[1][0], lat1 = bb[1][1];
+            var ok = [lon0, lat0, lon1, lat1].every(Number.isFinite);
+            if (ok && lon1 >= lon0 && (lon1 - lon0) < 40 && (lat1 - lat0) < 25 &&
+                (lat1 - lat0) > 0) {
+              preset = "albers";
+              auto = { lon: (lon0 + lon1) / 2, lat: (lat0 + lat1) / 2,
+                       p1: lat0 + (lat1 - lat0) / 6, p2: lat1 - (lat1 - lat0) / 6 };
+            }
+          } catch (e) { /* keep albers_usa */ }
         }
       }
 
@@ -610,6 +632,10 @@
           break;
         case "albers":
           proj = d3.geoAlbers();
+          if (auto) {
+            proj.rotate([-auto.lon, 0]).center([0, auto.lat])
+                .parallels([auto.p1, auto.p2]);
+          }
           break;
         case "mercator":
           proj = d3.geoMercator();
@@ -654,8 +680,10 @@
       //   1. meta.projection -- explicit preset (albers_usa|albers_tx|albers|mercator)
       //   2. Auto-default driven by geo / layer:
       //        layer = states|nation OR geo = us   -> albers_usa (CONUS composite)
-      //        geo   = texas                        -> albers_tx  (Texas-tuned)
-      //        anything else                         -> albers_usa (legacy default)
+      //        geo   = texas, texas_*, tx_*         -> albers_tx  (Texas-tuned)
+      //        anything else                         -> albers centred on the
+      //                                                 features (albers_usa if
+      //                                                 they span the country)
       //   3. Numeric overrides (meta.rotate, meta.parallels, meta.center) layer
       //      on top of the chosen preset.  Pipe-separated lists like "27.5|35.5".
       //
@@ -663,7 +691,7 @@
       // the panhandle's top edge that occurs when geoAlbersUsa()'s CONUS-wide
       // standard parallels (29.5/45.5) and -96 rotation are applied to a
       // Texas-only viewport.  See v0.6.1 notes in sparkta2_map.ado.
-      var projection = buildProjection();
+      var projection = buildProjection(fc);
       projection.fitExtent(
         [[margin.left, margin.top], [w - margin.right, h - margin.bottom]],
         fc
@@ -749,12 +777,34 @@
 
     // Dissolved / referenced overlay geometry, computed once per overlay.
     var _overlayCache = {};
+    var _ovSeq = 0;   // makes mask ids unique across panels and repaints
     function overlayFeatures(ov) {
       var ck = ov.kind + ":" + ov.key;
       if (_overlayCache[ck]) return _overlayCache[ck];
       var out = [];
       if (isGeoJSON) {
-        // No arcs to merge/mesh — overlays need a TopoJSON input.
+        // A GeoJSON file has no shared arcs, so topojson.merge cannot
+        // dissolve it.  For a group variable, collect each group's member
+        // polygons instead; paintOverlays() draws their common outline with
+        // an SVG mask.  An object token (states, nation) names a second
+        // layer, which a GeoJSON file does not have: nothing to draw.
+        if (ov.kind !== "object") {
+          var gj = {};
+          features.forEach(function (f) {
+            var row = index.get(padId(f.id, idwidth));
+            var v = row ? row["o__" + ov.key] : null;
+            if (v == null || v === "" || !f.geometry) return;
+            (gj[v] = gj[v] || []).push(f.geometry);
+          });
+          Object.keys(gj).sort().forEach(function (v) {
+            out.push({ type: "Feature",
+                       properties: { __ovname: v, __undissolved: true },
+                       geometry: { type: "GeometryCollection", geometries: gj[v] } });
+          });
+        } else if (typeof console !== "undefined" && console.warn) {
+          console.warn("sparkta2: overlay '" + ov.key + "' needs a TopoJSON " +
+                       "file with that object; this map uses a GeoJSON file.");
+        }
         _overlayCache[ck] = out;
         return out;
       }
@@ -808,12 +858,56 @@
            .attr("stroke-dasharray", dashBase.split(" ")
               .map(function (d0) { return +d0 / k; }).join(" "));
         }
-        g.selectAll("path").data(feats).enter().append("path")
-          .attr("d", panel.pathGen)
-          .attr("fill", "none")
-          .attr("stroke", col)
-          .attr("stroke-linejoin", "round")
-          .attr("pointer-events", "none");
+        if (feats[0].properties && feats[0].properties.__undissolved) {
+          // GeoJSON input: each group is a set of separate polygons.  Draw
+          // every group with a stroke twice the asked width and hide the
+          // inner half with a mask shaped like the group, so the borders
+          // between members of one group disappear and only the group's
+          // outline is left.  The mask also covers the groups drawn after
+          // this one, so a border shared by two groups is drawn once and
+          // every line has the same width.  The mask shapes carry a thin
+          // stroke of their own, which closes the hairline gaps that
+          // per-feature simplification leaves between neighbours.
+          _ovSeq += 1;
+          var uid = "s2ov" + _ovSeq + "_";
+          var defs = g.append("defs");
+          feats.forEach(function (f, i) {
+            defs.append("path").attr("id", uid + "p" + i)
+              .attr("d", panel.pathGen(f) || "");
+          });
+          feats.forEach(function (f, i) {
+            var m = defs.append("mask").attr("id", uid + "m" + i)
+              .attr("maskUnits", "userSpaceOnUse")
+              .attr("x", -panel.w).attr("y", -panel.h)
+              .attr("width", 3 * panel.w).attr("height", 3 * panel.h);
+            m.append("rect").attr("x", -panel.w).attr("y", -panel.h)
+              .attr("width", 3 * panel.w).attr("height", 3 * panel.h)
+              .attr("fill", "#fff").attr("stroke", "none");
+            for (var j = i; j < feats.length; j++) {
+              m.append("use").attr("href", "#" + uid + "p" + j)
+                .attr("fill", "#000").attr("stroke", "#000")
+                .attr("stroke-width", 0.6).attr("stroke-dasharray", "none")
+                .attr("stroke-linejoin", "round");
+            }
+          });
+          // the visible half of a 2w stroke is w wide
+          g.attr("data-w", 2 * w).attr("stroke-width", 2 * w / k);
+          feats.forEach(function (f, i) {
+            g.append("use").attr("href", "#" + uid + "p" + i)
+              .attr("mask", "url(#" + uid + "m" + i + ")")
+              .attr("fill", "none")
+              .attr("stroke", col)
+              .attr("stroke-linejoin", "round")
+              .attr("pointer-events", "none");
+          });
+        } else {
+          g.selectAll("path").data(feats).enter().append("path")
+            .attr("d", panel.pathGen)
+            .attr("fill", "none")
+            .attr("stroke", col)
+            .attr("stroke-linejoin", "round")
+            .attr("pointer-events", "none");
+        }
         // Group-name labels at polygon centroids (dissolved overlays only).
         // A multi-part dissolve (a region with islands, or a scattered
         // highlight set like "key study counties") gets its label at the
@@ -823,7 +917,8 @@
           if (!f.properties || !f.properties.__ovname) return;
           var target = f;
           var geom = f.geometry;
-          if (geom && geom.type === "MultiPolygon" && geom.coordinates.length > 1) {
+          if (geom && geom.type === "MultiPolygon" && geom.coordinates.length > 1 &&
+              !f.properties.__undissolved) {
             var best = null, bestA = -1;
             geom.coordinates.forEach(function (coords) {
               var part = { type: "Feature", properties: {},
@@ -1287,7 +1382,10 @@
 
       // v0.8.0 Layers section: one checkbox per toggleable layer.
       var canLabel = showLabels && renderType !== "hexbin" && renderType !== "points";
-      if (overlays.length || raster || canLabel) {
+      var drawableOv = overlays.filter(function (ov) {
+        try { return overlayFeatures(ov).length > 0; } catch (e) { return true; }
+      });
+      if (drawableOv.length || raster || canLabel) {
         controlsRoot.append("h3").style("margin-top", "14px").text("Layers");
         var lbox = controlsRoot.append("div").attr("class", "layerbox");
         var layerToggle = function (key, text) {
@@ -1301,7 +1399,11 @@
           lab.append("span").text(text);
         };
         overlays.forEach(function (ov) {
-          layerToggle("ov_" + ov.key, ov.label || ov.key);
+          // no checkbox for an overlay this map cannot draw (an object the
+          // geography file does not have)
+          var n = 0;
+          try { n = overlayFeatures(ov).length; } catch (e) { n = 1; }
+          if (n) layerToggle("ov_" + ov.key, ov.label || ov.key);
         });
         if (raster)   layerToggle("raster", raster.label || "Raster image");
         if (canLabel) layerToggle("labels", "Name labels");

@@ -1,4 +1,12 @@
-*! sparkta2 v0.8.12  2026-11-10
+*! sparkta2 v0.8.13  2026-11-12
+*!
+*! New in 0.8.13: maps that do not use the county file.  overlays() with a
+*!   variable outlines its groups on a GeoJSON geography (texas_districts);
+*!   it was skipped without a message.  A layer token (states, nation) on
+*!   a GeoJSON geography prints a note.  The default projection follows
+*!   the geography: texas_* and tx_* files get albers_tx, other custom
+*!   geographies get an Albers projection centered on their features;
+*!   before, all of them got albers_usa and leaned.
 *!
 *! New in 0.8.12: an upgrade no longer keeps the engine from the release
 *!   it replaced.  -net install, replace- updates the ado files but not the
